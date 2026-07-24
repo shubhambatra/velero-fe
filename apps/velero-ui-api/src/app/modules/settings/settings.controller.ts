@@ -25,6 +25,7 @@ export class SettingsController {
   }
 
   @Get('/velero/server')
+  @CheckPolicies((ability: AppAbility) => ability.can(Action.Manage, 'all'))
   public getVeleroServer(): Observable<VeleroServerSettings> {
     return this.settingsService.getVeleroServer();
   }
@@ -35,6 +36,8 @@ export class SettingsController {
     return this.settingsService.getVeleroAgents();
   }
 
+  // Intentionally readable by any authenticated user: returns only the velero-ui
+  // app version/mode, needed by the SPA to bootstrap. No @CheckPolicies on purpose.
   @Get('/velero/ui')
   public getVeleroUi(): Observable<VeleroUiSettings> {
     return this.settingsService.getVeleroUi();
@@ -54,6 +57,7 @@ export class SettingsController {
   }
 
   @Delete('/velero/plugins/:name')
+  @CheckPolicies((ability: AppAbility) => ability.can(Action.Manage, 'all'))
   public deleteVeleroPluginByName(@Param('name') name: string) {
     return {};
   }

@@ -43,6 +43,9 @@ export class BackupController extends K8sCustomObjectController<V1Backup> {
   }
 
   @Post('/download')
+  @CheckPolicies((ability: AppAbility) =>
+    ability.can(Action.Read, Resources.BACKUP.plural)
+  )
   public download(@Body() names: string[]) {
     return forkJoin(
       names.map((name) =>
