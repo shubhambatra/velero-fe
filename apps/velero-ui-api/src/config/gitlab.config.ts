@@ -10,5 +10,6 @@ export default registerAs('gitlab', (): GitlabConfig => {
     scopes: process.env.GITLAB_OAUTH_SCOPE || 'read_user',
     redirectUri: process.env.GITLAB_REDIRECT_URI || '',
     baseUrl: process.env.GITLAB_BASE_URL || 'https://gitlab.com/',
+    searchTerm: process.env.GITLAB_GROUP_SEARCH_TERM || '',
   };
 });

@@ -19,6 +19,7 @@ To enable GitLab authentication, set the following environment variables:
 | `GITLAB_OAUTH_SCOPE` | The scope of OAuth access. Default: `read_user`. |
 | `GITLAB_REDIRECT_URI` | The redirect URI after authentication. Default: `http://localhost:4200/login`. |
 | `GITLAB_BASE_URL` | The base URL of your GitLab instance (use `https://gitlab.com` for the official GitLab service). |
+| `GITLAB_GROUP_SEARCH_TERM` | The search term used to filter groups returned when checking for group membership. Nice to have if you have a lot of groups. Default is ``. |
 
 ## Steps to Configure GitLab Authentication
 
@@ -39,6 +40,7 @@ To enable GitLab authentication, set the following environment variables:
      GITLAB_OAUTH_SCOPE="read_user" # read_api
      GITLAB_REDIRECT_URI=http://localhost:4200/login
      GITLAB_BASE_URL=https://gitlab.com
+     GITLAB_GROUP_SEARCH_TERM="subgroup-x" # optional
      ```
 
 3. **Restart Your Application**
@@ -50,7 +52,7 @@ If you are using GitLab Groups for RBAC, ensure that the `read_api` scope is inc
 
 Group members can be granted access to Velero UI based on their GitLab group memberships.
 
-**Group syntax is** `group_name:role_in_group`, example: `my-group:owner`, `my-group:maintainer`, `my-group:guest`.
+**Group syntax is** `full/path/group_name:role_in_group`, example: `it-department/my-group:owner`, `it-department/my-group:maintainer`, `it-department/my-group:guest`.
 
 Gitlab roles:
 - `owner`
@@ -69,6 +71,7 @@ Then refer to the [RBAC documentation](../rbac.md) for further configuration.
 - Inspect logs for authentication errors.
 - Verify that your GitLab OAuth credentials are correct.
 - If using a self-hosted GitLab instance, set `GITLAB_BASE_URL` accordingly.
+- Check that it works without setting the `GITLAB_GROUP_SEARCH_TERM`. This should return all groups when checking against policies.
 
 ## Conclusion
 
