@@ -111,7 +111,7 @@ const onSubmit = () => {
     form.spec.excludedNamespaces = formContent.value[1].excludedNamespaces;
   }
 
-  if (formContent.value[1].writeSparseFiles) {
+  if (formContent.value[1].writeSparseFiles != null) {
     form.spec.uploaderConfig.writeSparseFiles =
       formContent.value[1].writeSparseFiles;
   }
@@ -121,15 +121,15 @@ const onSubmit = () => {
       parseInt(formContent.value[1].parallelFilesDownload);
   }
 
-  if (formContent.value[1].preserveNodePorts) {
+  if (formContent.value[1].preserveNodePorts != null) {
     form.spec.preserveNodePorts = formContent.value[1].preserveNodePorts;
   }
 
-  if (formContent.value[1].restorePVs) {
+  if (formContent.value[1].restorePVs != null) {
     form.spec.restorePVs = formContent.value[1].restorePVs;
   }
 
-  if (formContent.value[1].includeClusterResources) {
+  if (formContent.value[1].includeClusterResources != null) {
     form.spec.includeClusterResources =
       formContent.value[1].includeClusterResources;
   }

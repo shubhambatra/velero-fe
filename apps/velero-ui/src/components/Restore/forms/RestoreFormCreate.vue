@@ -91,7 +91,7 @@ const onSubmit = () => {
     form.spec.scheduleName = formContent.value[1].scheduleName;
   }
 
-  if (formContent.value[2].writeSparseFiles) {
+  if (formContent.value[2].writeSparseFiles != null) {
     form.spec.uploaderConfig.writeSparseFiles =
       formContent.value[2].writeSparseFiles;
   }
@@ -101,15 +101,15 @@ const onSubmit = () => {
       parseInt(formContent.value[2].parallelFilesDownload);
   }
 
-  if (formContent.value[2].preserveNodePorts) {
+  if (formContent.value[2].preserveNodePorts != null) {
     form.spec.preserveNodePorts = formContent.value[2].preserveNodePorts;
   }
 
-  if (formContent.value[2].restorePVs) {
+  if (formContent.value[2].restorePVs != null) {
     form.spec.restorePVs = formContent.value[2].restorePVs;
   }
 
-  if (formContent.value[2].includeClusterResources) {
+  if (formContent.value[2].includeClusterResources != null) {
     form.spec.includeClusterResources =
       formContent.value[2].includeClusterResources;
   }
