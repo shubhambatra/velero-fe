@@ -13,5 +13,8 @@ export default registerAs('app', (): AppConfig => {
     namespace: process.env.VELERO_UI_NAMESPACE || 'velero-ui',
     policyPath: process.env.POLICY_FILE_PATH,
     cacheTTL: parseInt(process.env.CACHE_TTL , 10) || 60000,
+    language: process.env.DEFAULT_LANGUAGE || 'en',
+    timezone: process.env.DEFAULT_TIMEZONE || 'Europe/London',
+    timeFormat24h: process.env.DEFAULT_TIME_FORMAT_24H === 'true' || false,
   };
 });

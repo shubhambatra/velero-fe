@@ -36,23 +36,45 @@
               :class="{ hidden: hiddenTimezoneDropdown }"
               class="absolute z-50 mt-2 right-0 bg-white divide-y divide-gray-100 rounded-lg shadow w-[300px] dark:bg-gray-700"
             >
-              <div class="flex p-2">
+              <div class="flex flex-col p-2 space-y-4">
                 <FormKit
                   v-model="timezoneModel"
                   :options="getTimezones"
+                  :placeholder="t('form.field.selectTimezone')"
                   label="Timezone"
                   name="timezone"
                   outer-class="mb-2"
-                  placeholder="Select timezone"
                   type="select"
                 >
                   <template #label>
                     <label
                       class="flex mb-2 text-sm font-medium text-gray-900 dark:text-white items-center"
-                      >Select timezone
+                      >{{ t('form.field.selectTimezone') }}
                     </label>
                   </template>
                 </FormKit>
+                <label class="inline-flex items-center mb-5">
+                  <FormKit
+                    v-model="timeFormat24hModel as any as never[]"
+                    input-class="sr-only peer"
+                    label-class="ml-2"
+                    name="timeFormat24h"
+                    outer-class="flex items-center"
+                    type="checkbox"
+                    :checked="timeFormat24h"
+                    wrapper-class="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full cursor-pointer"
+                  >
+                    <template #decorator>
+                      <span
+                        class="peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"
+                      />
+                    </template>
+                  </FormKit>
+                  <span
+                    class="ms-3 text-sm font-medium text-gray-400 dark:text-white"
+                    >{{ t('form.field.timeFormat24h') }}
+                  </span>
+                </label>
               </div>
             </div>
           </div>
@@ -193,9 +215,10 @@ const { noAuthRequired } = inject('config') as AppPublicConfig;
 
 const router: Router = useRouter();
 const appStore = useAppStore();
-const { language, timezone } = storeToRefs(appStore);
+const { language, timezone, timeFormat24h } = storeToRefs(appStore);
 
 const timezoneModel: Ref<string> = ref(timezone.value);
+const timeFormat24hModel = ref<boolean>(timeFormat24h.value);
 
 const isLoading: Ref<boolean> = ref(false);
 const hiddenDropdown = ref(true);
@@ -225,6 +248,9 @@ const getTimezones = computed(() =>
 );
 
 watch(timezoneModel, () => appStore.setTimezone(timezoneModel.value));
+watch(timeFormat24hModel, () =>
+  appStore.setTimeFormat24h(timeFormat24hModel.value as any as boolean)
+);
 
 const logout = async () => {
   try {

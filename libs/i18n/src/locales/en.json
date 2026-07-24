@@ -325,7 +325,9 @@
       "fromBackup": "From a Backup",
       "scheduleOptions": "Schedule Options",
       "backupOptions": "Backup Options",
-      "forceDelete": "Force delete"
+      "forceDelete": "Force delete",
+      "selectTimezone": "Select timezone",
+      "timeFormat24h": "Show 24 hours format"
     },
     "hint": {
       "storageProvider": "See your object storage provider’s plugin documentation",

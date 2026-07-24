@@ -26,6 +26,13 @@ configuration.
 - **Default**: `Europe/London`
 - **Description**: Defines the default timezone for the application. This is used to display dates and times correctly based on the user's locale.
 
+#### `DEFAULT_TIME_FORMAT_24H`
+
+- **Type**: `bool`
+- **Default**: `false`
+- **Description**: Use 24h format.
+
+
 ### API (backend)
 
 #### `NODE_ENV`

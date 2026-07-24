@@ -1,11 +1,6 @@
 import { Controller, Get, UseInterceptors } from '@nestjs/common';
 import { Observable, of } from 'rxjs';
-import type {
-  AppConfig,
-  AppPublicConfig,
-  BasicAuthConfig,
-  LDAPConfig,
-} from '@velero-ui/shared-types';
+import type { AppConfig, AppPublicConfig, BasicAuthConfig, LDAPConfig, } from '@velero-ui/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { Public } from '@velero-ui-api/shared/decorators/public.decorator';
 import { AuthService } from '@velero-ui-api/modules/auth/auth.service';
@@ -23,7 +18,7 @@ export class AppConfigController {
   @UseInterceptors(CacheInterceptor)
   @CacheTTL(0)
   public getAppConfig(): Observable<Partial<AppPublicConfig>> {
-    const { grafanaUrl, baseUrl } = this.configService.get('app') as AppConfig;
+    const { grafanaUrl, baseUrl, language, timezone, timeFormat24h } = this.configService.get('app') as AppConfig;
     const { enabled: basicAuthEnabled } = this.configService.get(
       'basicAuth',
     ) as BasicAuthConfig;
@@ -31,9 +26,12 @@ export class AppConfigController {
       'ldap',
     ) as LDAPConfig;
 
-    const config = {
+    const config: AppPublicConfig = {
       baseUrl,
       grafanaUrl,
+      language,
+      timezone,
+      timeFormat24h,
       noAuthRequired: this.authService.noAuthRequired(),
       basicAuth: {
         enabled: basicAuthEnabled || LDAPAuthEnabled,

@@ -1,11 +1,10 @@
-import {
-  getDefaultLocal,
-  getDefaultTimezone,
-} from '@velero-ui-app/utils/config.utils';
 import { i18n } from '@velero-ui-app/plugins/i18n.plugin';
+import { useAppStore } from '@velero-ui-app/stores/app.store';
+import { storeToRefs } from 'pinia';
 
-export const getRemainingTime = (timeStamp: string): string => {
-  const total = Date.parse(timeStamp) - Date.parse(new Date().toISOString());
+export const getRemainingTime = (timeStamp: string, now?: number): string => {
+  const total =
+    Date.parse(timeStamp) - (now ? now : Date.parse(new Date().toISOString()));
 
   return getTime(total) || i18n.global.t('global.date.expired');
 };
@@ -42,9 +41,16 @@ export const getTime = (time: number): string | null => {
 };
 
 export const convertTimestampToDate = (timeStamp: string) => {
+  const appStore = useAppStore();
+
+  const { language, timezone, timeFormat24h } = storeToRefs(appStore);
+
   const date: Date = new Date(timeStamp);
   return date.getTime()
-    ? date.toLocaleString(getDefaultLocal(), { timeZone: getDefaultTimezone() })
+    ? date.toLocaleString(language.value, {
+        timeZone: timezone.value,
+        hour12: !timeFormat24h.value,
+      })
     : '';
 };
 

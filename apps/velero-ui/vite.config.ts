@@ -32,12 +32,6 @@ export default defineConfig({
     'import.meta.env.APP_VERSION': `"${
       JSON.parse(fs.readFileSync('./package.json').toString()).version
     }"`,
-    'import.meta.env.DEFAULT_LANGUAGE': `"${
-      process.env['DEFAULT_LANGUAGE'] || 'en'
-    }"`,
-    'import.meta.env.DEFAULT_TIMEZONE': `"${
-      process.env['DEFAULT_TIMEZONE'] || 'Europe/London'
-    }"`,
   },
 
   plugins: [vue(), nxViteTsPaths()],

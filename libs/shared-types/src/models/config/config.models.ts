@@ -3,14 +3,39 @@ export enum Environment {
   PRODUCTION = 'production',
 }
 
-export interface AppPublicConfig extends AppConfig {
+export interface AppPublicConfig extends Pick<
+  AppConfig,
+  'language' | 'timezone' | 'timeFormat24h' | 'baseUrl' | 'grafanaUrl'
+> {
   noAuthRequired: boolean;
-  basicAuth: Partial<BasicAuthConfig>;
-  google: Partial<GoogleConfig>;
-  github: Partial<GithubConfig>;
-  gitlab: Partial<GitlabConfig>;
-  microsoft: Partial<MicrosoftConfig>;
-  oauth: Partial<OauthConfig>;
+  basicAuth: Pick<BasicAuthConfig, 'enabled'>;
+  google: Pick<GoogleConfig, 'enabled' | 'scopes' | 'clientId' | 'redirectUri'>;
+  github: Pick<GithubConfig, 'enabled' | 'scopes' | 'clientId' | 'redirectUri'>;
+  gitlab: Pick<
+    GitlabConfig,
+    'enabled' | 'scopes' | 'clientId' | 'redirectUri' | 'baseUrl'
+  >;
+  microsoft: Pick<
+    MicrosoftConfig,
+    | 'enabled'
+    | 'scopes'
+    | 'clientId'
+    | 'redirectUri'
+    | 'tenant'
+    | 'authorizationUrl'
+  >;
+  oauth: Pick<
+    OauthConfig,
+    | 'enabled'
+    | 'scopes'
+    | 'clientId'
+    | 'redirectUri'
+    | 'name'
+    | 'authorizationUrl'
+  >;
+  language: string;
+  timezone: string;
+  timeFormat24h: boolean;
 }
 
 export interface AppConfig {
@@ -23,6 +48,9 @@ export interface AppConfig {
   namespace?: string;
   policyPath?: string;
   cacheTTL: number;
+  language: string;
+  timezone: string;
+  timeFormat24h: boolean;
 }
 
 export interface LDAPConfig {

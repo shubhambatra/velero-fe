@@ -35,7 +35,7 @@ export const getDefaultLocal = (): string => {
     return lang;
   }
 
-  const defaultLang: string = import.meta.env.DEFAULT_LANGUAGE || 'en';
+  const defaultLang = 'en';
   localStorage.setItem('language', defaultLang);
   return defaultLang;
 };
@@ -47,8 +47,18 @@ export const getDefaultTimezone = (): string => {
   }
 
   const defaultTimezone =
-    Intl.DateTimeFormat().resolvedOptions().timeZone ||
-    import.meta.env.DEFAULT_TIMEZONE;
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
   localStorage.setItem('timezone', defaultTimezone);
   return defaultTimezone;
+};
+
+export const getDefaultTimeFormat24h = (): boolean => {
+  const timeFormat24h: string = localStorage.getItem('timeFormat24h');
+  if (timeFormat24h) {
+    return timeFormat24h === 'true';
+  }
+
+  const defaultTimeFormat24h = false;
+  localStorage.setItem('timeFormat24h', String(defaultTimeFormat24h));
+  return defaultTimeFormat24h;
 };

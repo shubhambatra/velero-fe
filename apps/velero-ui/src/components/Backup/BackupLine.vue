@@ -227,21 +227,22 @@ import { can } from '@velero-ui-app/utils/policy.utils';
 import { Action } from '@velero-ui/shared-types';
 import { useFormKitContextById } from '@formkit/vue';
 import Badge from '@velero-ui-app/components/Badge.vue';
+import { useNow } from '@velero-ui-app/composables/useNow';
 
 const { t } = useI18n();
+const { now } = useNow();
+
 const props = defineProps({
   data: {
     type: Object as PropType<V1Backup>,
     required: true,
-  }
+  },
 });
 
 onMounted(() => initTooltips());
 
-
 const showModalDelete = ref(false);
 const showModalRestore = ref(false);
-const expireTime = ref('');
 
 const forceDeleteContext = useFormKitContextById(
   `force-delete-${props.data?.metadata?.uid}`
@@ -250,15 +251,9 @@ const forceDeleteContext = useFormKitContextById(
 const { mutate: download, isPending: downloadLoading } =
   useBackupDownloadContent();
 
-const interval = setInterval(
-  () =>
-    (expireTime.value = getRemainingTime(
-      props.data?.status?.expiration || '0'
-    )),
-  1000
+const expireTime = computed(() =>
+  getRemainingTime(props.data?.status?.expiration || '0', now.value)
 );
-
-onUnmounted(() => clearInterval(interval));
 
 const { mutate: remove, isPending: isLoading } = useDeleteKubernetesObject(
   Resources.BACKUP

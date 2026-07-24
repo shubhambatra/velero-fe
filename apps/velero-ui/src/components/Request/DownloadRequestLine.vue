@@ -152,8 +152,7 @@
 </template>
 
 <script lang="ts" setup>
-import type { PropType } from 'vue';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, type PropType, ref } from 'vue';
 import {
   Resources,
   type V1DownloadRequest,
@@ -176,25 +175,19 @@ import { useDeleteKubernetesObject } from '@velero-ui-app/composables/useDeleteK
 import { useI18n } from 'vue-i18n';
 import { can } from '@velero-ui-app/utils/policy.utils';
 import { Action } from '@velero-ui/shared-types';
+import { useNow } from '@velero-ui-app/composables/useNow';
 
 const { t } = useI18n();
+const { now } = useNow();
 const props = defineProps({
   data: { type: Object as PropType<V1DownloadRequest>, required: true },
 });
 
-const remainingTime = ref('');
-
-onMounted(() => initTooltips());
-
-const interval = setInterval(
-  () =>
-    (remainingTime.value = getRemainingTime(
-      props.data?.status?.expiration || '0'
-    )),
-  1000
+const remainingTime = computed(() =>
+  getRemainingTime(props.data?.status?.expiration || '0', now.value)
 );
 
-onUnmounted(() => clearInterval(interval));
+onMounted(() => initTooltips());
 
 const showModalDelete = ref(false);
 const showModalDescribe = ref(false);
