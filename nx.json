@@ -67,5 +67,6 @@
         "targetName": "eslint:lint"
       }
     }
-  ]
+  ],
+  "analytics": false
 }
