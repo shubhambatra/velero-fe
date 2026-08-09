@@ -694,7 +694,7 @@
       }
     },
     "ui": {
-      "title": "Velero UI",
+      "title": "kubeVault",
       "modal": {
         "logs": {
           "title": "UI logs"
@@ -702,10 +702,10 @@
       },
       "tooltip": {
         "logs": {
-          "title": "Velero UI logs"
+          "title": "kubeVault logs"
         },
         "standalone": {
-          "title": "Logs are only available when Velero UI is deployed inside K8S Cluster"
+          "title": "Logs are only available when kubeVault is deployed inside K8S Cluster"
         }
       }
     }

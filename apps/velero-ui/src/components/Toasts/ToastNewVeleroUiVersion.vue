@@ -12,7 +12,7 @@
     </div>
 
     <div class="ml-3 text-xs font-normal">
-      Velero UI
+      kubeVault
       <a :href="newVersion.html_url" class="hover:underline" target="_blank">{{
         newVersion.tag_name
       }}</a>

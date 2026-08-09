@@ -233,7 +233,7 @@ const router: Router = createRouter({
 router.beforeEach(guard);
 
 router.beforeEach((to) => {
-  let title = 'Velero UI';
+  let title = 'kubeVault';
 
   if (to.name) {
     title += ` - ${to.name.toString()}`;

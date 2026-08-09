@@ -15,7 +15,7 @@
           </button>
           <router-link class="flex ml-2 md:mr-24" to="/">
             <img
-              alt="Velero Logo"
+              alt="kubeVault Logo"
               class="h-8 mr-3"
               src="/src/assets/images/velero.svg"
             />

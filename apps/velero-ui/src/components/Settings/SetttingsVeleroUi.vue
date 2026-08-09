@@ -53,7 +53,7 @@
   <ModalLogs
     v-if="showModal"
     :type="LogType.VeleroUI"
-    name="Velero UI"
+    name="kubeVault"
     @on-close="showModal = false"
   />
   <div

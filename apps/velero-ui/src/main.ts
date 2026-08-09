@@ -16,7 +16,7 @@ registerConfig(app)
     registerPlugins(app);
     app.mount('#root');
     console.info(
-      `=> Velero UI v${version} - ${environment} - Powered by OTWLD`,
+      `=> kubeVault v${version} - ${environment} - Powered by OTWLD`,
     );
   })
   .catch((): void => {
