@@ -8,6 +8,7 @@ export interface ClusterSettings {
   connected: boolean;
   version: string;
   server: string;
+  context: string;
 }
 
 export interface VeleroServerSettings {

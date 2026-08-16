@@ -41,6 +41,12 @@
             {{ data?.server }}
             <Skeleton v-if="!data" class="mb-5" height="2.5" width="48" />
           </div>
+          <div
+            v-if="data?.context"
+            class="mb-1 text-xs text-gray-500 dark:text-gray-400"
+          >
+            {{ t('settings.cluster.context') }}: {{ data.context }}
+          </div>
           <div class="mb-4 text-xs text-gray-500 dark:text-gray-400">
             {{ data?.version }}
             <Skeleton v-if="!data" class="mb-4" width="72" />

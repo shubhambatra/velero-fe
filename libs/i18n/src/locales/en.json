@@ -661,7 +661,8 @@
   "settings": {
     "title": "Settings",
     "cluster": {
-      "title": "Kubernetes Cluster"
+      "title": "Kubernetes Cluster",
+      "context": "Context"
     },
     "agents": {
       "title": "Velero Node Agents",

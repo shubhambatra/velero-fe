@@ -36,6 +36,8 @@ import { HttpExceptionFilter } from '@velero-ui-api/shared/exceptions/filters/ht
 import { PodVolumeBackupModule } from '@velero-ui-api/modules/pod-volume-backup/pod-volume-backup.module';
 import { PodVolumeRestoreModule } from '@velero-ui-api/modules/pod-volume-restore/pod-volume-restore.module';
 import { KubernetesModule, LoadFrom } from '@otwld/nestjs-kubernetes';
+import { KubeConfig } from '@kubernetes/client-node';
+import { existsSync } from 'fs';
 import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
 import { CaslModule } from './shared/modules/casl/casl.module';
 import { CacheModule } from "@nestjs/cache-manager";
@@ -73,16 +75,42 @@ import { CacheModule } from "@nestjs/cache-manager";
       servers: [
         {
           name: K8S_CONNECTION,
-          useFactory: (configService: ConfigService) =>
-            configService.get('k8s.configPath')
-              ? {
-                  loadFrom: LoadFrom.FILE,
-                  opts: {
-                    file: configService.get<string>('k8s.configPath'),
-                    context: configService.get<string>('k8s.context'),
-                  },
-                }
-              : { loadFrom: LoadFrom.CLUSTER },
+          useFactory: (configService: ConfigService) => {
+            const configPath = configService.get<string>('k8s.configPath');
+
+            if (!configPath) {
+              return { loadFrom: LoadFrom.CLUSTER };
+            }
+
+            if (!existsSync(configPath)) {
+              throw new Error(
+                `Cannot read kubeconfig at "${configPath}" (KUBE_CONFIG_PATH). Verify the file exists and is mounted correctly.`
+              );
+            }
+
+            const context = configService.get<string>('k8s.context');
+
+            if (context) {
+              const validation = new KubeConfig();
+              validation.loadFromFile(configPath);
+              const contextNames = validation
+                .getContexts()
+                .map((c) => c.name);
+
+              if (!contextNames.includes(context)) {
+                throw new Error(
+                  `KUBE_CONTEXT "${context}" was not found in "${configPath}". Available contexts: ${
+                    contextNames.join(', ') || 'none'
+                  }.`
+                );
+              }
+            }
+
+            return {
+              loadFrom: LoadFrom.FILE,
+              opts: { file: configPath, context },
+            };
+          },
           inject: [ConfigService],
         },
       ],

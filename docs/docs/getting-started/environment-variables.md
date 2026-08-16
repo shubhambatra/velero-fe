@@ -95,7 +95,7 @@ configuration.
   - **Development Default**: Uses the default context from Kube Config.
   - **Docker Default**: Uses the default context from Kube Config.
   - **Kubernetes Default**: Provided by Cluster Role Binding
-- **Description**: Defines the context to use from the Kube Config for cluster interactions. Ensure the correct context is set for the desired cluster.
+- **Description**: Defines the context to use from the Kube Config for cluster interactions. Ensure the correct context is set for the desired cluster. This also works for clusters reachable over the network, not just local ones — see [Connecting to a Remote Cluster](/getting-started/remote-cluster).
 
 #### `CACHE_TTL`
 

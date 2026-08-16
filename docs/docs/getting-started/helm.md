@@ -14,6 +14,13 @@ The default credentials to sign in are:
 
 :::
 
+:::tip 🌐 Connecting to a remote cluster
+By default, Velero UI uses its own pod's ServiceAccount to manage the cluster it's deployed in. To manage a **different** cluster
+instead, mount a kubeconfig Secret and set `KUBE_CONFIG_PATH`/`KUBE_CONTEXT` via the chart's existing `volumes`, `volumeMounts` and
+`env` values below — no chart changes required. See
+[Connecting to a Remote Cluster](/getting-started/remote-cluster) for a full walkthrough.
+:::
+
 ### 📦 Installing from Registry
 
 1. Add OTWLD repository

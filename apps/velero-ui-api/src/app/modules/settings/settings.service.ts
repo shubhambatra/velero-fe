@@ -70,6 +70,7 @@ export class SettingsService {
           (nodes: V1Node[]): ClusterSettings => ({
             connected: true,
             server: this.k8s.getCurrentCluster().server,
+            context: this.k8s.getCurrentContext(),
             version: nodes[0].status.nodeInfo.kubeProxyVersion,
           })
         ),
@@ -78,6 +79,7 @@ export class SettingsService {
             of({
               connected: false,
               server: this.k8s.getCurrentCluster().server,
+              context: this.k8s.getCurrentContext(),
               version: 'unknown',
             })
         )

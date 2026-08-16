@@ -42,7 +42,39 @@ The default credentials to sign in are:
       - **~/.kube/config:/app/.kube/config** links the Kube Config as a volume from the host to the container.
       - **KUBE_CONFIG_PATH=/app/.kube/config** is the path in the container to the Kube Config.
 
+    If your Kube config contains multiple contexts (for example, several clusters), set `KUBE_CONTEXT` to the one you want
+    Velero UI to use:
+    ```bash
+    docker run --name velero-ui -v ~/.kube/config:/app/.kube/config -e KUBE_CONFIG_PATH=/app/.kube/config -e KUBE_CONTEXT=my-context -d -p 3333:3000 otwld/velero-ui:latest
+    ```
+
+    :::tip 🌐 Connecting to a remote cluster
+    The same mechanism works for any cluster reachable over the network, not just a local one — see
+    [Connecting to a Remote Cluster](/getting-started/remote-cluster) for a full walkthrough, including recommended
+    authentication.
+    :::
+
 ### 📦 **Installation with Docker Compose**
 
-:::info 🛠️ **Coming Soon**
-:::
+1. Locate the path of your Kube Config, same as above.
+
+2. Create a `docker-compose.yml` file (or use the one provided at the [root of the repository](https://github.com/otwld/velero-ui/blob/main/docker-compose.yml)):
+    ```yaml
+    services:
+      velero-ui:
+        image: otwld/velero-ui:latest
+        container_name: velero-ui
+        restart: unless-stopped
+        ports:
+          - "3333:3000"
+        environment:
+          KUBE_CONFIG_PATH: /app/.kube/config
+          # KUBE_CONTEXT: my-context
+        volumes:
+          - ~/.kube/config:/app/.kube/config:ro
+    ```
+
+3. Start Velero UI:
+    ```bash
+    docker compose up -d
+    ```
