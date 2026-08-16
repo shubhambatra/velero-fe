@@ -107,13 +107,13 @@ const config: Config = {
               to: 'https://velero.io/',
             },
             {
-              label: 'OTWLD',
-              to: 'https://otwld.com/',
+              label: 'ORBEEZ',
+              to: 'https://www.linkedin.com/company/orbeez/',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Velero UI, Powered by <a href="https://otwld.com">OTWLD</a>. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Velero UI, Powered by <a href="https://www.linkedin.com/company/orbeez/">ORBEEZ</a>. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,
