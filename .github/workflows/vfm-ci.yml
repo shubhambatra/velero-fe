@@ -190,7 +190,7 @@ jobs:
 
       # Image scanning is added alongside the first Dockerfile (agent image,
       # M2 day 15). Until then Trivy scans the source tree for vulnerable
-      # dependencies and misconfigured manifests.
+      # dependencies, misconfigured manifests and committed secrets.
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -200,3 +200,14 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
+          # deploy/dev/manifests/ holds the hostpath CSI driver and the CSI
+          # snapshot controller, vendored verbatim from their upstream releases
+          # so they can be diffed against them. They are local-development
+          # only, never shipped, and rewriting their securityContexts would
+          # defeat the point of vendoring them unchanged.
+          #
+          # VFM's own charts are deliberately NOT excluded: PLAN.md §12.1
+          # requires non-root, read-only-root-filesystem containers for
+          # everything we ship, and §12.2's agent RBAC gets its own
+          # chart-render diff test in M2 day 15.
+          skip-dirs: vfm/deploy/dev/manifests
