@@ -5,6 +5,7 @@
   "description": "Velero Fleet Manager control plane",
   "type": "commonjs",
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",

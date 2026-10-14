@@ -49,23 +49,23 @@ rule 7 forbids reporting stubbed work as done.
 
 ### Test status — actually executed
 
-| Gate | Result |
-|---|---|
-| `pnpm run test` (all TypeScript workspaces) | **76 passed** — shared 13, server 40, web 23 |
-| `pnpm run lint` (eslint + prettier) | clean |
-| `pnpm run typecheck` (`tsc --noEmit` ×3) | clean |
-| `pnpm --filter @vfm/server run build` | clean |
-| `prisma migrate dev` then `migrate status` | migration applied; "Database schema is up to date" |
-| OpenAPI regeneration | `git diff --exit-code` clean — the committed contract matches the decorators |
-| `./scripts/dev-up.sh` compose stage | all six services healthy, both buckets verified |
-| `./scripts/dev-down.sh --clusters-only` | removed `vfm-a`, explicitly left the unrelated `velero` cluster untouched, kept the compose stack up |
-| Go build / vet / test | **not run — Go is not installed** |
-| `./scripts/smoke.sh` | **not run — blocked, see Blockers** |
-| CI | **not run — nothing pushed at the time of writing** |
+| Gate                                        | Result                                                                                               |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `pnpm run test` (all TypeScript workspaces) | **76 passed** — shared 13, server 40, web 23                                                         |
+| `pnpm run lint` (eslint + prettier)         | clean                                                                                                |
+| `pnpm run typecheck` (`tsc --noEmit` ×3)    | clean                                                                                                |
+| `pnpm --filter @vfm/server run build`       | clean                                                                                                |
+| `prisma migrate dev` then `migrate status`  | migration applied; "Database schema is up to date"                                                   |
+| OpenAPI regeneration                        | `git diff --exit-code` clean — the committed contract matches the decorators                         |
+| `./scripts/dev-up.sh` compose stage         | all six services healthy, both buckets verified                                                      |
+| `./scripts/dev-down.sh --clusters-only`     | removed `vfm-a`, explicitly left the unrelated `velero` cluster untouched, kept the compose stack up |
+| Go build / vet / test                       | **not run — Go is not installed**                                                                    |
+| `./scripts/smoke.sh`                        | **not run — blocked, see Blockers**                                                                  |
+| CI                                          | **not run — nothing pushed at the time of writing**                                                  |
 
 ### Three real defects found by running the code rather than reading it
 
-1. `compose up --wait` treats *any* exited container as a failure, so the
+1. `compose up --wait` treats _any_ exited container as a failure, so the
    one-shot bucket provisioner could never satisfy it. It is now started and
    checked separately with a bounded wait.
 2. The `kind` nodes could not reach MinIO through the bridge gateway, because

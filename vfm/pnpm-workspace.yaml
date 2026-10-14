@@ -14,3 +14,17 @@ onlyBuiltDependencies:
   - '@swc/core'
   - esbuild
   - prisma
+
+# PLAN.md §12.1 requires CI to fail on high/critical advisories. Both of these
+# reach us only through the Prisma CLI's transitive tree and neither is on a
+# code path we use — the control plane talks to PostgreSQL through
+# @prisma/adapter-pg (ADR-007) and never loads the MySQL driver. Forced to
+# their patched versions rather than suppressed, so the fix is real.
+#
+# Remove an entry once the upstream dependency has caught up; `pnpm audit`
+# will say so.
+overrides:
+  # GHSA: prototype-pollution, patched in 3.22.0. Pinned well past it.
+  mysql2: '>=3.24.6'
+  # GHSA: prototype-pollution, patched in 8.0.0.
+  deepmerge-ts: '>=8.0.2'

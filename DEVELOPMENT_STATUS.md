@@ -331,6 +331,14 @@ cleanly rather than skipping a broken one.
 - `vfm/server/openapi.yaml` is not yet generated or committed (R-103), so the
   web app's API client is hand-written for now. Generating it is the first task
   that touches both packages.
+- `pnpm audit` reports **2 remaining moderate** advisories, both in `vitest`
+  and `@vitest/mocker`. The advisory names `>=4.1.11` as patched, but no such
+  release exists on the 4.1.x line — the fix is only in vitest 5.x. They are
+  below the high/critical threshold §12.1 sets for CI, and moving to vitest 5
+  is a separate, deliberate upgrade. The two **high** advisories
+  (`mysql2`, `deepmerge-ts`, both reaching us only through the Prisma CLI's
+  transitive tree) are forced to patched versions by `overrides` in
+  `vfm/pnpm-workspace.yaml` rather than suppressed.
 - Commits in this session were made with the repository-root `.husky/pre-commit`
   hook bypassed, because that hook runs `nx run-many --target=lint` across the
   legacy workspace. VFM lint, typecheck and tests were run explicitly instead,
