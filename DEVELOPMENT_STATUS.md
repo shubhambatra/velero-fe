@@ -47,13 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **11 / 152 — 7.2 %** |
-| Requirements partial | 22 |
+| **Requirements verified** | **12 / 152 — 7.9 %** |
+| Requirements partial | 21 |
 | Requirements not started | 117 |
 | Requirements blocked | 2 |
 
 Verified this session: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
-R-103, R-105, R-113, R-127, R-152. Nothing else met its acceptance criteria.
+R-025, R-103, R-105, R-113, R-127, R-152. Nothing else met its acceptance
+criteria.
 
 **Milestone view** (task completion, shown for orientation only — not the
 progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1.
@@ -139,6 +140,23 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
   license and name).
 - **Verification:** ADR-005 reviewed against §18 line by line.
 
+### R-025 — Monorepo tooling and CI (`PLAN.md` §4.5, lines 164–169)
+
+- **Files:** `vfm/pnpm-workspace.yaml`, `vfm/Makefile`,
+  `.github/workflows/vfm-ci.yml`
+- **Detail:** pnpm workspace plus a Go module; a Makefile with exactly the
+  §4.5 targets (`setup gen lint test e2e dev-up dev-down build helm-lint`) and
+  `doctor`, `smoke`, `lint-staged`, `versions`; four CI jobs path-filtered to
+  `vfm/**` so legacy-only commits are unaffected.
+- **Verification:** the `vfm-ci` workflow is **green** on `ee17789`, with the
+  Go jobs correctly reporting *why* they are skipped (no committed `go.sum`,
+  blocker B-1) rather than passing vacuously. Four real CI defects were found
+  and fixed by running it: an unresolvable Trivy tag, `setup-node@v5`
+  activating the legacy root `packageManager`, the Go jobs gating on `go.mod`
+  when `go build` needs `go.sum`, and `prisma generate` never running on a
+  fresh install. `buf` locally is still absent (B-1), and `buf breaking` only
+  becomes meaningful once proto messages exist in M2.
+
 ### R-103 — Committed OpenAPI contract (`PLAN.md` §10, line 445)
 
 - **Files:** `vfm/server/src/openapi.ts`, `vfm/server/openapi.yaml`
@@ -187,7 +205,6 @@ counts as zero in the progress figure.
 | R-022 | Control-plane stack | §4.2, §16 d3 | NestJS app, zod-validated config, pino, Prisma 7 + pg adapter, Redis client, security headers, metrics listener | argon2/otplib/openid-client/BullMQ/gRPC arrive in M1–M2 |
 | R-023 | Web stack | §4.3, §16 d3 | React 19 + Vite shell, TanStack Router/Query, Tailwind + shadcn primitives, theme, error boundary, API client | virtualized ANSI log viewer (M5), recharts (M6), SSE client (M3) |
 | R-024 | Velero compatibility handling | §4.4 | pin + support window + version parsing (verified) | capability map and version-gated UI (M2/M3) |
-| R-025 | Tooling | §4.5 | pnpm workspace, Makefile with all §4.5 targets, GitHub Actions CI | `buf`, `make`, `go`, `golangci-lint` absent locally (B-1); `buf breaking` meaningful only once proto messages exist (M2) |
 | R-097 | Data model tables | §9, lines 417–435 | 3 of 19 tables: `users`, `organizations`, `memberships` | the remaining 16 arrive with their features (M1–M6) |
 | R-098 | Table conventions | §9, line 415 | UUIDv7 ids, `created_at`/`updated_at`, `org_id` index and unique `(org_id, user_id)` on `memberships` | applied to the remaining tables as they land |
 | R-102 | REST conventions | §10, lines 445–447 | `X-Request-Id` on every response with inbound-id validation, RFC 9457 problem+json for every error | cursor pagination, documented filter/sort params |
@@ -195,7 +212,7 @@ counts as zero in the progress figure.
 | R-110 | Secrets only from env/Secrets | §12.1, line 514 | zod env schema is the whole config surface; validation errors name keys but never print values (tested) | Kubernetes Secret wiring in the Helm charts (M8) |
 | R-111 | Security headers and CSP | §12.1, line 515 | strict CSP (no inline scripts, no third-party origins), HSTS in production, `X-Frame-Options: DENY`, `Referrer-Policy`, COOP/CORP, 1 MB JSON cap | **no test asserts the headers yet** — added with the first HTTP integration test (M1) |
 | R-112 | Validation at every boundary | §12.1, line 516 | zod env validation, global Nest `ValidationPipe` with `forbidNonWhitelisted`, inbound request-id sanitised | per-endpoint zod schemas (M1+), agent payload validation (M3) |
-| R-114 | Dependency and image scanning | §12.1, line 518 | CI jobs: `pnpm audit --audit-level=high`, `govulncheck`, Trivy filesystem scan failing on HIGH/CRITICAL | image scanning once a Dockerfile exists (M2 day 15); **CI has not yet run** |
+| R-114 | Dependency and image scanning | §12.1, line 518 | CI green: `pnpm audit --audit-level=high` clean (two high advisories forced to patched versions by overrides), Trivy filesystem scan clean on code we own | `govulncheck` is gated on B-1; container image scanning arrives with the first Dockerfile (M2 day 15) |
 | R-128 | Dev environment (compose) | §14.1, line 576 | all six services come up healthy with both buckets verified; pinned images; loopback-only ports | nothing — but it is counted partial because it is one half of R-130's acceptance criteria, which is blocked |
 | R-129 | Dev kind clusters with Velero | §14.1, line 577 | full build scripts for both clusters: CSI snapshot controller, hostpath CSI, Velero v1.18.4 + AWS plugin + node agent, sample workloads with a checksummed PVC | **never completed a run** — blocked by B-2 (host inotify limits). `vfm-a` reached the snapshot-controller step before `kube-proxy` died on the worker |
 | R-130 | Idempotent `dev-up`/`dev-down` + smoke asserts Completed | §16 d2, line 626 | `dev-down --clusters-only` verified: removed `vfm-a`, left the unrelated `velero` cluster untouched, kept compose up. Compose stage of `dev-up` is idempotent and verified | **`smoke.sh` has never run**, so the M0 exit criterion is unproven. Blocked by B-2 |
@@ -231,7 +248,7 @@ counts as zero in the progress figure.
 | `dev-down.sh --clusters-only` | correct, and left the unrelated `velero` cluster untouched |
 | Go build / vet / test / golangci-lint | **not run — B-1** |
 | `smoke.sh` | **not run — B-2** |
-| CI (`vfm-ci`) | see section 9 |
+| CI (`vfm-ci`) run 38630008601 | **all four jobs green** — TypeScript, Go (correctly skipped, B-1), dependency scan, proto |
 
 ---
 
@@ -358,7 +375,17 @@ reports success.
 | 1 | `3bba32b` | `chore(vfm): scaffold monorepo, docs and CI for M0 day 1` | see end-of-session report |
 | 2 | `b9d5421` | `chore(vfm): dev environment with compose, kind clusters and velero smoke test` | see end-of-session report |
 | 3 | `22163ce` | `feat(vfm): control plane, web and agent skeletons with health and first migration` | see end-of-session report |
-| 4 | *(this commit)* | `docs(vfm): record ADR-007 and session 1 status` | see end-of-session report |
+| 4 | `8786039` | `docs(vfm): record ADR-007 and the verified state of session 1` | ✅ pushed |
+| 5 | `1c33d36` | `fix(ci): three failures from the first VFM CI run` | ✅ pushed |
+| 6 | `2265233` | `fix(vfm): generate the prisma client on install and force patched transitives` | ✅ pushed |
+| 7 | `ee17789` | `fix(ci): scope the trivy scan to code we own` | ✅ pushed |
+
+Commits 1–3 are also pushed. `git status -sb` reports
+`## vfm/m0-foundation...origin/vfm/m0-foundation` with no divergence, and
+`git log origin/vfm/m0-foundation` contains all seven.
+
+The `vfm-ci` workflow is **green** on `ee17789`. No pull request has been
+opened — the owner has not asked for one.
 
 ---
 

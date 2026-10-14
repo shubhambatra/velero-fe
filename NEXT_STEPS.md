@@ -94,7 +94,7 @@ change in `vfm/docs/DECISIONS.md`.
 |---|---|---|---|
 | 1 | Clear B-2, then build both clusters and pass the smoke test (R-129, R-130) | `velero backup create` reaches phase `Completed` on `vfm-a` **and** `vfm-b` | `./scripts/dev-up.sh && ./scripts/smoke.sh` in `vfm/deploy/dev` |
 | 2 | Clear B-1, then verify the agent (R-021, R-132) | `go build` and `go vet` clean, unit tests pass, `golangci-lint` clean, `go.sum` committed | `cd vfm/agent && go mod tidy && go build ./... && go test ./... && golangci-lint run ./...` |
-| 3 | Confirm CI is green (R-025, R-114) | the `vfm-ci` workflow passes on the branch | `gh run list --workflow vfm-ci` |
+| 3 | ~~Confirm CI is green~~ — **done**: green on `ee17789`. The Go jobs will begin running once `go.sum` is committed in task 2 | all four jobs pass | `gh run list --workflow 'VFM CI'` |
 | 4 | Re-run `dev-up` twice to prove idempotency end to end (R-130) | the second run changes nothing and reports what it skipped; `kind-velero` untouched | `./scripts/dev-up.sh` twice |
 
 **Only when all four pass is M0 complete.** Record it in `vfm/docs/PROGRESS.md`
@@ -102,7 +102,8 @@ and move R-021, R-129, R-130 and R-132 to ✅ in `DEVELOPMENT_STATUS.md`.
 
 Already done, do not redo: the first migration is applied and `migrate status`
 reports in sync; `openapi.yaml` is committed and verified in sync with the
-decorators; all 76 TypeScript tests, lint, format and typecheck are green.
+decorators; all 76 TypeScript tests, lint, format and typecheck are green; CI
+is green on `ee17789` and all seven commits are pushed.
 
 ### 2. Then M1 day 4 — users and local authentication
 

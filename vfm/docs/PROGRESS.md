@@ -63,7 +63,7 @@ rule 7 forbids reporting stubbed work as done.
 | `./scripts/smoke.sh`                        | **not run — blocked, see Blockers**                                                                  |
 | CI                                          | **not run — nothing pushed at the time of writing**                                                  |
 
-### Three real defects found by running the code rather than reading it
+### Defects found by running the code rather than reading it
 
 1. `compose up --wait` treats _any_ exited container as a failure, so the
    one-shot bucket provisioner could never satisfy it. It is now started and
@@ -79,6 +79,23 @@ Plus two smaller ones: a `localStorage` test whose spy never installed (jsdom's
 storage object is proxy-backed, so the test passed without exercising the
 failure path at all), and `skip()` appending "(already present)" to messages
 that said the opposite.
+
+And four that only the first CI run could find:
+
+4. The Trivy action tag is v-prefixed, so `@0.33.1` did not resolve.
+5. `actions/setup-node@v5` activates the `packageManager` field of the nearest
+   package.json. At the repository root that is the legacy Nx workspace's pnpm
+   7.27.0 with an unverifiable sha1, so the action failed before any step of
+   ours ran.
+6. The Go jobs gated on `go.mod`, but `go build` needs a committed `go.sum` to
+   verify modules. They now gate on `go.sum` and write a run summary pointing
+   at blocker B-1.
+7. Lint and typecheck failed on a fresh install because `@prisma/client` has
+   no generated types until `prisma generate` runs. Added as a postinstall.
+
+Two `pnpm audit` high advisories (`mysql2`, `deepmerge-ts`, both reaching us
+only through the Prisma CLI's transitive tree) are forced to patched versions
+with pnpm overrides rather than suppressed, as §12.1 requires.
 
 ### Deferred
 
