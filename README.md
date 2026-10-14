@@ -1,3 +1,15 @@
+# Velero UI (personal build)
+
+A fully realtime lightweight dashboard interface to interact with [Velero (vmware-tanzu)](https://github.com/vmware-tanzu/velero), built on top of the excellent open-source [**otwld/velero-ui**](https://github.com/otwld/velero-ui) project.
+
+> This repo is my personal working copy of velero-ui. I use it to learn/experiment with its Nx monorepo setup and to add features I needed that weren't in upstream yet.
+
+## 🔧 What I added
+
+- **Remote cluster support via kubeconfig context** — the dashboard can now connect to and manage a Velero instance on a remote Kubernetes cluster by selecting a `kubeconfig` context, instead of only working against the cluster it's running in.
+
+Everything else below is the original velero-ui feature set, kept for reference.
+
 ![otwld_velero_ui_banner](./banner.png)
 
 ![GitHub License](https://img.shields.io/github/license/otwld/velero-ui)
@@ -6,12 +18,6 @@
 [![Discord](https://img.shields.io/badge/Discord-OTWLD-blue?logo=discord&logoColor=white)](https://discord.gg/U24mpqTynB)
 ![Docker Image Version (latest semver)](https://img.shields.io/docker/v/otwld/velero-ui?label=docker%20image)
 ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/otwld/velero-ui)
-
-### ℹ️ **STABLE 0.10.x** ℹ️
-
-A fully realtime lightweight dashboard interface to interact with [Velero (vmware-tanzu)](https://github.com/vmware-tanzu/velero/issues).
-
-This dashboard implement the same functionalities as the velero CLI.
 
 ## 👀 Quick look
 
@@ -50,7 +56,6 @@ This dashboard implement the same functionalities as the velero CLI.
 - ⚡ **Optimized Performance:** Velero UI leverages caching for fast performance and quick rendering.
 - 📱 **Responsive Design:** Fully functional on mobile devices and tablets.
 
-
 ## 📋 Requirements
 
 - **Velero server >= 1.13.0**
@@ -60,7 +65,7 @@ This dashboard implement the same functionalities as the velero CLI.
 
 ## 📚 Documentation
 
-Want to learn more about Velero UI's features? Check out [Velero UI documentation](https://velero-ui.docs.otwld.com) for a comprehensive overview!
+Want to learn more about Velero UI's features? Check out the original [Velero UI documentation](https://velero-ui.docs.otwld.com) for a comprehensive overview!
 
 ## 🚀 Deployments
 
@@ -68,10 +73,6 @@ Want to learn more about Velero UI's features? Check out [Velero UI documentatio
 - [☸️ **Getting Started with Helm Chart**](https://velero-ui.docs.otwld.com/getting-started/helm)
 - [⚙️ **Getting Started with Kubernetes**](https://velero-ui.docs.otwld.com/getting-started/kubernetes)
 
+## 🙏 Credits
 
-## 🛠️ Support
-
-- For questions, suggestions, and discussion about Velero please refer to
-  the [Velero issue page](https://github.com/vmware-tanzu/velero/issues)
-- For questions, suggestions, and discussion about Velero UI please
-  visit [Velero-ui issue page](https://github.com/otwld/velero-ui/issues) or join our [OTWLD Discord](https://discord.gg/U24mpqTynB)
+All credit for the core project goes to [otwld/velero-ui](https://github.com/otwld/velero-ui) and its contributors. For questions about Velero itself, see the [Velero issue page](https://github.com/vmware-tanzu/velero/issues); for the upstream UI project, see the [Velero-ui issue page](https://github.com/otwld/velero-ui/issues) or their [Discord](https://discord.gg/U24mpqTynB).
