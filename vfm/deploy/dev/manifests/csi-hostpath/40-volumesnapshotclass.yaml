@@ -1,0 +1,23 @@
+# VolumeSnapshotClass for the hostpath CSI driver.
+#
+# Based on kubernetes-csi/csi-driver-host-path v1.18.0
+# deploy/kubernetes-1.34/hostpath/csi-hostpath-snapshotclass.yaml, plus the
+# label Velero requires.
+#
+# velero.io/csi-volumesnapshot-class: "true" is how Velero picks the snapshot
+# class for a driver when a backup does not name one. Velero's CSI support is
+# built into the server from v1.14 onwards (no separate plugin image), so the
+# label is the only wiring needed.
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-hostpath-snapclass
+  labels:
+    app.kubernetes.io/instance: hostpath.csi.k8s.io
+    app.kubernetes.io/part-of: csi-driver-host-path
+    app.kubernetes.io/name: csi-hostpath-snapclass
+    app.kubernetes.io/component: volumesnapshotclass
+    velero.io/csi-volumesnapshot-class: "true"
+driver: hostpath.csi.k8s.io
+deletionPolicy: Delete

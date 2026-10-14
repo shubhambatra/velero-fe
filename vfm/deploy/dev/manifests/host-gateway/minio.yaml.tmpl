@@ -1,0 +1,68 @@
+# Makes the host's MinIO reachable from inside a kind cluster under a stable
+# DNS name. Rendered by scripts/dev-up.sh into
+# .generated/<cluster>-minio-endpoint.yaml with:
+#
+#   __MINIO_HOST_IP__    gateway address of the `kind` docker bridge, i.e. the
+#                        host as seen from inside a kind node
+#   __MINIO_HOST_PORT__  the MinIO API port published on the host (59000)
+#
+# Why this and not host.docker.internal: kind's v1alpha4 cluster config has no
+# extraHostEntries/hostAliases field, so host names cannot be injected into the
+# nodes, and nodes do not get host.docker.internal from docker. A selector-less
+# Service with a hand-written EndpointSlice is the standard Kubernetes way to
+# point a cluster-internal name at an address outside the cluster, and it has
+# two properties a bare IP in the BackupStorageLocation would not:
+#
+#   * the BSL's s3Url stays human-readable and identical on both clusters
+#   * the odd host port (59000) is hidden behind the conventional 9000
+#
+# EndpointSlice rather than the core v1 Endpoints API: Endpoints is deprecated,
+# and kube-proxy consumes EndpointSlices natively.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vfm-dev
+  labels:
+    app.kubernetes.io/part-of: vfm-dev
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: vfm-dev
+  labels:
+    app.kubernetes.io/part-of: vfm-dev
+    app.kubernetes.io/name: minio
+  annotations:
+    vfm.dev/description: >-
+      Host MinIO (docker compose project vfm-dev), reached through the kind
+      bridge gateway. Managed by deploy/dev/scripts/dev-up.sh.
+spec:
+  # No selector: the backing address is supplied by the EndpointSlice below.
+  type: ClusterIP
+  ports:
+    # The port name must match the EndpointSlice port name — that is how a
+    # selector-less Service is wired to its endpoints.
+    - name: s3
+      port: 9000
+      protocol: TCP
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: minio
+  namespace: vfm-dev
+  labels:
+    kubernetes.io/service-name: minio
+    app.kubernetes.io/part-of: vfm-dev
+addressType: IPv4
+ports:
+  - name: s3
+    port: __MINIO_HOST_PORT__
+    protocol: TCP
+endpoints:
+  - addresses:
+      - "__MINIO_HOST_IP__"
+    conditions:
+      ready: true
