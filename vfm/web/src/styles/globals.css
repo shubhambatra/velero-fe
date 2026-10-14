@@ -1,0 +1,151 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens for the fleet UI.
+ *
+ * Two hard constraints shape this file:
+ *
+ *  - PLAN.md §1.1 P6 / §12.1: nothing may be fetched from a third-party
+ *    origin. There is no @font-face and no @import of a remote stylesheet;
+ *    typography is the platform font stack below.
+ *  - PLAN.md §11.2: WCAG 2.1 AA contrast in both themes. Every token pair that
+ *    renders text was measured (sRGB relative luminance, WCAG 2.x formula);
+ *    the ratio is recorded next to the pair. Text pairs clear 4.5:1 and the
+ *    pairs that only outline a control clear the 3:1 non-text minimum
+ *    (WCAG 1.4.11).
+ *
+ * `--border` is the decorative hairline between panels (exempt from 1.4.11).
+ * `--control` is the border that identifies an interactive control, so it is
+ * held to 3:1 and must be used for anything clickable that relies on its
+ * outline to be seen.
+ */
+
+/* Class-based theming: the provider toggles `.dark` on <html> (PLAN.md §11.2). */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  color-scheme: light;
+
+  --background: #ffffff;
+  --foreground: #18181b; /* 17.72:1 on --background */
+  --card: #ffffff;
+  --card-foreground: #18181b; /* 17.72:1 on --card */
+  --muted: #f4f4f5;
+  --muted-foreground: #4b5563; /* 7.56:1 on --background, 6.88:1 on --muted */
+  --secondary: #e4e4e7;
+  --secondary-foreground: #18181b; /* 13.96:1 on --secondary */
+  --accent: #eef2ff;
+  --accent-foreground: #1e3a8a; /* 9.26:1 on --accent */
+  --primary: #1d4ed8; /* 6.70:1 on --background, so it is also legible as link text */
+  --primary-foreground: #ffffff; /* 6.70:1 on --primary */
+  --primary-hover: #1e40af; /* 8.72:1 against --primary-foreground */
+  --destructive: #b91c1c; /* 6.47:1 on --background */
+  --destructive-foreground: #ffffff; /* 6.47:1 on --destructive */
+
+  --border: #d4d4d8;
+  --control: #71717a; /* 4.83:1 on --background, 4.40:1 on --muted */
+  --ring: #1d4ed8; /* 6.70:1 on --background */
+
+  --status-ok: #15803d; /* 5.02:1 on --background, 4.56:1 on --muted */
+  --status-warn: #92400e; /* 7.09:1 on --background, 6.45:1 on --muted */
+  --status-error: #b91c1c; /* 6.47:1 on --background, 5.89:1 on --muted */
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: #0b0b0f;
+  --foreground: #f4f4f5; /* 17.87:1 on --background */
+  --card: #15151b;
+  --card-foreground: #f4f4f5; /* 16.54:1 on --card */
+  --muted: #1f1f27;
+  --muted-foreground: #a1a1aa; /* 7.66:1 on --background, 6.38:1 on --muted */
+  --secondary: #27272f;
+  --secondary-foreground: #f4f4f5; /* 13.48:1 on --secondary */
+  --accent: #1e293b;
+  --accent-foreground: #e2e8f0; /* 11.87:1 on --accent */
+  --primary: #93c5fd; /* 10.89:1 on --background */
+  --primary-foreground: #0b0b0f; /* 10.89:1 on --primary */
+  --primary-hover: #bfdbfe; /* 13.83:1 against --primary-foreground */
+  --destructive: #f87171; /* 7.10:1 on --background */
+  --destructive-foreground: #0b0b0f; /* 7.10:1 on --destructive */
+
+  --border: #2e2e38;
+  --control: #8b8b96; /* 5.83:1 on --background, 5.40:1 on --card */
+  --ring: #93c5fd; /* 10.89:1 on --background */
+
+  --status-ok: #4ade80; /* 11.27:1 on --background, 10.43:1 on --card */
+  --status-warn: #fbbf24; /* 11.77:1 on --background, 10.89:1 on --card */
+  --status-error: #f87171; /* 7.10:1 on --background, 6.57:1 on --card */
+}
+
+/*
+ * `inline` keeps the utilities referencing the custom properties above instead
+ * of snapshotting their values, which is what makes `.dark` re-theme the whole
+ * app without duplicating a single utility class.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-control: var(--control);
+  --color-ring: var(--ring);
+  --color-ok: var(--status-ok);
+  --color-warn: var(--status-warn);
+  --color-error: var(--status-error);
+
+  /* Platform fonts only — no webfont request leaves this origin (P6). */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  /*
+   * A single visible focus indicator for everything keyboard-reachable
+   * (PLAN.md §11.2). Components may add a ring of their own, but nothing in
+   * the app is allowed to become focus-invisible by forgetting to.
+   */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Honour the OS setting for users who ask for less motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

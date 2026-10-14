@@ -1,0 +1,46 @@
+openapi: 3.1.0
+paths:
+  /healthz:
+    get:
+      description: Returns 200 while the process is able to serve requests.
+      operationId: HealthController_liveness
+      parameters: []
+      responses:
+        "200":
+          description: The process is alive.
+      summary: Liveness probe
+      tags:
+        - health
+  /readyz:
+    get:
+      description: Reports whether PostgreSQL and Redis are reachable. Returns 503 when any dependency is down.
+      operationId: HealthController_readiness
+      parameters: []
+      responses:
+        "200":
+          description: All dependencies are reachable.
+        "503":
+          description: At least one dependency is unreachable.
+      summary: Readiness probe
+      tags:
+        - health
+info:
+  title: Velero Fleet Manager API
+  description: Control-plane REST API. Errors use RFC 9457 application/problem+json and every response
+    carries an X-Request-Id header.
+  version: v1
+  contact: {}
+tags: []
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: vfm_session
+    apiToken:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas: {}

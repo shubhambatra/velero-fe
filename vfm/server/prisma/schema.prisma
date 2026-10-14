@@ -1,0 +1,124 @@
+// Velero Fleet Manager database schema.
+//
+// One of the three contracts named in PLAN.md §0 rule 5. Changes are
+// deliberate: edit this file, generate a migration, and record the change in
+// docs/DECISIONS.md.
+//
+// Conventions from PLAN.md §9, applied to every model:
+//   - `id` is a UUID (v7 generated in application code so ids sort by creation
+//     time; see idUuidV7() in src/common/uuid.ts — Postgres has no native v7
+//     generator and we do not want a extension dependency).
+//   - `createdAt` / `updatedAt` on every table.
+//   - every org-owned table carries `orgId` with an index, and PLAN.md §8.1
+//     requires that *every* query filter on it. That is enforced by a Prisma
+//     extension in M1 day 6, not by convention.
+//   - columns holding secrets are suffixed `Encrypted` and hold AES-256-GCM
+//     envelope ciphertext with a key id (PLAN.md §9).
+//
+// This first migration covers only the three tables PLAN.md §16 day 3 calls
+// for: users, organizations, memberships. Authentication logic itself is M1.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7 no longer accepts `url` here: the CLI reads it from
+// prisma.config.ts and the runtime client receives it through the pg driver
+// adapter (docs/DECISIONS.md ADR-007).
+datasource db {
+  provider = "postgresql"
+}
+
+/// A person who can sign in. Users are global; their access comes from
+/// memberships and role bindings (PLAN.md §8.1).
+model User {
+  id String @id @db.Uuid
+
+  /// Login identity. Normalised to lower case by the application before every
+  /// read and write, so this plain unique index is effectively
+  /// case-insensitive without requiring the citext extension (which would
+  /// complicate air-gapped and managed-Postgres installs).
+  email String @unique
+
+  /// Display name. Optional because OIDC providers do not all supply one.
+  name String?
+
+  /// argon2id hash (PLAN.md §8.3). Null for users who only ever sign in
+  /// through OIDC, so a missing hash must never be treated as "no password
+  /// required".
+  passwordHash String? @map("password_hash")
+
+  /// TOTP shared secret, encrypted at rest (PLAN.md §9).
+  mfaSecretEncrypted String? @map("mfa_secret_encrypted")
+
+  mfaEnabled Boolean @default(false) @map("mfa_enabled")
+
+  /// Platform super-admin. Separate from org roles: it bootstraps the first
+  /// organization and is not granted by any org (PLAN.md §8.1).
+  isPlatformAdmin Boolean @default(false) @map("is_platform_admin")
+
+  /// Soft disable. Set rather than deleting, so audit rows keep referring to a
+  /// real actor (PLAN.md §9 audit is append-only).
+  disabledAt  DateTime? @map("disabled_at") @db.Timestamptz(6)
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships Membership[]
+
+  @@index([disabledAt])
+  @@map("users")
+}
+
+/// A tenant. Every piece of customer data hangs off an organization, and all
+/// queries are org-scoped (PLAN.md §8.1).
+model Organization {
+  id   String @id @db.Uuid
+  name String
+  slug String @unique
+
+  /// Org settings from PLAN.md §9: mfaRequired, allowBackupContentDownload,
+  /// logCacheDays, requireRestoreApproval. Kept as JSON because the set grows
+  /// each milestone and is always read as a whole. Defaults live in
+  /// application code so an existing row never silently gains a permissive
+  /// value.
+  settings Json @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships Membership[]
+
+  @@map("organizations")
+}
+
+/// A user's single role within one organization (PLAN.md §8.1). Cluster- and
+/// namespace-level permissions are separate role bindings, added in M1 day 8.
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+
+  @@map("org_role")
+}
+
+model Membership {
+  id String @id @db.Uuid
+
+  orgId  String @map("org_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  orgRole OrgRole @map("org_role")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+  @@map("memberships")
+}
