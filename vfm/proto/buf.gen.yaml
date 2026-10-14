@@ -1,0 +1,21 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/shubhambatra/velero-fe/vfm/agent/internal/pb
+plugins:
+  # Go stubs for the agent.
+  - remote: buf.build/protocolbuffers/go
+    out: ../agent/internal/pb
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: ../agent/internal/pb
+    opt: paths=source_relative
+  # TypeScript stubs for the control-plane gateway (PLAN.md §4.2: ts-proto).
+  - remote: buf.build/community/stephenh-ts-proto
+    out: ../server/src/gateway/pb
+    opt:
+      - esModuleInterop=true
+      - outputServices=grpc-js
+      - useExactTypes=false

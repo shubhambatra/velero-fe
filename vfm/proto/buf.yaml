@@ -1,0 +1,17 @@
+version: v2
+modules:
+  - path: .
+    name: buf.build/vfm/agent
+lint:
+  use:
+    - STANDARD
+  except:
+    # Velero spec fields mirror the upstream Go types verbatim; renaming them to
+    # satisfy enum-prefix conventions would make the mapping unreviewable.
+    - ENUM_VALUE_PREFIX
+    - ENUM_ZERO_VALUE_SUFFIX
+breaking:
+  use:
+    - FILE
+  # protocol_version in Hello gates compatibility (PLAN.md §5.7): the control
+  # plane supports version N and N-1, so wire-breaking changes must bump it.

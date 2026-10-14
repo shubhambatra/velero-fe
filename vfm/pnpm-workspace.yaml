@@ -1,0 +1,16 @@
+packages:
+  - packages/*
+  - server
+  - web
+  - e2e
+
+# pnpm 10 blocks lifecycle scripts unless a package is listed here. These five
+# genuinely need them (native engines and binary downloads); everything else
+# stays blocked, which is the behaviour we want for a product that has to be
+# auditable and air-gap installable (PLAN.md §1.1 P6, §12.1).
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
+  - esbuild
+  - prisma

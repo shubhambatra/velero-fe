@@ -1,0 +1,17 @@
+PLAN.md
+pnpm-lock.yaml
+node_modules
+dist
+coverage
+*.generated.ts
+server/openapi.yaml
+packages/shared/src/api/
+
+# Vendored upstream Kubernetes manifests (snapshot controller, hostpath CSI).
+# Kept byte-identical to the release they were taken from so they can be
+# diffed against upstream.
+deploy/dev/manifests/snapshot-controller/
+deploy/dev/manifests/csi-hostpath/
+
+# No prettier parser for Makefiles.
+Makefile
