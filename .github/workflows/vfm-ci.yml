@@ -39,12 +39,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      # Pinned to v4 deliberately: v5 activates the `packageManager` field of
+      # the repository-root package.json, which belongs to the legacy Nx
+      # workspace (pnpm 7.27.0 with an unverifiable sha1) and fails before any
+      # step of ours runs. VFM's own pnpm is activated by the next step.
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # pnpm comes from the packageManager field via corepack (ADR-004), so the
-      # repository-root npm/Nx workspace is never involved.
+      # pnpm comes from vfm/package.json's packageManager field via corepack
+      # (ADR-004), so the repository-root npm/Nx workspace is never involved.
       - name: Enable corepack
         run: corepack enable
 
@@ -66,14 +70,24 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Check whether the agent module exists yet
+      - name: Check whether the agent module is buildable yet
         id: agent
         run: |
-          if [ -f agent/go.mod ]; then
+          if [ -f agent/go.sum ]; then
             echo 'present=true' >> "$GITHUB_OUTPUT"
+          elif [ -f agent/go.mod ]; then
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '### Go jobs skipped'
+              echo
+              echo '`vfm/agent/go.mod` exists but `go.sum` does not, so modules'
+              echo 'cannot be verified and `go build` would fail. Run'
+              echo '`go mod tidy` in `vfm/agent` and commit `go.sum` to activate'
+              echo 'these jobs — see blocker B-1 in DEVELOPMENT_STATUS.md.'
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'present=false' >> "$GITHUB_OUTPUT"
-            echo 'agent module not present yet (M0 day 3) — skipping' >> "$GITHUB_STEP_SUMMARY"
+            echo 'agent module not present yet — skipping' >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - uses: actions/setup-go@v6
@@ -139,7 +153,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -152,10 +166,10 @@ jobs:
       - name: pnpm audit
         run: pnpm audit --audit-level=high
 
-      - name: Check whether the agent module exists yet
+      - name: Check whether the agent module is buildable yet
         id: agent
         run: |
-          if [ -f agent/go.mod ]; then
+          if [ -f agent/go.sum ]; then
             echo 'present=true' >> "$GITHUB_OUTPUT"
           else
             echo 'present=false' >> "$GITHUB_OUTPUT"
@@ -178,7 +192,7 @@ jobs:
       # M2 day 15). Until then Trivy scans the source tree for vulnerable
       # dependencies and misconfigured manifests.
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: vfm
