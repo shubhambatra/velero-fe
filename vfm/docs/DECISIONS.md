@@ -299,3 +299,50 @@ tsconfig.build.json` and `tsx watch src/main.ts`. This also removes the
   works.
 - Revisit the TypeScript major when `@nestjs/swagger` supports 6.x, so the
   server can move with the rest of the Nest ecosystem.
+
+---
+
+## ADR-007 — Prisma 7 configuration model and the pg driver adapter
+
+- **Date:** 2026-10-14
+- **Status:** Accepted
+
+### Context
+
+PLAN.md §4.2 specifies "PostgreSQL 16 via **Prisma** (migrations committed)"
+without naming a version. Prisma 7 — the current stable line — changed two
+things the plan's shape assumes:
+
+1. `datasource.url` is no longer accepted in `schema.prisma`. Migration and
+   introspection commands read the connection string from a `prisma.config.ts`
+   file, and the runtime client receives it through a **driver adapter**.
+2. `prisma.config.ts` is not loaded through dotenv, so `.env` is not picked up
+   automatically.
+
+### Decision
+
+- Adopt Prisma **7.10.0** rather than pinning back to 6.x. The newer model is
+  where the ecosystem is going, and the migration workflow the plan actually
+  depends on — committed migrations, `migrate deploy`, drift detection — is
+  unchanged.
+- Runtime connections go through **`@prisma/adapter-pg` 7.10.0** over `pg`.
+  This is required by Prisma 7, and it has an independent benefit: the
+  connection pool is ours to size, which matters because the control plane runs
+  N replicas against one database (§3.2). The pool is currently capped at 10
+  per replica and is revisited against the §13 scale targets during the M7
+  load test.
+- `server/prisma.config.ts` reads `DATABASE_URL` from the environment and
+  loads `server/.env` through Node's built-in `process.loadEnvFile` when that
+  file exists, rather than adding a dotenv dependency. The URL is **never**
+  committed (§12.1).
+- The datasource block is omitted when `DATABASE_URL` is unset, so
+  `prisma generate` works without a reachable database — a clean checkout must
+  build in CI and in an air-gapped image build (§1.1 P6).
+
+### Consequences
+
+- Anyone used to `url = env("DATABASE_URL")` in the schema will not find it;
+  the comment in `schema.prisma` points at this ADR.
+- `pg` becomes a runtime dependency of the control plane.
+- Prisma 8 is already in release-candidate. Upgrading is a separate decision
+  and needs its own ADR; nothing here depends on 8.
