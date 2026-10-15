@@ -189,6 +189,28 @@ answered differently are §18 Q4 (oldest Velero version in the field) and §18 Q
 
 ---
 
+## Before calling any increment done
+
+A green test suite is **not** sufficient evidence that the service works. Four
+defects in session 2 passed 140 unit tests and 27 e2e tests and surfaced only
+when the built server was run: the test runner's SWC config uses set-semantics
+class fields (hiding a Nest DI failure) and Vite resolves workspace packages
+from source (hiding that `@vfm/shared` shipped raw TypeScript). Two more were
+undeclared dependencies that resolved locally through pnpm's layout and were
+absent on a clean install.
+
+So for any increment that touches the control plane, also run:
+
+```bash
+cd vfm
+pnpm run build                              # all three workspaces
+pnpm --filter @vfm/server run test:e2e      # needs make dev-up
+cd server && node dist/main.js              # the artifact that actually ships
+```
+
+and exercise the feature over HTTP against that process, not only through the
+suite.
+
 ## End-of-session procedure
 
 1. Update `vfm/docs/PROGRESS.md` with the session entry required by §0 rule 2.
