@@ -36,6 +36,18 @@ export function RequireSession({ children }: { children: ReactNode }): ReactElem
   }
 }
 
+/** Pages for any member of the active org. */
+export function RequireOrg({ children }: { children: (orgId: string) => ReactNode }): ReactElement {
+  const { active, isPending } = useOrgs(true);
+  if (isPending) {
+    return <p className="text-sm text-muted-foreground">Loading…</p>;
+  }
+  if (active === undefined) {
+    return <Notice title="No organization">You do not belong to an organization yet.</Notice>;
+  }
+  return <>{children(active.id)}</>;
+}
+
 /** Org admin pages: hidden from MEMBER role (the server enforces the same). */
 export function RequireAdmin({
   children,

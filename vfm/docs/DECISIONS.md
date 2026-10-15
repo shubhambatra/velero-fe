@@ -622,3 +622,90 @@ function in the codebase". §9 lists `role_bindings` with a `cluster_id`, but th
   documented by the guards but dropped by the problem+json filter, so a client
   could not tell a step-up prompt from a plain 403. They are now an
   allow-listed extension member set.
+
+## ADR-013 — Audit log: trigger-enforced append-only, written from response middleware
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Context
+
+PLAN.md §9 says `audit_events` is append-only by revoking UPDATE/DELETE from the
+application DB role, with a separate retention role. §16 day 9 asks for "an
+audit interceptor on all mutating routes".
+
+### Decision
+
+- **A trigger, plus the REVOKE.** In every deployment where the migrating role
+  owns the table (all of dev and CI), revoking privileges from the owner is a
+  no-op. A `BEFORE UPDATE OR DELETE` row trigger and a `BEFORE TRUNCATE`
+  statement trigger raise for everyone; only direct members of the NOLOGIN
+  `vfm_audit_retention` role may DELETE. Tests prove UPDATE, DELETE,
+  deleteMany and TRUNCATE all fail from the owning role. A production
+  deployment should still run the app as a non-owner role holding INSERT and
+  SELECT only; the trigger is the backstop, not a replacement.
+- **No foreign keys, nullable `org_id`.** History must outlive the org, user or
+  cluster it describes, and a cascade would make deleting an org a way to erase
+  its log. Some events precede any org (a failed login).
+- **Middleware on `finish`, not a Nest interceptor.** Interceptors run after
+  guards, so a request refused by authentication, CSRF, RBAC or sudo never
+  reaches one — and a refusal is exactly what an auditor wants. It is generic:
+  a new mutating route is audited without a decorator.
+- **Names, never values.** Details hold the route pattern, status and the _names_
+  of body fields. Bodies carry passwords, tokens and client secrets; a
+  key-based redactor is a safety net, not the plan. A test greps every row for
+  known secrets.
+- **Written after the response.** A failing insert cannot turn a successful
+  action into an error, and is logged at error level. The cost is that the
+  row is not in the action's transaction. Commands (M2) are written in the
+  same transaction as the command, per §6; this path is for control-plane
+  mutations.
+- **Actors:** USER, or TOKEN with `onBehalfOf`. Emails are looked up at read
+  time rather than stored, so an erasure takes effect in the view.
+
+### Consequences
+
+- An unauthenticated request that hits a route (a failed login) is recorded
+  with no actor and no address that was tried.
+- `GET` is not audited, so a read of the audit log or inventory leaves no row;
+  the CSV export, which is bulk egress, records itself explicitly.
+- Retention (400 days) is only a role and a trigger exception for now; the job
+  itself is M6 (R-101).
+- The table grows without bound until then, and e2e runs leave rows behind
+  because they cannot be deleted. Tests count deltas instead of totals.
+
+## ADR-014 — API tokens: opt-in per route, narrowing only
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+- Format `vfm_` + 43 base64url characters (256 bits); SHA-256 at rest (ADR-009);
+  shown once; `prefix` (12 chars) stored for recognition.
+- **Bearer auth is opt-in** (`@AllowsApiToken()`), the reverse of sessions.
+  Handlers written for browsers read CSRF tokens, re-authentication times and
+  the active org, and a token has none. Opt-in also keeps token management,
+  passwords, MFA and every sudo operation out of a token's reach by default.
+  Today only `GET /clusters/{id}/my-access` opts in; M2+ routes choose.
+- **Narrowing only.** At use time the owner's grants are intersected with the
+  token's `permissions` and `clusterIds` inside the pure engine
+  (`token-limit`). A token cannot widen, outlive a demotion, or survive the
+  owner's removal from the org (revoked in the same transaction) or disabling.
+  `null` for a field means "no extra limit", not "every permission".
+- **Pinned to one org.** A `/orgs/{other}/…` path is 404 for a token even when
+  its owner belongs to that org.
+- **Creation needs sudo; revocation does not.** Minting a persistent credential
+  from a hijacked session is the classic persistence step, while being unable
+  to revoke during an incident would be perverse. This reads §8.3's "any
+  delete" as applying to resources, not credential revocation.
+- CSRF is skipped only for requests that _authenticated_ with a token, not for
+  any request carrying an Authorization header. SudoGuard refuses tokens
+  outright.
+
+### Consequences
+
+- A token request has no session, so `GET /me/*` is closed to tokens.
+- No per-token rate limit or IP allow-list yet (M7).
+- Token use is audited by the middleware only for mutating routes, and none
+  accept tokens yet; read use shows only as `last_used_at`.

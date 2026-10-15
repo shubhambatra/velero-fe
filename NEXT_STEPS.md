@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-16 (end of session 6) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-16 (end of session 6, day 9) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -126,14 +126,21 @@ passes `{ checkInHandler: true }` and calls `RbacService.require()` itself —
 without that flag the guard demands a whole-cluster grant, so forgetting fails
 closed.
 
-### 5. Then day 9
+### 5. ~~M1 day 9~~ — **built** in session 6; two small items remain
 
-Audit log (append-only DB role, interceptor on every mutating route — today's
-org/invite/team/OIDC/role-binding mutations are unaudited), API tokens
-(permission subset of the creator's grants, shown once), and the M1 UI —
-including the step-up prompt, which can now key off `sudoRequired` and
-`mfaRequired` in the problem+json body; then
-⛔ **HUMAN CHECKPOINT** (line 662).
+Audit log (ADR-013), API tokens (ADR-014) and the UI are in. **Before the
+checkpoint:**
+
+- **An API-token management page** (§11 screen 9): the endpoints exist
+  (`/orgs/{orgId}/tokens`, secret shown once, create needs sudo).
+- **Exercise in a browser what was only unit-tested:** MFA enrolment and
+  challenge, invite by email, teams, SSO create/edit against Dex, the sudo
+  dialog, org switching. Session 6 drove only setup, create-org, members,
+  audit, SSO list and security.
+
+Then ⛔ **HUMAN CHECKPOINT** (plan line 662): the human reviews the RBAC model
+(ADR-012) and the auth flows (ADR-008…011, 014) before M2 starts. M0's exit
+criteria are still unmet (B-1, B-2).
 
 ---
 

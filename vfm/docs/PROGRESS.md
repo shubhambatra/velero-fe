@@ -9,6 +9,64 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M1 day 9: audit log, API tokens and the M1 UI
+
+Session 6, continued. Resumed from `2f08daf`.
+
+### Completed (§16 day 9, §8.3, §9, §11)
+
+- **Audit log (R-100).** `audit_events`, append-only by trigger (ADR-013),
+  middleware on every mutating route including guard refusals, SSO sign-in
+  events, `GET /orgs/{orgId}/audit` and `/audit/export` (CSV, formula-defused,
+  itself audited). Owner/Admin only.
+- **API tokens (R-094).** `api_tokens`, create (sudo) / list / revoke, Bearer
+  auth opt-in per route, narrowing-only intersection in the shared engine,
+  revoked with the membership (ADR-014).
+- **M1 UI**, built by a parallel agent and then reviewed and exercised by me:
+  login, first-run setup, MFA, org switcher, members, teams, SSO, security
+  settings and audit pages; sudo re-auth dialog; typed API client with CSRF.
+- **A gap only a real run found:** after first-run setup a platform admin has
+  no org and nowhere to create one, so every admin page said "No
+  organization". Added `/admin/orgs/new` (platform admins only).
+- **Hook-less found defects:** none new on the server this day; the day-5
+  problem+json fix landed with day 8.
+
+### Verification (actually run)
+
+- Shared 128, server unit 420, e2e 156 (36 new: 20 audit, 16 tokens), web 36;
+  lint, typecheck, build clean; `pnpm audit --audit-level=high` clean.
+- **Browser, against a built server on a throwaway DB (dropped after):** first-run
+  setup through the UI, create an org, land on Members with the real member
+  list, the Audit page showing the org creation attributed to the admin's
+  email, SSO and Security pages rendering real data.
+- Two surprises while driving the browser, both mine to note: form clicks
+  by reference did not submit until a coordinate click, which is a tooling
+  quirk rather than an app bug (the POSTs reached the server); and the first
+  org-creation attempt typed into a field before hot reload had finished.
+
+### Not verified / deferred
+
+- **UI flows not exercised in a browser:** MFA enrolment and challenge, invite
+  by email, team management, SSO provider create/edit, sudo dialog, org
+  switching with two orgs, token management UI (there is none yet: the API
+  exists, the page does not).
+- **No API-token management page**, though §11 screen 9 lists API tokens.
+- **No tests for the admin pages or the create-org page** (client, login and
+  sudo dialog are covered).
+- Retention job (R-101, M6); per-token rate limits (M7); the audit table is
+  unbounded until then.
+- The pre-commit hook runs the whole workspace lint, so a half-finished web
+  tree blocks server commits; the agent's work was committed together with the
+  server change as a result.
+
+### Next
+
+The ⛔ human checkpoint (plan line 662): review of the RBAC model and auth flows
+before agent work (M2) starts. Before it: a token-management page, and the
+remaining UI flows above exercised in a browser.
+
+---
+
 ## 2026-10-16 — M1 day 8: RBAC engine
 
 Session 6. Resumed from `d5db61e` (CI green on `d8eb76f`).

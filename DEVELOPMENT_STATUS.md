@@ -47,9 +47,9 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **26 / 152 — 17.1 %** |
+| **Requirements verified** | **28 / 152 — 18.4 %** |
 | Requirements partial | 20 |
-| Requirements not started | 104 |
+| Requirements not started | 102 |
 | Requirements blocked | 2 |
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
@@ -87,13 +87,19 @@ Admin) and **R-087** (the namespace-scoping rule, 66 table-driven cases,
 mutation-checked). **R-083** stays partial — role bindings now exist; API tokens
 are day 9 and clusters M2.
 
+Verified in session 6 (M1 day 9): **R-094** (API tokens: `vfm_` prefix, shown
+once, hashed, expiry, permission and cluster narrowing) and **R-100** (append-only
+`audit_events`, enforced by trigger; ADR-013). **R-015** stays partial — every
+control-plane mutation is audited, commands arrive in M2. **R-083** now has API
+tokens; clusters and channels are still to come.
+
 **Milestone view** (task completion, shown for orientation only — not the
 progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1.
 
 | Milestone | Plan lines | State |
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
-| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–8 complete and verified**; day 9 not started |
+| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | not started |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
@@ -341,7 +347,7 @@ counts as zero in the progress figure.
 | R-022 | Control-plane stack | §4.2, §16 d3 | NestJS app, zod-validated config, pino, Prisma 7 + pg adapter, Redis client, security headers, metrics listener | argon2/otplib/openid-client/BullMQ/gRPC arrive in M1–M2 |
 | R-023 | Web stack | §4.3, §16 d3 | React 19 + Vite shell, TanStack Router/Query, Tailwind + shadcn primitives, theme, error boundary, API client | virtualized ANSI log viewer (M5), recharts (M6), SSE client (M3) |
 | R-024 | Velero compatibility handling | §4.4 | pin + support window + version parsing (verified) | capability map and version-gated UI (M2/M3) |
-| R-097 | Data model tables | §9, lines 417–435 | 7 of 19 tables: `users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings` | the remaining 16 arrive with their features (M1–M6) |
+| R-097 | Data model tables | §9, lines 417–435 | 9 of 19 tables: `users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings`, `api_tokens`, `audit_events` | the remaining 16 arrive with their features (M1–M6) |
 | R-098 | Table conventions | §9, line 415 | UUIDv7 ids, `created_at`/`updated_at`, `org_id` index and unique `(org_id, user_id)` on `memberships` | applied to the remaining tables as they land |
 | R-102 | REST conventions | §10, lines 445–447 | `X-Request-Id` on every response with inbound-id validation, RFC 9457 problem+json for every error | cursor pagination, documented filter/sort params |
 | R-104 | REST endpoint groups | §10, lines 451–465 | only the probes exist | every group arrives with its milestone (M1–M6) |
@@ -589,7 +595,7 @@ make them obvious.
 | R-012 | P2 — backup data never passes through VFM | 37 | M3/M4 | ⬜ |
 | R-013 | P3 — agent executes only typed commands; no kubectl, exec or arbitrary YAML | 38 | M2 | ⬜ |
 | R-014 | P4 — least privilege for both agent RBAC and user permissions | 39 | M1/M2 | ⬜ |
-| R-015 | P5 — every state-changing action audited | 40 | M1+ | ⬜ |
+| R-015 | P5 — every state-changing action audited | 40 | M1+ | 🟡 every control-plane mutation incl. refusals; commands in the same transaction arrive in M2 |
 | R-016 | P6 — air-gap capable; no runtime internet calls, no CDN assets | 41 | all | 🟡 |
 
 ### §2.2 Out of scope (lines 63–69)
@@ -703,7 +709,7 @@ make them obvious.
 | R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere | 401 | M1 | ✅ |
 | R-092 | CSRF double-submit token on all state-changing REST calls | 402 | M1 | ✅ |
 | R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ✅ including the notification email (day 6; e2e asserts exactly one mail to a real account, none for an unknown address; seen arriving in Mailpit) |
-| R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset | 404 | M1 | ⬜ |
+| R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset | 404 | M1 | ✅ `src/tokens/**`, 16 e2e tests + 7 engine tests; opt-in per route (ADR-014); no management page in the UI yet |
 | R-095 | Sudo mode: re-authentication within 5 minutes for restore create, any delete, storage write, cluster delete and role-binding changes | 405 | M1 | ✅ the window and guard; the operations it protects arrive with them in M2–M6 |
 | R-096 | Optional restore approval, default off, approver must differ from requester, both actions audited | 407–409 | M6 | ⬜ |
 
@@ -711,10 +717,10 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 7 of 19 (`users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings`; `role_bindings.cluster_id` has no FK until M2, ADR-012), plus `mfa_recovery_codes` and `invites`, which §9 does not list (ADR-008, ADR-010) |
+| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 9 of 19 (`users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings`, `api_tokens`, `audit_events`; `role_bindings.cluster_id` has no FK until M2, ADR-012), plus `mfa_recovery_codes` and `invites`, which §9 does not list (ADR-008, ADR-010) |
 | R-098 | UUIDv7 ids, `created_at`/`updated_at` everywhere, `org_id` with an index on every org-owned table | 415 | M1–M6 | 🟡 |
 | R-099 | AES-256-GCM envelope encryption for `*_encrypted` columns, key id stored with each ciphertext, `VFM_MASTER_KEY` from env, rotation supported | 437 | M1 | ✅ |
-| R-100 | `audit_events` append-only: UPDATE/DELETE revoked from the application DB role, separate role for retention | 432 | M1 | ⬜ |
+| R-100 | `audit_events` append-only: UPDATE/DELETE revoked from the application DB role, separate role for retention | 432 | M1 | ✅ trigger-enforced (the owner role can otherwise always UPDATE), NOLOGIN `vfm_audit_retention`; UPDATE, DELETE, deleteMany and TRUNCATE proven refused (ADR-013) |
 | R-101 | Daily retention jobs for inventory events, log cache, commands (180 d) and audit (org setting, default 400 d) with optional export before delete | 439 | M6 | ⬜ |
 
 ### §10 REST API (lines 443–466)

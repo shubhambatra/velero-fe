@@ -1,9 +1,11 @@
 import { createRoute } from '@tanstack/react-router';
 
-import { RequireAdmin, RequireSession } from '@/components/require-session';
+import { RequireAdmin, RequireOrg, RequireSession } from '@/components/require-session';
 import { LoginPage } from '@/pages/login-page';
 import { MfaPage } from '@/pages/mfa-page';
 import { SetupPage } from '@/pages/setup-page';
+import { CreateOrgPage } from '@/pages/admin/create-org-page';
+import { TokensPage } from '@/pages/tokens-page';
 import { AuditPage } from '@/pages/admin/audit-page';
 import { MembersPage } from '@/pages/admin/members-page';
 import { SecurityPage } from '@/pages/admin/security-page';
@@ -49,6 +51,33 @@ function adminRoute(
     ),
   }) as unknown as ReturnType<typeof createRoute>;
 }
+
+function memberRoute(
+  path: string,
+  render: (orgId: string) => React.ReactNode,
+): ReturnType<typeof createRoute> {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path,
+    component: () => (
+      <RequireSession>
+        <RequireOrg>{render}</RequireOrg>
+      </RequireSession>
+    ),
+  }) as unknown as ReturnType<typeof createRoute>;
+}
+
+export const tokensRoute = memberRoute('/tokens', (id) => <TokensPage orgId={id} />);
+
+export const createOrgRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/orgs/new',
+  component: () => (
+    <RequireSession>
+      <CreateOrgPage />
+    </RequireSession>
+  ),
+});
 
 export const membersRoute = adminRoute('/admin/members', (id) => <MembersPage orgId={id} />);
 export const teamsRoute = adminRoute('/admin/teams', (id) => <TeamsPage orgId={id} />);

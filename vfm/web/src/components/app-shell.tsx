@@ -94,6 +94,19 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
             Overview
           </Link>
 
+          {session.status === 'ready' && active !== undefined && (
+            <Link
+              to="/tokens"
+              className="rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              activeProps={{
+                className: 'bg-accent text-accent-foreground',
+                'aria-current': 'page',
+              }}
+            >
+              API tokens
+            </Link>
+          )}
+
           {showAdmin &&
             ADMIN_LINKS.map((link) => (
               <Link
@@ -108,6 +121,19 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
                 {link.label}
               </Link>
             ))}
+
+          {session.status === 'ready' && session.user.isPlatformAdmin && (
+            <Link
+              to="/admin/orgs/new"
+              className="rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              activeProps={{
+                className: 'bg-accent text-accent-foreground',
+                'aria-current': 'page',
+              }}
+            >
+              New organization
+            </Link>
+          )}
 
           {PLANNED_SECTIONS.map((section) => (
             <button
