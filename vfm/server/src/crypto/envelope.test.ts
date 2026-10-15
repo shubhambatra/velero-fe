@@ -129,8 +129,12 @@ describe('tampering', () => {
   it('rejects a modified ciphertext', () => {
     const envelope = encrypt(keyring, 'JBSWY3DPEHPK3PXP', CONTEXT);
     const parts = envelope.split('.');
-    // Flip a character of the payload.
-    parts[7] = parts[7] === undefined ? '' : `${parts[7].slice(0, -1)}A`;
+    // Flip a whole byte of the decoded payload. Editing the last base64url
+    // character instead is flaky: it carries only 4 meaningful bits, and
+    // overwriting it with 'A' changes nothing about a quarter of the time.
+    const payload = Buffer.from(parts[7] ?? '', 'base64url');
+    payload[0] = (payload[0] ?? 0) ^ 0xff;
+    parts[7] = payload.toString('base64url');
 
     expect(() => decrypt(keyring, parts.join('.'), CONTEXT)).toThrow(DecryptionError);
   });

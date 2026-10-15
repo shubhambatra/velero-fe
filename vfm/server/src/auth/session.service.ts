@@ -67,6 +67,8 @@ export class SessionService {
       mfaPendingReason: input.mfaPendingReason ?? null,
       // "sudo mode" re-auth timestamp (§8.3). Login counts as a re-auth.
       lastReauthAt: now,
+      // The org the UI is showing; chosen with POST /me/active-org.
+      activeOrgId: null,
     };
 
     const pipeline = this.redis.connection.multi();
@@ -123,7 +125,9 @@ export class SessionService {
   /** Overwrites the mutable parts of a live session. */
   async update(
     id: string,
-    changes: Partial<Pick<SessionRecord, 'mfaPending' | 'mfaPendingReason' | 'lastReauthAt'>>,
+    changes: Partial<
+      Pick<SessionRecord, 'mfaPending' | 'mfaPendingReason' | 'lastReauthAt' | 'activeOrgId'>
+    >,
   ): Promise<void> {
     const raw = await this.redis.connection.get(sessionKey(id));
     if (raw === null) {
@@ -272,6 +276,12 @@ export interface SessionRecord {
   mfaPending: boolean;
   mfaPendingReason: MfaPendingReason | null;
   lastReauthAt: number;
+  /**
+   * The organization the caller is working in (PLAN.md §8.1 "switches org in
+   * the UI"). Optional so a session written before day 6 still parses. It is a
+   * *preference*, never an authorization: every org route re-checks membership.
+   */
+  activeOrgId?: string | null;
 }
 
 export interface CreatedSession {

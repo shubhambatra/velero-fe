@@ -167,6 +167,332 @@ paths:
       summary: Replace the recovery codes
       tags:
         - auth
+  /me/orgs:
+    get:
+      operationId: OrgsController_myOrgs
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Organizations the caller belongs to (org switcher)
+      tags:
+        - orgs
+  /me/active-org:
+    post:
+      operationId: OrgsController_setActive
+      parameters: []
+      responses:
+        "204":
+          description: ""
+      summary: Switch the active organization
+      tags:
+        - orgs
+  /orgs:
+    post:
+      description: "Platform administrators only. PLAN.md §8.1: the platform admin bootstraps orgs; there
+        is no open org creation. The creator becomes the first Owner."
+      operationId: OrgsController_create
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      summary: Create an organization
+      tags:
+        - orgs
+  /orgs/{orgId}:
+    get:
+      operationId: OrgsController_get
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Organization details and settings
+      tags:
+        - orgs
+    patch:
+      operationId: OrgsController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Update the name or MFA policy (Owner/Admin)
+      tags:
+        - orgs
+  /orgs/{orgId}/members:
+    get:
+      operationId: OrgsController_members
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Members of the organization
+      tags:
+        - orgs
+  /orgs/{orgId}/members/{userId}:
+    patch:
+      operationId: OrgsController_changeRole
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Change a member’s org role (Owner/Admin)
+      tags:
+        - orgs
+    delete:
+      operationId: OrgsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Remove a member, or leave (sudo required)
+      tags:
+        - orgs
+  /orgs/{orgId}/invites:
+    post:
+      description: Responds 503 if SMTP is not configured; no invitation is stored in that case.
+      operationId: InvitesController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Invite someone by email (Owner/Admin)
+      tags:
+        - invites
+    get:
+      operationId: InvitesController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Pending invitations (Owner/Admin)
+      tags:
+        - invites
+  /orgs/{orgId}/invites/{inviteId}:
+    delete:
+      operationId: InvitesController_revoke
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: inviteId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Revoke an invitation (Owner/Admin, sudo required)
+      tags:
+        - invites
+  /invites/accept:
+    post:
+      description: The signed-in account must hold the invited address. Single use. Responds with the same
+        400 for an unknown, expired, used or foreign token.
+      operationId: InvitesController_accept
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      summary: Accept an invitation with an existing account
+      tags:
+        - invites
+  /invites/register:
+    post:
+      description: The only user-creation path after first-time setup. Requires a valid token for an
+        address that has no account.
+      operationId: InvitesController_register
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      summary: Accept an invitation by creating an account
+      tags:
+        - invites
+  /orgs/{orgId}/teams:
+    get:
+      operationId: TeamsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List teams
+      tags:
+        - teams
+    post:
+      operationId: TeamsController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Create a team (Owner/Admin)
+      tags:
+        - teams
+  /orgs/{orgId}/teams/{teamId}:
+    patch:
+      operationId: TeamsController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Rename or describe a team (Owner/Admin)
+      tags:
+        - teams
+    delete:
+      operationId: TeamsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Delete a team (Owner/Admin, sudo required)
+      tags:
+        - teams
+  /orgs/{orgId}/teams/{teamId}/members:
+    get:
+      operationId: TeamsController_members
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Members of a team
+      tags:
+        - teams
+  /orgs/{orgId}/teams/{teamId}/members/{userId}:
+    put:
+      operationId: TeamsController_addMember
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Add an org member to a team (Owner/Admin)
+      tags:
+        - teams
+    delete:
+      operationId: TeamsController_removeMember
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Remove a member from a team (Owner/Admin)
+      tags:
+        - teams
   /healthz:
     get:
       description: Returns 200 while the process is able to serve requests.

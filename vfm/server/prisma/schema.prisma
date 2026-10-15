@@ -10,14 +10,17 @@
 //     generator and we do not want a extension dependency).
 //   - `createdAt` / `updatedAt` on every table.
 //   - every org-owned table carries `orgId` with an index, and PLAN.md §8.1
-//     requires that *every* query filter on it. That is enforced by a Prisma
-//     extension in M1 day 6, not by convention.
+//     requires that *every* query filter on it. That is enforced by the Prisma
+//     extension in src/prisma/org-scope.ts, not by convention: any model with
+//     an `orgId` field is org-owned automatically, and a model without one has
+//     to be named in NOT_ORG_OWNED or its test fails.
 //   - columns holding secrets are suffixed `Encrypted` and hold AES-256-GCM
 //     envelope ciphertext with a key id (PLAN.md §9).
 //
 // Tables arrive with the feature that needs them, so this is a growing subset
 // of §9's list: users, organizations and memberships from M0 day 3, and
-// mfa_recovery_codes from M1 day 5.
+// mfa_recovery_codes from M1 day 5, and teams, team_members and invites from
+// M1 day 6.
 
 generator client {
   provider = "prisma-client-js"
@@ -76,6 +79,7 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships       Membership[]
+  teamMemberships   TeamMember[]
   mfaRecoveryCodes  MfaRecoveryCode[]
 
   @@index([disabledAt])
@@ -133,6 +137,8 @@ model Organization {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   memberships Membership[]
+  teams       Team[]
+  invites     Invite[]
 
   @@map("organizations")
 }
@@ -165,4 +171,88 @@ model Membership {
   @@index([orgId])
   @@index([userId])
   @@map("memberships")
+}
+
+/// A named group of members within one organization (PLAN.md §8.1). Role
+/// bindings (M1 day 8) can target a team, and OIDC group claims map onto teams
+/// (M1 day 7).
+model Team {
+  id String @id @db.Uuid
+
+  orgId String @map("org_id") @db.Uuid
+
+  name        String
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members TeamMember[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+  @@map("teams")
+}
+
+/// Membership of a user in a team.
+///
+/// `orgId` is repeated here although it is derivable through the team. That is
+/// deliberate: it lets the scoping extension treat this table exactly like
+/// every other org-owned table instead of needing a join, and the service
+/// checks that team and user belong to the same org before inserting.
+model TeamMember {
+  id String @id @db.Uuid
+
+  orgId  String @map("org_id") @db.Uuid
+  teamId String @map("team_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([orgId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+/// A pending invitation to join an organization (PLAN.md §16 day 6: "email
+/// invites via SMTP").
+///
+/// PLAN.md §9 does not list this table; see docs/DECISIONS.md ADR-010.
+model Invite {
+  id String @id @db.Uuid
+
+  orgId String @map("org_id") @db.Uuid
+
+  /// The address the invitation is bound to. Accepting requires the accepting
+  /// account to hold exactly this address, so a forwarded link is useless to
+  /// anyone else.
+  email   String
+  orgRole OrgRole @map("org_role")
+
+  /// SHA-256 of the token that travels in the email. The token is 256 bits of
+  /// CSPRNG output, so a fast hash is sufficient (ADR-009); the point of
+  /// hashing is that a database read does not yield usable invitations.
+  tokenHash String @unique @map("token_hash")
+
+  invitedById String? @map("invited_by_id") @db.Uuid
+
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  /// Set once, atomically, by a conditional UPDATE. An accepted invite stays
+  /// accepted; replay is refused because the UPDATE matches no row.
+  acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([orgId, email])
+  @@map("invites")
 }

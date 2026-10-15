@@ -1,4 +1,4 @@
-import { type INestApplication, Logger } from '@nestjs/common';
+import { type INestApplication, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import { json } from 'express';
@@ -8,7 +8,41 @@ import { AppModule } from '../src/app.module';
 import { ProblemExceptionFilter } from '../src/common/problem.filter';
 import { requestIdMiddleware } from '../src/common/request-id';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { MailService, type MailMessage } from '../src/mail/mail.service';
 import { RedisService } from '../src/redis/redis.service';
+
+/**
+ * Stands in for SMTP in the end-to-end suites, so a test can read what would
+ * have been sent. The real transport is exercised by hand against Mailpit
+ * (docs/PROGRESS.md records it); nothing here reaches a network.
+ */
+export class FakeMail {
+  outbox: MailMessage[] = [];
+  configured = true;
+  failNext = false;
+
+  send(message: MailMessage): Promise<void> {
+    if (!this.configured) {
+      return Promise.reject(new ServiceUnavailableException('email delivery is not configured'));
+    }
+    if (this.failNext) {
+      this.failNext = false;
+      return Promise.reject(new Error('relay refused'));
+    }
+    this.outbox.push(message);
+    return Promise.resolve();
+  }
+
+  /** The invitation token from the last message sent to `to`. */
+  tokenFor(to: string): string {
+    const message = [...this.outbox].reverse().find((m) => m.to === to);
+    const match = message === undefined ? null : /token=([^\s&]+)/.exec(message.text);
+    if (match?.[1] === undefined) {
+      throw new Error(`no invitation mail for ${to}`);
+    }
+    return decodeURIComponent(match[1]);
+  }
+}
 
 /**
  * Boots the real application for the end-to-end suites.
@@ -24,6 +58,7 @@ export interface TestApp {
   app: INestApplication;
   prisma: PrismaService;
   redis: RedisService;
+  mail: FakeMail;
   /** A fresh cookie-keeping client. */
   api: () => request.Agent;
   /** Truncates the tables and flushes the Redis database. */
@@ -50,7 +85,11 @@ export async function createTestApp(): Promise<TestApp> {
 
   Logger.overrideLogger(false);
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const mail = new FakeMail();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(MailService)
+    .useValue(mail)
+    .compile();
 
   const app = moduleRef.createNestApplication();
   app.use(requestIdMiddleware);
@@ -68,13 +107,17 @@ export async function createTestApp(): Promise<TestApp> {
     app,
     prisma,
     redis,
+    mail,
     api: () => request.agent(app.getHttpServer() as never),
     reset: async () => {
-      // `users` cascades to memberships and recovery codes.
+      // Orgs cascade to memberships, teams and invites; users to recovery codes.
+      await prisma.organization.deleteMany();
       await prisma.user.deleteMany();
+      mail.outbox = [];
       await redis.connection.flushdb();
     },
     close: async () => {
+      await prisma.organization.deleteMany();
       await prisma.user.deleteMany();
       await redis.connection.flushdb();
       await app.close();

@@ -14,6 +14,8 @@ import { SessionGuard } from './auth/session.guard';
 import { SudoGuard } from './auth/sudo.guard';
 import { CryptoModule } from './crypto/crypto.module';
 import { HealthModule } from './health/health.module';
+import { MailModule } from './mail/mail.module';
+import { OrgsModule } from './orgs/orgs.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { UsersModule } from './users/users.module';
@@ -69,7 +71,9 @@ function prettyTransportAvailable(): boolean {
     PrismaModule,
     RedisModule,
     CryptoModule,
+    MailModule,
     UsersModule,
+    OrgsModule,
     AuthModule,
     HealthModule,
   ],

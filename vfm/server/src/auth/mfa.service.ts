@@ -219,13 +219,17 @@ export class MfaService {
    * Evaluated from their org memberships, so it changes when a role changes.
    */
   async obligationFor(userId: string): Promise<MfaObligation> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        isPlatformAdmin: true,
-        memberships: { select: { orgRole: true, org: { select: { settings: true } } } },
-      },
-    });
+    // Every org the user belongs to, on purpose: the obligation is the union
+    // across orgs (see mfaObligationFor), so this read is cross-org by nature.
+    const user = await this.prisma.unscoped('mfa obligation spans all of a user’s orgs', () =>
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          isPlatformAdmin: true,
+          memberships: { select: { orgRole: true, org: { select: { settings: true } } } },
+        },
+      }),
+    );
 
     if (user === null) {
       return { required: false, reason: null };

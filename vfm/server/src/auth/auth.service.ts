@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { Injectable, Logger } from '@nestjs/common';
 
 import type { AuthenticatedUser } from './authenticated-user';
+import { MailService } from '../mail/mail.service';
 import { LoginThrottleService } from './login-throttle.service';
 import { MfaService } from './mfa.service';
 import { PasswordService } from './password.service';
@@ -49,6 +50,7 @@ export class AuthService {
     private readonly passwords: PasswordService,
     private readonly throttle: LoginThrottleService,
     private readonly mfa: MfaService,
+    private readonly mail: MailService,
   ) {}
 
   private dummyHash(): Promise<string> {
@@ -90,10 +92,15 @@ export class AuthService {
     if (!usable) {
       const outcome = await this.throttle.recordFailure(identity);
       if (outcome.lockedNow) {
-        // PLAN.md §8.3 also calls for a lockout notification email. The
-        // mailer lands with org invites in M1 day 6; until then this is the
-        // record of the event. Tracked under Deferred in docs/PROGRESS.md.
         this.logger.warn(`account lockout reached for a login attempt from ${input.ip}`);
+        // PLAN.md §8.3: "lockout notification email". Only for a real
+        // account, and deliberately not awaited: an awaited send would make
+        // the response slower exactly when the account exists, which is an
+        // enumeration signal an unknown address cannot produce. A mail
+        // failure is logged and never changes the login response.
+        if (candidate !== null && candidate.disabledAt === null) {
+          void this.notifyLockout(candidate.email, input.ip);
+        }
       }
       return { ok: false, reason: 'invalid_credentials' };
     }
@@ -128,6 +135,26 @@ export class AuthService {
       user,
       mfaPendingReason,
     };
+  }
+
+  private async notifyLockout(email: string, ip: string): Promise<void> {
+    const minutes = Math.round(LoginThrottleService.ACCOUNT_LOCKOUT_SECONDS / 60);
+    try {
+      await this.mail.send({
+        to: email,
+        subject: 'Your account was temporarily locked',
+        text:
+          `There were ${LoginThrottleService.ACCOUNT_MAX_FAILURES.toString()} failed sign-in attempts ` +
+          `on your account, most recently from ${ip}.\n\n` +
+          `Sign-in is paused for ${minutes.toString()} minutes. If this was you, wait and try again. ` +
+          `If it was not, your password may be under attack: change it after the lock lifts and ` +
+          `consider enabling multi-factor authentication.\n`,
+      });
+    } catch (error: unknown) {
+      this.logger.warn(
+        `could not send the lockout notification: ${error instanceof Error ? error.name : 'unknown error'}`,
+      );
+    }
   }
 
   /**

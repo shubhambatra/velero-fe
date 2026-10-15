@@ -5,5 +5,5 @@
     // test/, which sits outside src/.
     "rootDir": "src"
   },
-  "exclude": ["dist", "node_modules", "test", "src/**/*.test.ts", "src/openapi.ts"]
+  "exclude": ["dist", "node_modules", "test", "src/**/*.test.ts"]
 }

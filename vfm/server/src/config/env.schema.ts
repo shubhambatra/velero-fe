@@ -30,6 +30,7 @@ export const SECRET_ENV_KEYS = [
   'REDIS_URL',
   'VFM_MASTER_KEY',
   'VFM_MASTER_KEY_PREVIOUS',
+  'SMTP_PASSWORD',
 ] as const;
 
 export const envSchema = z.object({
@@ -121,6 +122,32 @@ export const envSchema = z.object({
       (keys) => keys.every((key) => Buffer.from(key, 'base64').length === 32),
       'every key must be 32 bytes encoded as base64',
     ),
+
+  /**
+   * Externally reachable base URL of the web app, used to build the links in
+   * emails (invitations). No trailing slash is required; one is tolerated.
+   */
+  PUBLIC_URL: z
+    .url()
+    .default('http://localhost:5173')
+    .transform((value) => value.replace(/\/+$/, '')),
+
+  /**
+   * Outbound SMTP (PLAN.md §4.2: nodemailer over SMTP "so it works
+   * air-gapped"). Optional as a group: when `SMTP_HOST` is unset the mailer
+   * reports itself unconfigured and anything that must send mail — an
+   * invitation — fails loudly instead of pretending to have sent it.
+   */
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: port.default(587),
+  /** Implicit TLS (port 465 style). STARTTLS is negotiated automatically otherwise. */
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASSWORD: z.string().min(1).optional(),
+  MAIL_FROM: z.string().min(3).default('Velero Fleet Manager <no-reply@localhost>'),
 });
 
 export type Env = z.infer<typeof envSchema>;
