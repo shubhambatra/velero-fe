@@ -1,6 +1,6 @@
 # Velero Fleet Manager — implementation status
 
-**Last updated:** 2026-10-15 (session 4 — M1 day 6)
+**Last updated:** 2026-10-16 (session 5 — M1 day 7)
 **Branch:** `vfm/m0-foundation` · **Source of truth:** [`VELERO_FLEET_PLAN.md`](./VELERO_FLEET_PLAN.md) (848 lines)
 **Continuation point:** [`NEXT_STEPS.md`](./NEXT_STEPS.md)
 
@@ -47,9 +47,9 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **22 / 152 — 14.5 %** |
+| **Requirements verified** | **23 / 152 — 15.1 %** |
 | Requirements partial | 20 |
-| Requirements not started | 108 |
+| Requirements not started | 107 |
 | Requirements blocked | 2 |
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
@@ -76,13 +76,18 @@ unclassified, when a query omits the scope, or when raw SQL or an unreviewed
 that day 4 deferred ships with the mailer. **R-083** stays partial — orgs,
 members and teams exist; role bindings are day 8 and API tokens day 9.
 
+Verified in session 5 (M1 day 7): **R-090** (per-org OIDC: issuer, client, group
+claim, group → team mapping, JIT provisioning, several providers per org),
+exercised against a live Dex both through the e2e suite and against the built
+server.
+
 **Milestone view** (task completion, shown for orientation only — not the
 progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1.
 
 | Milestone | Plan lines | State |
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
-| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–6 complete and verified**; days 7–9 not started |
+| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–7 complete and verified**; days 8–9 not started |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | not started |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
@@ -508,8 +513,11 @@ reports success.
 | 16 | `5a8bc63` | `feat(auth): TOTP MFA, recovery codes and sudo mode for M1 day 5` | ✅ pushed |
 | 17 | `7f3b5b4` | `docs(vfm): record M1 day 5, ADR-008 and ADR-009, and the day 6 handoff` | ✅ pushed — **CI green on this SHA**, all five jobs |
 | 18 | `cd3234e` | `docs(vfm): record CI green on 7f3b5b4` | ✅ pushed |
-| 19 | `b124e5b` | `feat(orgs): orgs, members, invites, teams and org-scoped queries for M1 day 6` | ✅ pushed — CI result not yet recorded |
+| 19 | `b124e5b` | `feat(orgs): orgs, members, invites, teams and org-scoped queries for M1 day 6` | ✅ pushed — **CI red on its docs successor `9683cc5`** (nodemailer audit), fixed in `57575e2` |
 | 20 | `9683cc5` | `docs(vfm): record M1 day 6, ADR-010 and the day 7 handoff` | ✅ pushed |
+| 21 | `dbf8573` | `docs(vfm): record push status for day 6` | ✅ pushed |
+| 22 | `57575e2` | `fix(server): bump nodemailer to 10.0.14, which patches two high advisories` | ✅ pushed |
+| 23 | `f6fe5f8` | `feat(auth): per-org OIDC with JIT provisioning and group to team mapping for M1 day 7` | pending push |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
@@ -662,7 +670,7 @@ make them obvious.
 | R-087 | Namespace-scoping rule: every included namespace in scope (after mapping), no cluster-scoped resources, wildcards only for whole-cluster bindings; exhaustively unit-tested | 395 | M1 | ⬜ |
 | R-088 | Local auth: argon2id, 12-char minimum, breached-password check against a bundled list with no external calls | 399 | M1 | ✅ |
 | R-089 | TOTP MFA with 10 hashed recovery codes, enforceable per org | 399 | M1 | ✅ |
-| R-090 | OIDC per org: issuer, client, group claim, group→team mapping, JIT provisioning, multiple providers | 400 | M1 | ⬜ |
+| R-090 | OIDC per org: issuer, client, group claim, group→team mapping, JIT provisioning, multiple providers | 400 | M1 | ✅ `src/oidc/**`; 20 e2e against Dex incl. replay, login-CSRF, tampered state, PKCE mismatch, link/refuse rules; built server verified (ADR-011) |
 | R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere | 401 | M1 | ✅ |
 | R-092 | CSRF double-submit token on all state-changing REST calls | 402 | M1 | ✅ |
 | R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ✅ including the notification email (day 6; e2e asserts exactly one mail to a real account, none for an unknown address; seen arriving in Mailpit) |

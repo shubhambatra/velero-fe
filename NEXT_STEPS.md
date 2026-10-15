@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-15 (end of session 4) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-16 (end of session 5) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -112,55 +112,53 @@ verified.
 Day 4 `1f0162d`, day 5 `5a8bc63`, day 6 `b124e5b`. Details in
 `vfm/docs/PROGRESS.md`; design in ADR-008, ADR-009 and ADR-010. Do not redo them.
 
-### 3. Then M1 day 7 — OIDC
+### 3. ~~M1 day 7 — OIDC~~ — **done** in session 5 (`f6fe5f8`)
 
-`VELERO_FLEET_PLAN.md` §16 day 7 (line 649–650), implementing §8.3 (line 400)
-and §9 (`oidc_providers`, line 421); routes under `/auth/*` per §10 line 451.
+R-090 verified against Dex; design in ADR-011. Do not redo it. Dex is on
+`:55556`; the e2e suite now needs it running (`make dev-up`).
 
-- **Per-org providers**, several allowed per org: issuer, client id, client
-  secret (**encrypted** — `client_secret_encrypted`, use `CryptoService` with a
-  context such as `oidc.client_secret:<id>`), group claim, group → team
-  `mappings` JSONB, `jit_enabled`.
-- **Login flow** with `openid-client` (add the dependency and record it in an
-  ADR): start → redirect with state, nonce and PKCE → callback → session. Reuse
-  `SessionService.create`, `SessionCookiesService.issue` and
-  `MfaService.obligationFor`, exactly as `invites.controller.ts` does for a
-  newly registered user.
-- **JIT provisioning** when `jit_enabled`, creating a `users` row with a null
-  `password_hash` and a membership (`MEMBER`) in the provider's org.
-- **Group → team mapping** onto the `teams` table built on day 6; sync on every
-  login, adding and removing only the mappings this provider manages.
-- **Tested against Dex** (`vfm/deploy/dev/dex`, port 55556).
+### 4. Then M1 day 8 — RBAC engine
 
-**Acceptance criteria:** a Dex user signs in and lands in the right org; JIT off
-refuses an unknown user; the mock connector's `authors` group lands the user in
-the mapped team and a changed claim moves them on the next login; state, nonce
-and PKCE are each verified (a replayed or tampered callback is refused); an
-OIDC-only user cannot sign in with a password. `pnpm run test` and `test:e2e`
-green, and the built server exercised over HTTP against the running Dex.
+`VELERO_FLEET_PLAN.md` §16 day 8 (line 652–655), implementing §8.2 (line
+376–395) and §9 `role_bindings` (line 427).
 
-**Three things to get right:**
-- **Redirect URIs.** `dex/config.yaml` registers
-  `http://localhost:3000/api/auth/oidc/callback`, but every route lives under
-  `/api/v1`. Either add `/api/v1/auth/oidc/callback` to the static client or
-  change the route; do not leave them disagreeing. The Dex dev secret is
-  `vfm-dev-oidc-client-secret`.
-- **Never match an existing account on email alone.** An IdP asserting an
-  address someone already registered with a password is an account-takeover
-  primitive unless the provider is trusted for that domain and `email_verified`
-  is true. Decide the rule, write it as an ADR, and test the refusal.
-- **Org scoping.** `oidc_providers` has an `org_id`, so it is org-owned and the
-  extension will demand `inOrg()`. The callback resolves the provider from the
-  state, so it must use `unscoped()` with a stated reason — and that list is
-  pinned in `src/prisma/org-scope.test.ts`, which you will have to extend
-  deliberately.
+- **Permission constants in `packages/shared`**, and the four built-in roles as
+  **data** (a permission array), not code — §8.2 line 393.
+- **`role_bindings`**: org-owned, `(user|team) → role → scope`, scope being
+  `CLUSTER`, `NAMESPACES` (list) or `SELECTOR` (label selector). There is no
+  `clusters` table yet (M2), so `cluster_id` is a plain UUID column for now —
+  record that in an ADR and add the FK in M2.
+- **`authorize(user, clusterId, permission, {namespaces?, includesClusterScoped?})`**
+  plus a Nest guard.
+- **Table-driven tests, 50+ cases**: team inheritance, org Owner/Admin implicit
+  Cluster Admin, and the §8.2 namespace rule (line 395): every included
+  namespace — after mapping, for restores — must be in scope, cluster-scoped
+  resources are refused for scoped bindings, wildcard / empty "all namespaces"
+  only for whole-cluster bindings. "The most security-critical function in the
+  codebase."
 
-### 4. Then days 8 and 9
+**Acceptance criteria:** ≥ 50 table-driven cases pass including every scope
+edge named above; a user with no binding is denied; a scoped Operator is denied
+`kube-system` and "all namespaces" (golden path 7, as far as it can be proven
+without agents); `pnpm run test` and `test:e2e` green, and the built server
+exercised over HTTP.
 
-Day 8 RBAC engine (§16 line 652–655, §8.2, §8.2 namespace rule at line 395 —
-"the most security-critical function in the codebase"); day 9 audit log, API
-tokens and the M1 UI, then ⛔ **HUMAN CHECKPOINT** (line 662). Day 9 also owes
-auditing of today's mutations (see Deferred in `PROGRESS.md`).
+**Things to get right:**
+- **Deny by default, and deny on doubt.** An unparseable scope, an unknown
+  permission or a missing cluster must deny, never fall through to allow.
+- **Selector scopes need namespace labels**, which only arrive with inventory in
+  M3. Until then a `SELECTOR` binding must evaluate to *deny* for a namespace
+  whose labels are unknown, and say so in the test names.
+- **Pure function first.** Keep `authorize` free of I/O (take the bindings as
+  an argument) so the 50 cases run without a database; the guard loads bindings
+  and calls it. Org scoping applies to the loader: `role_bindings` is org-owned.
+- **Binding changes need sudo** (§8.3 line 405: "role binding changes").
+
+### 5. Then day 9
+
+Audit log (append-only DB role, interceptor on every mutating route — today's
+org/invite/team/OIDC mutations are unaudited), API tokens, and the M1 UI; then
+⛔ **HUMAN CHECKPOINT** (line 662).
 
 ---
 

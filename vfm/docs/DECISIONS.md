@@ -500,3 +500,59 @@ work that needs the agent.
   outside the scope and throw; the wrapper's `await` prevents that for callers.
 - `SMTP_HOST` unset makes invitations fail with 503 rather than silently not
   sending. Lockout notification is best-effort and only logs on failure.
+
+## ADR-011 — OIDC identity linking, and `oidc_identities`
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Context
+
+PLAN.md §8.3 asks for per-org OIDC with JIT provisioning and group → team
+mapping, and says nothing about how an IdP identity is tied to a local user.
+The obvious rule — match on the email claim — makes the identity provider a
+way to sign in as, or silently join an org as, any existing account.
+
+### Decision
+
+Sign-in resolves in this order, inside the provider's org scope:
+
+1. **`(provider, sub)` already linked** → that user. Never re-matched by email,
+   so an IdP changing a user's address cannot move the account.
+2. **First sight of the subject:** the ID token must carry an `email` with
+   `email_verified: true`. If an account with that address exists it is linked
+   **only if it is already a member of the provider's org**; otherwise sign-in
+   is refused — JIT does not override this.
+3. **No account at all:** created only when the provider has `jit_enabled`
+   (default off), with a null password hash and a `MEMBER` membership.
+
+`oidc_identities` is added for (1); §9 does not list it. A disabled account is
+refused at every step. Every refusal returns the same `sso=failed` redirect and
+logs the reason, so the callback is not an account oracle.
+
+**Other choices**
+
+- State is single use (`GETDEL`), and additionally bound to the browser by an
+  httpOnly `SameSite=Lax` cookie, which stops an attacker feeding a victim their
+  own authorization code. Nonce and the PKCE verifier are bound to the request.
+- IdP authentication is **not** assumed to include MFA: a new Owner/Admin, or a
+  user with a local factor, is gated exactly as after a password login.
+- Mapped teams are IdP-managed. Only teams named in a provider's mappings are
+  touched; a manual addition to one is removed at the next sign-in. Teams not
+  named are never changed.
+- Changing a provider's issuer is refused while identities are linked: a `sub`
+  is unique only within one issuer.
+- Production refuses an `http` issuer; dev allows it so Dex needs no TLS.
+
+### Consequences
+
+- An org admin who wants everyone from the IdP in must turn JIT on; adopting
+  SSO never opens an org by itself.
+- An existing user in a _different_ org cannot be pulled in by an IdP; they
+  need an invite. This is deliberately stricter than most products.
+- The issuer is fetched by the control plane on an admin's say-so, which is an
+  SSRF surface (an admin can point it at an internal URL). Mitigated only by
+  requiring Owner/Admin and https in production; an egress allow-list is left
+  to M7's threat model (§12.3).
+- The dev Dex client now registers `/api/v1/auth/oidc/callback`; the old
+  `/api/auth/...` URIs never matched a route.

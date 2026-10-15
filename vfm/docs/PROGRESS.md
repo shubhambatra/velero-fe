@@ -9,6 +9,64 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M1 day 7: OIDC
+
+Session 5. Resumed from `dbf8573`.
+
+### First: CI on `9683cc5` was red, and it was my fault
+
+I had reported day 6 as pushed with CI pending. It failed `pnpm audit`: the
+`nodemailer@7.0.10` I chose from memory has two high advisories (patched in
+10.0.6). Bumped to 10.0.14 (`57575e2`); audit is clean at `--audit-level=high`.
+Lesson, the same one as the Trivy tag in session 1: **look a version up, do not
+recall it.**
+
+### Completed (§16 day 7, §8.3, §9)
+
+- **Per-org OIDC providers (R-090).** `oidc_providers` with an
+  envelope-encrypted client secret (context `oidc_provider.client_secret:<id>`),
+  group claim, mappings, JIT flag and enable switch; Owner/Admin CRUD under
+  `/orgs/{orgId}/oidc-providers`, delete behind sudo. The secret has no field in
+  any response type.
+- **Authorization-code flow with PKCE** (`openid-client` 6.8.8): state, nonce,
+  verifier; single-use state plus a browser-binding cookie.
+- **JIT provisioning, linking rules and group → team sync**, as decided in
+  ADR-011 (`oidc_identities` is new).
+- **Dex dev client** redirect URI corrected to `/api/v1/auth/oidc/callback`.
+
+### Test status — actually executed
+
+| Gate                                                       | Result                                                                                                                                                                                                   |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run test` (server unit)                              | **327 passed**                                                                                                                                                                                           |
+| `pnpm --filter @vfm/server test:e2e`                       | **101 passed** (20 new, against real PostgreSQL, Redis **and Dex**)                                                                                                                                      |
+| lint / typecheck / build / `pnpm audit --audit-level=high` | clean                                                                                                                                                                                                    |
+| OpenAPI                                                    | +106 lines, additions only                                                                                                                                                                               |
+| **Built server vs live Dex over HTTP**                     | provider created; buttons list; start → Dex → callback sets the session; user in the right org and team; replayed callback refused; secret absent from the API and ciphertext (`vfm1.…`) in the database |
+| Go build / vet / test                                      | **not run — B-1**                                                                                                                                                                                        |
+| `smoke.sh`                                                 | **not run — B-2**                                                                                                                                                                                        |
+
+### Deferred
+
+- **Web UI** for SSO buttons and provider admin — day 9.
+- **Provider discovery is uncached** (one fetch per start and per callback). Fine
+  at this scale; revisit with the M7 load test.
+- **SSRF allow-list for the issuer** — see ADR-011; M7.
+- **Audit of provider changes** — day 9, with the rest of the mutations.
+- **Only Dex was exercised.** Other IdPs (Entra, Okta, Keycloak) differ in
+  `groups` shape and `email_verified`; the group claim accepts a string or an
+  array, but nothing else is proven.
+
+### Next
+
+M1 day 8 — RBAC engine. See `NEXT_STEPS.md`.
+
+### Blockers
+
+B-1 and B-2, unchanged.
+
+---
+
 ## 2026-10-15 — M1 day 6: orgs, members, invites, teams and org scoping
 
 Session 4. Resumed from `cd3234e`, which was clean and in sync with `origin`.
