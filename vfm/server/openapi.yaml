@@ -493,6 +493,112 @@ paths:
       summary: Remove a member from a team (Owner/Admin)
       tags:
         - teams
+  /auth/oidc/providers:
+    get:
+      description: Public. Returns only id and display name of enabled providers.
+      operationId: OidcController_list
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: SSO buttons for an org’s sign-in page
+      tags:
+        - auth
+  /auth/oidc/{providerId}/start:
+    get:
+      operationId: OidcController_start
+      parameters:
+        - name: providerId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "Begin SSO: redirects to the identity provider"
+      tags:
+        - auth
+  /auth/oidc/callback:
+    get:
+      description: Always answers with a redirect to the web app. Every failure carries the same
+        `sso=failed` marker; the reason is logged, not disclosed.
+      operationId: OidcController_callback
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: SSO callback
+      tags:
+        - auth
+  /orgs/{orgId}/oidc-providers:
+    get:
+      operationId: OidcAdminController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List OIDC providers (Owner/Admin). The secret is never returned.
+      tags:
+        - oidc
+    post:
+      operationId: OidcAdminController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Add an OIDC provider (Owner/Admin)
+      tags:
+        - oidc
+  /orgs/{orgId}/oidc-providers/{providerId}:
+    patch:
+      operationId: OidcAdminController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: providerId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Update an OIDC provider (Owner/Admin)
+      tags:
+        - oidc
+    delete:
+      operationId: OidcAdminController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: providerId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Remove an OIDC provider (Owner/Admin, sudo required)
+      tags:
+        - oidc
   /healthz:
     get:
       description: Returns 200 while the process is able to serve requests.

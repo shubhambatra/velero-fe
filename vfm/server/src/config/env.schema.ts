@@ -133,6 +133,16 @@ export const envSchema = z.object({
     .transform((value) => value.replace(/\/+$/, '')),
 
   /**
+   * Externally reachable base URL of **this API**, used to build the OIDC
+   * redirect URI (`<API_PUBLIC_URL>/api/v1/auth/oidc/callback`). It must match
+   * a redirect URI registered with the identity provider exactly.
+   */
+  API_PUBLIC_URL: z
+    .url()
+    .default('http://localhost:3000')
+    .transform((value) => value.replace(/\/+$/, '')),
+
+  /**
    * Outbound SMTP (PLAN.md §4.2: nodemailer over SMTP "so it works
    * air-gapped"). Optional as a group: when `SMTP_HOST` is unset the mailer
    * reports itself unconfigured and anything that must send mail — an

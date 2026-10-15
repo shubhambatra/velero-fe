@@ -20,7 +20,7 @@
 // Tables arrive with the feature that needs them, so this is a growing subset
 // of §9's list: users, organizations and memberships from M0 day 3, and
 // mfa_recovery_codes from M1 day 5, and teams, team_members and invites from
-// M1 day 6.
+// M1 day 6, and oidc_providers and oidc_identities from M1 day 7.
 
 generator client {
   provider = "prisma-client-js"
@@ -78,9 +78,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships       Membership[]
-  teamMemberships   TeamMember[]
-  mfaRecoveryCodes  MfaRecoveryCode[]
+  memberships      Membership[]
+  teamMemberships  TeamMember[]
+  oidcIdentities   OidcIdentity[]
+  mfaRecoveryCodes MfaRecoveryCode[]
 
   @@index([disabledAt])
   @@map("users")
@@ -136,9 +137,10 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships Membership[]
-  teams       Team[]
-  invites     Invite[]
+  memberships   Membership[]
+  teams         Team[]
+  invites       Invite[]
+  oidcProviders OidcProvider[]
 
   @@map("organizations")
 }
@@ -255,4 +257,71 @@ model Invite {
   @@index([orgId])
   @@index([orgId, email])
   @@map("invites")
+}
+
+/// An OpenID Connect identity provider configured by an org (PLAN.md §8.3,
+/// §9 `oidc_providers`). Several per org are allowed.
+model OidcProvider {
+  id String @id @db.Uuid
+
+  orgId String @map("org_id") @db.Uuid
+
+  /// Shown on the sign-in button.
+  name   String
+  issuer String
+
+  clientId              String @map("client_id")
+  /// AES-256-GCM envelope ciphertext, bound to this row's id (PLAN.md §9).
+  clientSecretEncrypted String @map("client_secret_encrypted")
+
+  /// Name of the ID-token claim that carries group names. Null means no group
+  /// sync for this provider.
+  groupClaim String? @map("group_claim")
+
+  /// `[{ "group": "<idp group>", "teamId": "<uuid>" }]`. Validated on write so
+  /// every teamId belongs to this org.
+  mappings Json @default("[]")
+
+  /// Create a user on first sign-in. Off by default (adopting SSO must not
+  /// silently open the org to everyone the IdP knows).
+  jitEnabled Boolean @default(false) @map("jit_enabled")
+
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  org        Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  identities OidcIdentity[]
+
+  @@index([orgId])
+  @@map("oidc_providers")
+}
+
+/// Links an IdP subject to a user.
+///
+/// Sign-in matches on (provider, subject), never on email: an email is a
+/// mutable attribute the IdP asserts, and matching on it alone would let a
+/// provider (or a typo in one) sign in as someone else's account. PLAN.md §9
+/// does not list this table; see docs/DECISIONS.md ADR-011.
+model OidcIdentity {
+  id String @id @db.Uuid
+
+  orgId      String @map("org_id") @db.Uuid
+  providerId String @map("provider_id") @db.Uuid
+  userId     String @map("user_id") @db.Uuid
+
+  /// The `sub` claim.
+  subject String
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  provider OidcProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, subject])
+  @@index([orgId])
+  @@index([userId])
+  @@map("oidc_identities")
 }
