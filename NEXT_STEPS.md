@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-16 (end of session 5) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-16 (end of session 6) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -103,8 +103,8 @@ and move R-021, R-129, R-130 and R-132 to ✅ in `DEVELOPMENT_STATUS.md`.
 Already done, do not redo: migrations are applied to both `vfm` and `vfm_test`
 (re-run `prisma migrate deploy` against `vfm_test` after pulling a new
 migration — the e2e suite fails with "table does not exist" otherwise);
-`openapi.yaml` is committed and in sync; 313 unit tests plus 81 e2e tests, lint,
-format, typecheck and build are green; M1 days 4, 5 and 6 are complete and
+`openapi.yaml` is committed and in sync; 355 unit tests, 121 e2e tests and 121 shared tests, lint,
+format, typecheck and build are green; M1 days 4–8 are complete and
 verified.
 
 ### 2. ~~M1 days 4, 5 and 6~~ — **done**
@@ -117,47 +117,22 @@ Day 4 `1f0162d`, day 5 `5a8bc63`, day 6 `b124e5b`. Details in
 R-090 verified against Dex; design in ADR-011. Do not redo it. Dex is on
 `:55556`; the e2e suite now needs it running (`make dev-up`).
 
-### 4. Then M1 day 8 — RBAC engine
+### 4. ~~M1 day 8 — RBAC engine~~ — **done** in session 6
 
-`VELERO_FLEET_PLAN.md` §16 day 8 (line 652–655), implementing §8.2 (line
-376–395) and §9 `role_bindings` (line 427).
-
-- **Permission constants in `packages/shared`**, and the four built-in roles as
-  **data** (a permission array), not code — §8.2 line 393.
-- **`role_bindings`**: org-owned, `(user|team) → role → scope`, scope being
-  `CLUSTER`, `NAMESPACES` (list) or `SELECTOR` (label selector). There is no
-  `clusters` table yet (M2), so `cluster_id` is a plain UUID column for now —
-  record that in an ADR and add the FK in M2.
-- **`authorize(user, clusterId, permission, {namespaces?, includesClusterScoped?})`**
-  plus a Nest guard.
-- **Table-driven tests, 50+ cases**: team inheritance, org Owner/Admin implicit
-  Cluster Admin, and the §8.2 namespace rule (line 395): every included
-  namespace — after mapping, for restores — must be in scope, cluster-scoped
-  resources are refused for scoped bindings, wildcard / empty "all namespaces"
-  only for whole-cluster bindings. "The most security-critical function in the
-  codebase."
-
-**Acceptance criteria:** ≥ 50 table-driven cases pass including every scope
-edge named above; a user with no binding is denied; a scoped Operator is denied
-`kube-system` and "all namespaces" (golden path 7, as far as it can be proven
-without agents); `pnpm run test` and `test:e2e` green, and the built server
-exercised over HTTP.
-
-**Things to get right:**
-- **Deny by default, and deny on doubt.** An unparseable scope, an unknown
-  permission or a missing cluster must deny, never fall through to allow.
-- **Selector scopes need namespace labels**, which only arrive with inventory in
-  M3. Until then a `SELECTOR` binding must evaluate to *deny* for a namespace
-  whose labels are unknown, and say so in the test names.
-- **Pure function first.** Keep `authorize` free of I/O (take the bindings as
-  an argument) so the 50 cases run without a database; the guard loads bindings
-  and calls it. Org scoping applies to the loader: `role_bindings` is org-owned.
-- **Binding changes need sudo** (§8.3 line 405: "role binding changes").
+R-085, R-086, R-087 verified; design in ADR-012. Do not redo it. The engine is
+`packages/shared/src/rbac.ts`; a route opts in with `@RequirePermission(...)`
+and gets `404`/`403` handling for free. A handler that must look at namespaces
+passes `{ checkInHandler: true }` and calls `RbacService.require()` itself —
+without that flag the guard demands a whole-cluster grant, so forgetting fails
+closed.
 
 ### 5. Then day 9
 
 Audit log (append-only DB role, interceptor on every mutating route — today's
-org/invite/team/OIDC mutations are unaudited), API tokens, and the M1 UI; then
+org/invite/team/OIDC/role-binding mutations are unaudited), API tokens
+(permission subset of the creator's grants, shown once), and the M1 UI —
+including the step-up prompt, which can now key off `sudoRequired` and
+`mfaRequired` in the problem+json body; then
 ⛔ **HUMAN CHECKPOINT** (line 662).
 
 ---

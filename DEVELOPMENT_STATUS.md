@@ -47,9 +47,9 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **23 / 152 — 15.1 %** |
+| **Requirements verified** | **26 / 152 — 17.1 %** |
 | Requirements partial | 20 |
-| Requirements not started | 107 |
+| Requirements not started | 104 |
 | Requirements blocked | 2 |
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
@@ -81,13 +81,19 @@ claim, group → team mapping, JIT provisioning, several providers per org),
 exercised against a live Dex both through the e2e suite and against the built
 server.
 
+Verified in session 6 (M1 day 8): **R-085** (four built-in roles with the exact
+§8.2 matrix, stored as data), **R-086** (org Owner/Admin implicitly Cluster
+Admin) and **R-087** (the namespace-scoping rule, 66 table-driven cases,
+mutation-checked). **R-083** stays partial — role bindings now exist; API tokens
+are day 9 and clusters M2.
+
 **Milestone view** (task completion, shown for orientation only — not the
 progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1.
 
 | Milestone | Plan lines | State |
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
-| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–7 complete and verified**; days 8–9 not started |
+| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–8 complete and verified**; day 9 not started |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | not started |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
@@ -249,8 +255,26 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
   addressed through this one, and a cross-org user cannot be added to a team.
   Adding the extension immediately broke 10 existing e2e tests, which is the
   property wanted.
-- **Not covered:** raw SQL (no extension can see it — hence the pin), and the
-  RBAC layer on top of membership, which is day 8.
+- **Not covered:** raw SQL (no extension can see it — hence the pin). The RBAC
+  layer on top of membership is R-085–R-087 below.
+
+### R-085 / R-086 / R-087 — RBAC engine (`PLAN.md` §8.2, lines 376–395)
+
+- **Files:** `vfm/packages/shared/src/rbac.ts`, `rbac.test.ts`;
+  `vfm/server/src/rbac/**`; `vfm/server/test/rbac.e2e.test.ts`; migration
+  `20261015195933_role_bindings`
+- **Detail:** a pure `authorize()` over bindings and facts, deny by default and
+  on doubt, returning a named reason. Roles are a data table. Scoped bindings
+  grant namespaced permissions plus `cluster:read` and `storage:read` only; a
+  restore is checked on both the source and the mapped target namespace. SELECTOR
+  scopes deny until namespace labels exist (M3). `@RequirePermission` fails
+  closed; 404 for a cluster the caller cannot see, 403 for one they can.
+  Binding grant and revoke need `cluster:manage` and sudo. Design: ADR-012.
+- **Verification:** 121 shared tests, of which 66 are table-driven authorize
+  cases; two deliberate mutations each failed tests. 20 e2e tests over HTTP;
+  the built server exercised against live Postgres and Redis.
+- **Not covered:** a live namespace-sensitive route (none exist until M2),
+  binding-change auditing (day 9), API-token permission limits (day 9).
 
 ### R-025 — Monorepo tooling and CI (`PLAN.md` §4.5, lines 164–169)
 
@@ -317,7 +341,7 @@ counts as zero in the progress figure.
 | R-022 | Control-plane stack | §4.2, §16 d3 | NestJS app, zod-validated config, pino, Prisma 7 + pg adapter, Redis client, security headers, metrics listener | argon2/otplib/openid-client/BullMQ/gRPC arrive in M1–M2 |
 | R-023 | Web stack | §4.3, §16 d3 | React 19 + Vite shell, TanStack Router/Query, Tailwind + shadcn primitives, theme, error boundary, API client | virtualized ANSI log viewer (M5), recharts (M6), SSE client (M3) |
 | R-024 | Velero compatibility handling | §4.4 | pin + support window + version parsing (verified) | capability map and version-gated UI (M2/M3) |
-| R-097 | Data model tables | §9, lines 417–435 | 5 of 19 tables: `users`, `organizations`, `memberships`, `teams`, `team_members` | the remaining 16 arrive with their features (M1–M6) |
+| R-097 | Data model tables | §9, lines 417–435 | 7 of 19 tables: `users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings` | the remaining 16 arrive with their features (M1–M6) |
 | R-098 | Table conventions | §9, line 415 | UUIDv7 ids, `created_at`/`updated_at`, `org_id` index and unique `(org_id, user_id)` on `memberships` | applied to the remaining tables as they land |
 | R-102 | REST conventions | §10, lines 445–447 | `X-Request-Id` on every response with inbound-id validation, RFC 9457 problem+json for every error | cursor pagination, documented filter/sort params |
 | R-104 | REST endpoint groups | §10, lines 451–465 | only the probes exist | every group arrives with its milestone (M1–M6) |
@@ -665,11 +689,11 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-083 | Identity model: platform admin, orgs, members, teams, clusters, role bindings, channels, API tokens | 362–372 | M1 | 🟡 platform admin, users, orgs, members and teams exist (day 6); role bindings are day 8, API tokens day 9, clusters M2 |
+| R-083 | Identity model: platform admin, orgs, members, teams, clusters, role bindings, channels, API tokens | 362–372 | M1 | 🟡 platform admin, users, orgs, members, teams and role bindings exist; API tokens are day 9, clusters M2 |
 | R-084 | Every query filtered by `org_id`, enforced by a Prisma extension, with a test that fails if any repository query lacks org scoping | 374 | M1 | ✅ `src/prisma/org-scope.ts`; 111 unit tests incl. every org-owned model × operation, plus 30 e2e |
-| R-085 | Four built-in roles with the exact permission matrix, stored as data not code | 376–393 | M1 | ⬜ |
-| R-086 | Org Owner/Admin implicitly Cluster Admin on all org clusters | 393 | M1 | ⬜ |
-| R-087 | Namespace-scoping rule: every included namespace in scope (after mapping), no cluster-scoped resources, wildcards only for whole-cluster bindings; exhaustively unit-tested | 395 | M1 | ⬜ |
+| R-085 | Four built-in roles with the exact permission matrix, stored as data not code | 376–393 | M1 | ✅ `packages/shared/src/rbac.ts` (`BUILT_IN_ROLES`), pinned row by row to §8.2 by test; `role_bindings.role` is a string key so custom roles need no migration |
+| R-086 | Org Owner/Admin implicitly Cluster Admin on all org clusters | 393 | M1 | ✅ `authorize()` org-role branch; e2e: an owner manages bindings with none of their own |
+| R-087 | Namespace-scoping rule: every included namespace in scope (after mapping), no cluster-scoped resources, wildcards only for whole-cluster bindings; exhaustively unit-tested | 395 | M1 | ✅ 66 table-driven cases; restore counts source and mapped target; mutation-checked (ADR-012) |
 | R-088 | Local auth: argon2id, 12-char minimum, breached-password check against a bundled list with no external calls | 399 | M1 | ✅ |
 | R-089 | TOTP MFA with 10 hashed recovery codes, enforceable per org | 399 | M1 | ✅ |
 | R-090 | OIDC per org: issuer, client, group claim, group→team mapping, JIT provisioning, multiple providers | 400 | M1 | ✅ `src/oidc/**`; 20 e2e against Dex incl. replay, login-CSRF, tampered state, PKCE mismatch, link/refuse rules; built server verified (ADR-011) |
@@ -684,7 +708,7 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 5 of 19 (`users`, `organizations`, `memberships`, `teams`, `team_members`), plus `mfa_recovery_codes` and `invites`, which §9 does not list (ADR-008, ADR-010) |
+| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 7 of 19 (`users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings`; `role_bindings.cluster_id` has no FK until M2, ADR-012), plus `mfa_recovery_codes` and `invites`, which §9 does not list (ADR-008, ADR-010) |
 | R-098 | UUIDv7 ids, `created_at`/`updated_at` everywhere, `org_id` with an index on every org-owned table | 415 | M1–M6 | 🟡 |
 | R-099 | AES-256-GCM envelope encryption for `*_encrypted` columns, key id stored with each ciphertext, `VFM_MASTER_KEY` from env, rotation supported | 437 | M1 | ✅ |
 | R-100 | `audit_events` append-only: UPDATE/DELETE revoked from the application DB role, separate role for retention | 432 | M1 | ⬜ |
@@ -751,7 +775,7 @@ make them obvious.
 |---|---|---|---|---|
 | R-132 | Agent unit tests: command→CR mapping per op, policy, idempotency, redaction, capability gating | 587 | M2+ | ⛔ B-1 (written, never executed) |
 | R-133 | Agent integration via envtest with Velero CRDs, including the DownloadRequest flow | 588 | M3 | ⬜ |
-| R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 277 unit + 81 e2e; org isolation now covered, the RBAC table-driven cases arrive on day 8 |
+| R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 355 unit + 121 e2e + 121 shared; RBAC (66 cases) and org isolation covered; command state machine, alert rules arrive with their features |
 | R-135 | Server integration via Testcontainers plus an in-process fake agent over real gRPC: enrollment, mTLS, reconnect, re-delivery, revocation, SSE fan-out across two instances | 590 | M2 | ⬜ |
 | R-136 | Web unit tests: form→payload mapping, CLI-equivalent generator, permission-disabled states | 591 | M3+ | 🟡 |
 | R-137 | Playwright e2e against kind, MinIO and Velero | 592 | M2+ | ⬜ |

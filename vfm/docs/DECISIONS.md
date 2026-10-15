@@ -556,3 +556,69 @@ logs the reason, so the callback is not an account oracle.
   to M7's threat model (§12.3).
 - The dev Dex client now registers `/api/v1/auth/oidc/callback`; the old
   `/api/auth/...` URIs never matched a route.
+
+## ADR-012 — RBAC: a pure engine in `@vfm/shared`, `role_bindings` without a cluster FK
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Context
+
+PLAN.md §8.2 defines four built-in roles, org Owner/Admin as implicit Cluster
+Admin, and a namespace-scoping rule it calls "the most security-critical
+function in the codebase". §9 lists `role_bindings` with a `cluster_id`, but the
+`clusters` table does not exist until M2.
+
+### Decision
+
+- **The decision function is pure and lives in `packages/shared`**
+  (`rbac.ts`): bindings and facts in, `{allowed, reason}` out. The server
+  loads facts (`RbacService`) and calls it; the web app can call the same code
+  to hide controls. 66 table-driven cases run with no database and were
+  mutation-checked (turning `every` into `some`, or removing the
+  cluster-scoped check, fails tests).
+- **Deny by default and on doubt.** Unknown permission, unknown role,
+  unreadable scope, non-member, missing namespaces, unknown namespace labels
+  and an empty selector all deny. An empty `matchLabels` is refused rather
+  than read as "everything", which is what Kubernetes would do.
+- **Scoped bindings grant only namespaced permissions** plus `cluster:read`
+  and `storage:read`. `storage:write`, `advanced:write` and `cluster:manage`
+  need a whole-cluster binding: they change the cluster, not a namespace.
+- **A restore is checked on source and target.** `restoreNamespaces()` returns
+  both sides of a mapping; checking only the target would let a user scoped to
+  `dev` restore `prod`'s data into `dev` and read it there.
+- **Grants add up across bindings** (user and team), but each namespace must be
+  covered by a binding that carries the permission itself.
+- **`backup:download` needs the org setting for everyone**, owners included
+  (`allowBackupContentDownload`, default off).
+- **`role_bindings.cluster_id` is a plain UUID, no foreign key.** M2 adds the
+  `clusters` table and the constraint. Until then nothing can verify a cluster
+  exists, which is why every authorization on an unknown cluster id resolves
+  to "no binding" for members and "allowed" only for org Owner/Admin.
+- **`role` is a string key, not an enum**, so v1.1 custom roles need no
+  migration. `subject_id` is polymorphic (user or team) and so cannot be a
+  foreign key; the service validates the subject on create and deletes the
+  bindings when a member leaves the org or a team is deleted — otherwise
+  re-inviting someone would silently restore access granted before they left.
+- **404 versus 403:** a caller who cannot see the cluster at all gets 404; one
+  who can see it but lacks the permission gets 403.
+- **`@RequirePermission` demands the permission across the whole cluster** by
+  default. A handler that checks namespaces itself opts in with
+  `checkInHandler`, and the guard then only confirms the permission is held
+  somewhere. Forgetting the handler-side check therefore fails closed.
+- **Authorization is read from the database on every request**; there is no
+  cache, so revoking a binding applies to the next request. Revisit if it
+  becomes a hot path (M2 SSE fan-out is the likely one).
+
+### Consequences
+
+- The guard runs after the global `SudoGuard`, so an unauthorized caller on a
+  sudo-protected route sees "sudo required" before the 404/403. It reveals a
+  route that is public in the OpenAPI document anyway.
+- Binding management is not audited yet (day 9 adds the interceptor).
+- SELECTOR bindings can be created but grant nothing until M3 supplies
+  namespace labels; the tests are named for that.
+- Fixed in passing: `sudoRequired`, `mfaRequired` and `mfaPendingReason` were
+  documented by the guards but dropped by the problem+json filter, so a client
+  could not tell a step-up prompt from a plain 403. They are now an
+  allow-listed extension member set.

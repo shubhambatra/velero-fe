@@ -9,6 +9,71 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M1 day 8: RBAC engine
+
+Session 6. Resumed from `d5db61e` (CI green on `d8eb76f`).
+
+### Completed (§16 day 8, §8.2, §9)
+
+- **R-085, R-086, R-087.** `packages/shared/src/rbac.ts`: permission constants,
+  the four built-in roles as a data table, and a pure
+  `authorize(principal, request, bindings, context)` returning an allow or a
+  named deny reason. Owner/Admin are implicit Cluster Admin; user and team
+  bindings add up; the namespace rule is implemented as written (every
+  namespace in scope, no cluster-scoped resources, wildcard or empty only for
+  whole-cluster bindings). Also `restoreNamespaces()`, `visibleNamespaces()`
+  for list filtering and `mayAttempt()` for route guards. Design: ADR-012.
+- **`role_bindings`** (migration `20261015195933_role_bindings`, applied to
+  `vfm` and `vfm_test`), `RbacService`, `@RequirePermission` guard,
+  `GET /clusters/{id}/my-access`, `GET|POST /clusters/{id}/role-bindings`,
+  `DELETE …/{bindingId}`. Grant and revoke need `cluster:manage` and sudo.
+- **Org setting `allowBackupContentDownload`** (default off), patchable by an
+  Owner/Admin.
+- **A day-5 defect fixed:** the guards document `sudoRequired` /
+  `mfaRequired` / `mfaPendingReason` as machine-readable markers, but the
+  problem+json filter dropped them. The UI could not have told a step-up
+  prompt from a plain 403. Found when my own e2e assertion failed; now passed
+  through on an allow-list, with unit tests.
+
+### Verification (actually run)
+
+- `@vfm/shared`: 121 tests (66 table-driven authorize cases, role table pinned
+  to §8.2 row by row, `normaliseScope`, `restoreNamespaces`,
+  `visibleNamespaces`, `mayAttempt`). Two deliberate mutations
+  (`every`→`some`; dropping the cluster-scoped refusal) each failed tests, so
+  the table is not vacuous.
+- Server: 355 unit and 121 e2e (20 new against real Postgres/Redis: 404 vs 403,
+  sudo gating, cross-org subject refusal with identical answers, team
+  inheritance both ways, bindings removed with the team or member, revocation
+  on the next request, same cluster id in two orgs).
+- Lint, typecheck and build clean across the workspace; `pnpm audit
+--audit-level=high` clean (2 moderate remain).
+- **Built server** (`node dist/main.js`, throwaway DB `vfm_run`, dropped
+  afterwards) exercised over HTTP: unauthenticated 401, setup, org, active org,
+  `my-access` as owner, team binding scoped to `dev` created, wildcard refused
+  422, list resolves the team name, malformed cluster id 404.
+- Not run: Go and `smoke.sh` (B-1, B-2 unchanged).
+
+### Deferred
+
+- **Audit of binding changes** — day 9, with the interceptor.
+- **Namespace-sensitive handlers** do not exist yet (M2+); the guard's
+  `checkInHandler` path is covered by unit tests of `mayAttempt`, not by a live
+  route.
+- **No FK on `cluster_id`** until M2 (ADR-012).
+- **API token permission limits** (§8.2 "inherit/limit") — day 9.
+- **Web UI** for bindings and teams — day 9.
+- The `visibleNamespaces()` helper lists only namespaces the cluster has
+  reported; it is untested against a real inventory (M3).
+
+### Next
+
+M1 day 9: audit log (append-only role grants, interceptor on every mutating
+route — org, invite, team, OIDC and now role-binding changes are unaudited),
+API tokens, and the M1 UI. Then the ⛔ human checkpoint (plan line 662).
+
+---
+
 ## 2026-10-16 — M1 day 7: OIDC
 
 Session 5. Resumed from `dbf8573`.
