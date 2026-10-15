@@ -38,7 +38,7 @@ export const CSRF_HEADER = 'x-csrf-token';
  *
  * Requests authenticated with an API token (`Authorization: Bearer`, §8.3) are
  * exempt: they carry no cookie, so there is nothing for a browser to attach
- * ambiently and therefore no CSRF to prevent. That path lands in M1 day 9.
+ * ambiently and therefore no CSRF to prevent.
  */
 @Injectable()
 export class CsrfGuard implements CanActivate {
@@ -64,7 +64,10 @@ export class CsrfGuard implements CanActivate {
       return true;
     }
 
-    if (request.headers.authorization !== undefined) {
+    // Only a request that authenticated with an API token is exempt. Merely
+    // sending an Authorization header must not skip the check for a cookie
+    // session.
+    if (request.apiToken !== undefined) {
       return true;
     }
 

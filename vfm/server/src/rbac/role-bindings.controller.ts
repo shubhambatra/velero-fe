@@ -17,6 +17,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { RequiresSudo } from '../auth/sudo.guard';
 import { parseBody } from '../common/parse-body';
 import { createRoleBindingSchema, orgIdParam } from '../orgs/orgs.dto';
+import { AllowsApiToken } from '../tokens/api-token.decorator';
 import { RequirePermission } from './require-permission.decorator';
 import { RoleBindingsService } from './role-bindings.service';
 
@@ -32,10 +33,11 @@ export class RoleBindingsController {
 
   private orgOf(request: Request): string {
     // The guard has already refused a missing or malformed active org.
-    return request.session?.activeOrgId ?? '';
+    return request.session?.activeOrgId ?? request.apiToken?.orgId ?? '';
   }
 
   @Get('my-access')
+  @AllowsApiToken()
   @RequirePermission('cluster:read')
   @ApiOperation({ summary: 'What the caller may do on this cluster' })
   async myAccess(
@@ -43,7 +45,12 @@ export class RoleBindingsController {
     @Req() request: Request,
     @Param('clusterId') clusterId: string,
   ) {
-    return this.bindings.myAccess(this.orgOf(request), user.id, parseBody(orgIdParam, clusterId));
+    return this.bindings.myAccess(
+      this.orgOf(request),
+      user.id,
+      parseBody(orgIdParam, clusterId),
+      request.apiToken,
+    );
   }
 
   @Get('role-bindings')

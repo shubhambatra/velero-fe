@@ -53,7 +53,8 @@ export class RbacGuard implements CanActivate {
       throw new NotFoundException('cluster not found');
     }
 
-    const orgParam = params.orgId ?? request.session?.activeOrgId ?? undefined;
+    const orgParam =
+      params.orgId ?? request.session?.activeOrgId ?? request.apiToken?.orgId ?? undefined;
     const orgId = uuid.safeParse(orgParam);
     if (!orgId.success) {
       throw new BadRequestException('no active organization; select one first');
@@ -65,6 +66,7 @@ export class RbacGuard implements CanActivate {
         user.id,
         clusterId.data,
         required.permission,
+        request.apiToken,
       );
       if (may) {
         return true;
@@ -76,11 +78,12 @@ export class RbacGuard implements CanActivate {
 
     // Whole-cluster demand: no namespaces, no cluster-scoped flag. For a
     // namespaced permission and a scoped binding this denies, by design.
-    await this.rbac.require(orgId.data, user.id, {
-      clusterId: clusterId.data,
-      permission: required.permission,
-      namespaces: [],
-    });
+    await this.rbac.require(
+      orgId.data,
+      user.id,
+      { clusterId: clusterId.data, permission: required.permission, namespaces: [] },
+      request.apiToken,
+    );
     return true;
   }
 }

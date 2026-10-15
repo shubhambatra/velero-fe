@@ -9,7 +9,19 @@ describe('application shell', () => {
   beforeEach(() => {
     // The shell polls the probes; answering them keeps these assertions about
     // the shell rather than about connectivity.
-    stubFetch(() => jsonResponse({ status: 'ok' }));
+    stubFetch((url) => {
+      if (url.endsWith('/auth/me')) {
+        return jsonResponse({
+          user: { id: 'u', email: 'a@b.co', name: null, isPlatformAdmin: false, mfaEnabled: false },
+        });
+      }
+      if (url.endsWith('/me/orgs')) {
+        return jsonResponse({
+          orgs: [{ id: 'o', name: 'Acme', slug: 'acme', orgRole: 'MEMBER', active: true }],
+        });
+      }
+      return jsonResponse({ status: 'ok' });
+    });
   });
 
   it('renders the overview page inside the landmark structure', async () => {

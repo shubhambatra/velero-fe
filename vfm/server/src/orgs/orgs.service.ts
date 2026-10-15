@@ -237,6 +237,11 @@ export class OrgsService {
           await tx.roleBinding.deleteMany({
             where: { subjectType: 'USER', subjectId: targetUserId },
           });
+          // Tokens minted while they were a member must stop with the membership.
+          await tx.apiToken.updateMany({
+            where: { userId: targetUserId, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
           await tx.membership.delete({
             where: { orgId_userId: { orgId, userId: targetUserId } },
           });

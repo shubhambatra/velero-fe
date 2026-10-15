@@ -23,6 +23,10 @@ interface PendingLogin {
 }
 
 export class OidcLoginError extends Error {
+  /** Set once the provider is known, so a refusal can be audited in its org. */
+  providerId?: string | undefined;
+  orgId?: string | undefined;
+
   constructor(
     readonly reason:
       | 'unknown_state'
@@ -48,6 +52,7 @@ export interface OidcLoginResult {
     mfaEnabled: boolean;
   };
   orgId: string;
+  providerId: string;
 }
 
 /**
@@ -116,6 +121,27 @@ export class OidcLoginService {
     cookieState: string | undefined;
     idpError: string | undefined;
   }): Promise<OidcLoginResult> {
+    const known: { providerId?: string; orgId?: string } = {};
+    try {
+      return await this.completeWith(input, known);
+    } catch (error: unknown) {
+      if (error instanceof OidcLoginError) {
+        error.providerId = known.providerId;
+        error.orgId = known.orgId;
+      }
+      throw error;
+    }
+  }
+
+  private async completeWith(
+    input: {
+      callbackUrl: URL;
+      state: string;
+      cookieState: string | undefined;
+      idpError: string | undefined;
+    },
+    known: { providerId?: string; orgId?: string },
+  ): Promise<OidcLoginResult> {
     // Single use: the key is consumed whatever happens next, so a failed or
     // replayed callback cannot be retried.
     const raw = await this.redis.connection.getdel(stateKey(input.state));
@@ -129,6 +155,8 @@ export class OidcLoginService {
     }
 
     const provider = await this.loadProvider(pending.providerId);
+    known.providerId = provider.id;
+    known.orgId = provider.orgId;
     const config = await this.discover(provider);
 
     let claims: client.IDToken | undefined;
@@ -153,7 +181,7 @@ export class OidcLoginService {
     return this.prisma.inOrg(provider.orgId, async () => {
       const user = await this.resolveUser(provider, claims);
       await this.syncTeams(provider, user.id, claims);
-      return { user, orgId: provider.orgId };
+      return { user, orgId: provider.orgId, providerId: provider.id };
     });
   }
 

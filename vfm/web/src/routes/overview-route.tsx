@@ -1,5 +1,6 @@
 import { createRoute } from '@tanstack/react-router';
 
+import { RequireSession } from '@/components/require-session';
 import { OverviewPage } from '@/pages/overview-page';
 
 import { rootRoute } from './root-route';
@@ -12,5 +13,9 @@ import { rootRoute } from './root-route';
 export const overviewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: OverviewPage,
+  component: () => (
+    <RequireSession>
+      <OverviewPage />
+    </RequireSession>
+  ),
 });

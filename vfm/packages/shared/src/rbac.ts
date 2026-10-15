@@ -140,6 +140,14 @@ export interface Principal {
   /** `undefined` when the user is not a member of the org. Denies everything. */
   readonly orgRole: 'OWNER' | 'ADMIN' | 'MEMBER' | undefined;
   readonly teamIds: readonly string[];
+  /**
+   * Set when the caller is an API token. The token can only *narrow* what its
+   * owner holds: `null` for a field means "no extra limit", not "everything".
+   */
+  readonly tokenLimit?: {
+    readonly permissions: readonly string[] | null;
+    readonly clusterIds: readonly string[] | null;
+  };
 }
 
 export interface AuthorizeRequest {
@@ -168,6 +176,7 @@ export interface AuthorizeContext {
 export type DenyReason =
   | 'unknown-permission'
   | 'not-a-member'
+  | 'token-limit'
   | 'no-binding'
   | 'download-disabled'
   | 'namespaces-required'
@@ -295,6 +304,10 @@ export function authorize(
     return DENY('not-a-member');
   }
 
+  if (exceedsTokenLimit(principal, request.clusterId, permission)) {
+    return DENY('token-limit');
+  }
+
   if (permission === 'backup:download' && context.allowBackupContentDownload !== true) {
     return DENY('download-disabled');
   }
@@ -366,6 +379,17 @@ export function authorize(
  * request's real namespaces. It is **never** sufficient on its own for a
  * namespaced permission.
  */
+function exceedsTokenLimit(principal: Principal, clusterId: string, permission: string): boolean {
+  const limit = principal.tokenLimit;
+  if (limit === undefined) {
+    return false;
+  }
+  return (
+    (limit.clusterIds !== null && !limit.clusterIds.includes(clusterId)) ||
+    (limit.permissions !== null && !limit.permissions.includes(permission))
+  );
+}
+
 export function mayAttempt(
   principal: Principal,
   clusterId: string,
@@ -374,6 +398,9 @@ export function mayAttempt(
   context: AuthorizeContext = {},
 ): boolean {
   if (!isPermission(permission) || principal.orgRole === undefined) {
+    return false;
+  }
+  if (exceedsTokenLimit(principal, clusterId, permission)) {
     return false;
   }
   if (permission === 'backup:download' && context.allowBackupContentDownload !== true) {

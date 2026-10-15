@@ -236,10 +236,12 @@ describe('static guard over the source tree', () => {
       .sort();
 
     expect(sites).toEqual([
+      'audit/audit.service.ts: audit events may precede org selection and outlive the org',
       'auth/mfa.service.ts: mfa obligation spans all of a user’s orgs',
       'oidc/oidc-login.service.ts: an oidc provider id identifies its org',
       'orgs/invites.service.ts: an invite token identifies its org',
       'orgs/orgs.service.ts: a user lists their own memberships (org switcher)',
+      'tokens/api-tokens.service.ts: an api token identifies its org',
     ]);
   });
 });

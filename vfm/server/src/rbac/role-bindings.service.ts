@@ -161,8 +161,13 @@ export class RoleBindingsService {
   }
 
   /** What the caller holds on a cluster, so the UI can show and hide controls. */
-  async myAccess(orgId: string, userId: string, clusterId: string) {
-    const { principal, bindings, context } = await this.rbac.load(orgId, userId, clusterId);
+  async myAccess(
+    orgId: string,
+    userId: string,
+    clusterId: string,
+    token?: { permissions: string[] | null; clusterIds: string[] | null },
+  ) {
+    const { principal, bindings, context } = await this.rbac.load(orgId, userId, clusterId, token);
     const teams = new Set(principal.teamIds);
     const grants = bindings
       .filter((b) => (b.subjectType === 'USER' ? b.subjectId === userId : teams.has(b.subjectId)))
@@ -186,6 +191,8 @@ export class RoleBindingsService {
       implicitClusterAdmin: principal.orgRole === 'OWNER' || principal.orgRole === 'ADMIN',
       allowBackupContentDownload: context.allowBackupContentDownload,
       grants,
+      // What a token is limited to, so a client can show why a call is refused.
+      tokenLimit: principal.tokenLimit ?? null,
     };
   }
 }

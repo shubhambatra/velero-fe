@@ -3,6 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Inject } from '@nestjs/common';
 
+import { AuditService } from '../audit/audit.service';
 import { MfaService } from '../auth/mfa.service';
 import { Public } from '../auth/public.decorator';
 import { SessionCookiesService } from '../auth/session-cookies.service';
@@ -26,6 +27,7 @@ export class OidcController {
     private readonly sessions: SessionService,
     private readonly cookies: SessionCookiesService,
     private readonly mfa: MfaService,
+    private readonly audit: AuditService,
   ) {}
 
   @Public()
@@ -127,10 +129,37 @@ export class OidcController {
       });
       this.cookies.issue(response, created);
       response.clearCookie(OidcLoginService.STATE_COOKIE, { path: '/api/v1/auth/oidc' });
+      this.audit.record({
+        orgId: result.orgId,
+        actorType: 'USER',
+        actorId: result.user.id,
+        action: 'auth.oidc.login',
+        targetType: 'oidc_provider',
+        targetId: result.providerId,
+        ip: request.ip ?? null,
+        userAgent: request.header('user-agent') ?? null,
+        requestId: request.requestId ?? null,
+        outcome: 'SUCCESS',
+        details: { mfaPendingReason: reason },
+      });
       response.redirect(302, reason === null ? `${web}/` : `${web}/mfa?reason=${reason}`);
     } catch (error: unknown) {
       if (error instanceof OidcLoginError) {
         this.logger.warn(`sso refused: ${error.reason}`);
+        // The reason is recorded for the org's admins even though the user is
+        // told nothing; an org is only known when the state named a provider.
+        this.audit.record({
+          orgId: error.orgId ?? null,
+          actorType: 'USER',
+          action: 'auth.oidc.login',
+          targetType: 'oidc_provider',
+          targetId: error.providerId ?? null,
+          ip: request.ip ?? null,
+          userAgent: request.header('user-agent') ?? null,
+          requestId: request.requestId ?? null,
+          outcome: 'DENIED',
+          details: { reason: error.reason },
+        });
         failed();
         return;
       }

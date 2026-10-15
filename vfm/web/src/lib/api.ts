@@ -63,6 +63,10 @@ export interface ApiProblemBody {
   instance: string | undefined;
   requestId: string | undefined;
   errors: { path: string; message: string }[] | undefined;
+  /** 403 flags the control plane adds (server/src/common/problem.filter.ts). */
+  sudoRequired?: boolean | undefined;
+  mfaRequired?: boolean | undefined;
+  mfaPendingReason?: 'enrolment' | 'challenge' | undefined;
 }
 
 /** Base class for every failure this client raises, so callers can catch once. */
@@ -84,6 +88,9 @@ export class ApiProblem extends ApiError {
   readonly detail: string | undefined;
   readonly instance: string | undefined;
   readonly errors: { path: string; message: string }[] | undefined;
+  readonly sudoRequired: boolean;
+  readonly mfaRequired: boolean;
+  readonly mfaPendingReason: 'enrolment' | 'challenge' | undefined;
 
   constructor(problem: ApiProblemBody, requestId: string | undefined) {
     super(
@@ -99,6 +106,9 @@ export class ApiProblem extends ApiError {
     this.detail = problem.detail;
     this.instance = problem.instance;
     this.errors = problem.errors;
+    this.sudoRequired = problem.sudoRequired === true;
+    this.mfaRequired = problem.mfaRequired === true;
+    this.mfaPendingReason = problem.mfaPendingReason;
   }
 
   /**
@@ -280,6 +290,12 @@ async function readProblem(response: Response): Promise<ApiProblemBody> {
     instance: asString(record.instance),
     requestId: asString(record.requestId),
     errors: parseValidationErrors(record.errors),
+    sudoRequired: record.sudoRequired === true,
+    mfaRequired: record.mfaRequired === true,
+    mfaPendingReason:
+      record.mfaPendingReason === 'enrolment' || record.mfaPendingReason === 'challenge'
+        ? record.mfaPendingReason
+        : undefined,
   };
 }
 

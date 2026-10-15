@@ -4,7 +4,10 @@ import { useEffect, type ReactElement, type ReactNode } from 'react';
 import { PRODUCT_NAME, PRODUCT_SHORT_NAME } from '@vfm/shared';
 
 import { HealthIndicator } from '@/components/health-indicator';
+import { OrgSwitcher } from '@/components/org-switcher';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { canAdminister } from '@/lib/types';
+import { useOrgs, useSession } from '@/lib/session';
 
 const MAIN_CONTENT_ID = 'main-content';
 
@@ -21,7 +24,6 @@ const PLANNED_SECTIONS: { label: string; reason: string }[] = [
   { label: 'Backups', reason: 'Arrives with read-only Velero visibility (M3).' },
   { label: 'Restores', reason: 'Arrives with read-only Velero visibility (M3).' },
   { label: 'Schedules', reason: 'Arrives with read-only Velero visibility (M3).' },
-  { label: 'Audit log', reason: 'Arrives with the audit log and org admin (M1).' },
 ];
 
 /**
@@ -32,7 +34,18 @@ const PLANNED_SECTIONS: { label: string; reason: string }[] = [
  * focusable element, and a `main` that can take focus so the skip link
  * actually moves the caret.
  */
+const ADMIN_LINKS = [
+  { to: '/admin/members', label: 'Members' },
+  { to: '/admin/teams', label: 'Teams' },
+  { to: '/admin/sso', label: 'Single sign-on' },
+  { to: '/admin/security', label: 'Security' },
+  { to: '/admin/audit', label: 'Audit log' },
+] as const;
+
 export function AppShell({ children }: { children: ReactNode }): ReactElement {
+  const session = useSession();
+  const { active } = useOrgs(session.status === 'ready');
+  const showAdmin = session.status === 'ready' && canAdminister(active?.orgRole);
   useEffect(() => {
     // PRODUCT_NAME in @vfm/shared is the single source of the product name
     // (PLAN.md §0); index.html can only carry a static copy for first paint.
@@ -59,6 +72,7 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
         <span className="hidden text-base font-semibold sm:inline">{PRODUCT_NAME}</span>
 
         <div className="ml-auto flex items-center gap-2">
+          {session.status === 'ready' && <OrgSwitcher email={session.user.email} />}
           <HealthIndicator />
           <ThemeToggle />
         </div>
@@ -79,6 +93,21 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
           >
             Overview
           </Link>
+
+          {showAdmin &&
+            ADMIN_LINKS.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                activeProps={{
+                  className: 'bg-accent text-accent-foreground',
+                  'aria-current': 'page',
+                }}
+              >
+                {link.label}
+              </Link>
+            ))}
 
           {PLANNED_SECTIONS.map((section) => (
             <button

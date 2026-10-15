@@ -8,6 +8,7 @@ import { PINO_REDACT_PATHS } from './common/redact';
 import { REQUEST_ID_HEADER, requestIdOf } from './common/request-id';
 import { ConfigModule, ENV } from './config/config.module';
 import type { Env } from './config/env.schema';
+import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CsrfGuard } from './auth/csrf.guard';
 import { SessionGuard } from './auth/session.guard';
@@ -20,6 +21,7 @@ import { OidcModule } from './oidc/oidc.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { TokensModule } from './tokens/tokens.module';
 import { UsersModule } from './users/users.module';
 
 /**
@@ -76,6 +78,8 @@ function prettyTransportAvailable(): boolean {
     MailModule,
     UsersModule,
     OrgsModule,
+    AuditModule,
+    TokensModule,
     OidcModule,
     RbacModule,
     AuthModule,

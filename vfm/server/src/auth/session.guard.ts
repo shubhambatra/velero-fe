@@ -3,11 +3,14 @@ import {
   type ExecutionContext,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
+import { ALLOWS_API_TOKEN } from '../tokens/api-token.decorator';
+import { ApiTokensService } from '../tokens/api-tokens.service';
 import { UsersService } from '../users/users.service';
 import { ALLOWS_MFA_PENDING } from './mfa-pending.decorator';
 import { IS_PUBLIC } from './public.decorator';
@@ -43,6 +46,7 @@ export class SessionGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly sessions: SessionService,
     private readonly users: UsersService,
+    private readonly tokens: ApiTokensService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -59,6 +63,12 @@ export class SessionGuard implements CanActivate {
       // Resolve the session even on a public route, so endpoints like login
       // can tell an already-authenticated caller apart from an anonymous one.
       await this.attach(request, sessionId);
+    }
+
+    // A cookie session wins if both are presented. Tokens are never read on a
+    // public route: there is nothing there for them to authorise.
+    if (request.user === undefined && !isPublic) {
+      await this.attachToken(request, context);
     }
 
     if (isPublic) {
@@ -94,6 +104,46 @@ export class SessionGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  /**
+   * Authenticates `Authorization: Bearer vfm_…` (PLAN.md §8.3).
+   *
+   * Opt-in per route (`@AllowsApiToken()`): handlers written for browser
+   * sessions read things a token does not have, and credential management must
+   * stay out of a token's reach. A token is also pinned to its org, so a
+   * `/orgs/{other}/…` path is "not found" however much the owner could do there.
+   */
+  private async attachToken(request: Request, context: ExecutionContext): Promise<void> {
+    const header = request.headers.authorization;
+    if (typeof header !== 'string' || !header.startsWith('Bearer ')) {
+      return;
+    }
+    const principal = await this.tokens.authenticate(header.slice('Bearer '.length).trim());
+    if (principal === null) {
+      return;
+    }
+    const user = await this.users.findAuthenticatedById(principal.userId);
+    if (user === null) {
+      return;
+    }
+
+    const allowed =
+      this.reflector.getAllAndOverride<boolean | undefined>(ALLOWS_API_TOKEN, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? false;
+    if (!allowed) {
+      throw new ForbiddenException('this endpoint does not accept API tokens');
+    }
+
+    const orgInPath = (request.params as Record<string, string | undefined>).orgId;
+    if (orgInPath !== undefined && orgInPath !== principal.orgId) {
+      throw new NotFoundException('organization not found');
+    }
+
+    request.user = user;
+    request.apiToken = principal;
   }
 
   private async attach(request: Request, sessionId: string): Promise<void> {

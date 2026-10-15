@@ -1,10 +1,30 @@
 import { createRouter } from '@tanstack/react-router';
 
+import {
+  auditRoute,
+  loginRoute,
+  membersRoute,
+  mfaRoute,
+  securityRoute,
+  setupRoute,
+  ssoRoute,
+  teamsRoute,
+} from '@/routes/auth-routes';
 import { overviewRoute } from '@/routes/overview-route';
 import { rootRoute } from '@/routes/root-route';
 
 /** Exported so tests can mount the same tree with a memory history. */
-export const routeTree = rootRoute.addChildren([overviewRoute]);
+export const routeTree = rootRoute.addChildren([
+  overviewRoute,
+  loginRoute,
+  setupRoute,
+  mfaRoute,
+  membersRoute,
+  teamsRoute,
+  ssoRoute,
+  securityRoute,
+  auditRoute,
+]);
 
 export const router = createRouter({
   routeTree,

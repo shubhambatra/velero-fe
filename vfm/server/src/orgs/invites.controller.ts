@@ -14,6 +14,7 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
+import { setAuditContext } from '../audit/audit.middleware';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { MfaService } from '../auth/mfa.service';
@@ -132,6 +133,7 @@ export class InvitesController {
       mfaPendingReason: obligation.required ? 'enrolment' : null,
     });
     this.cookies.issue(response, created);
+    setAuditContext(request, { actorId: result.user.id, orgId: result.orgId });
 
     return {
       orgId: result.orgId,

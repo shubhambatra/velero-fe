@@ -786,3 +786,63 @@ describe('mayAttempt', () => {
     ).toBe(true);
   });
 });
+
+describe('API token limits', () => {
+  const tokenOf = (
+    permissions: string[] | null,
+    clusterIds: string[] | null,
+    orgRole: Principal['orgRole'] = 'MEMBER',
+  ): Principal => ({ ...member(), orgRole, tokenLimit: { permissions, clusterIds } });
+  const ask = (
+    p: Principal,
+    permission: string,
+    cluster = C1,
+    b = [bind('CLUSTER_ADMIN', WHOLE)],
+  ) => authorize(p, { clusterId: cluster, permission, namespaces: [] }, b);
+
+  it('narrows to the listed permissions', () => {
+    const p = tokenOf(['backup:read'], null);
+    expect(ask(p, 'backup:read').allowed).toBe(true);
+    expect(ask(p, 'backup:delete')).toEqual({ allowed: false, reason: 'token-limit' });
+  });
+
+  it('narrows to the listed clusters', () => {
+    const p = tokenOf(null, [C1]);
+    expect(ask(p, 'backup:read').allowed).toBe(true);
+    expect(ask(p, 'backup:read', C2, [bind('CLUSTER_ADMIN', WHOLE, { clusterId: C2 })])).toEqual({
+      allowed: false,
+      reason: 'token-limit',
+    });
+  });
+
+  it('cannot widen what the owner holds', () => {
+    const p = tokenOf(['backup:delete'], null);
+    expect(ask(p, 'backup:delete', C1, [bind('VIEWER', WHOLE)])).toEqual({
+      allowed: false,
+      reason: 'no-binding',
+    });
+  });
+
+  it('limits an org owner too', () => {
+    const p = tokenOf(['backup:read'], null, 'OWNER');
+    expect(ask(p, 'cluster:manage', C1, []).allowed).toBe(false);
+    expect(ask(p, 'backup:read', C1, []).allowed).toBe(true);
+  });
+
+  it('null means no extra limit, not every permission', () => {
+    const p = tokenOf(null, null);
+    expect(ask(p, 'cluster:manage', C1, [bind('VIEWER', WHOLE)]).allowed).toBe(false);
+  });
+
+  it('applies to mayAttempt as well', () => {
+    expect(
+      mayAttempt(tokenOf(['backup:read'], null), C1, 'backup:delete', [
+        bind('CLUSTER_ADMIN', WHOLE),
+      ]),
+    ).toBe(false);
+  });
+
+  it('an empty permission list grants nothing', () => {
+    expect(ask(tokenOf([], null), 'cluster:read').allowed).toBe(false);
+  });
+});

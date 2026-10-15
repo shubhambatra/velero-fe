@@ -18,6 +18,7 @@ import type { Request, Response } from 'express';
 
 import { Inject } from '@nestjs/common';
 
+import { setAuditContext } from '../audit/audit.middleware';
 import { parseBody } from '../common/parse-body';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env.schema';
@@ -265,6 +266,9 @@ export class AuthController {
     });
 
     this.cookies.issue(response, created);
+    // No session existed when this request arrived, so the audit middleware
+    // cannot find the actor on its own.
+    setAuditContext(request, { actorId: user.id });
   }
 
   private clearCookies(response: Response): void {

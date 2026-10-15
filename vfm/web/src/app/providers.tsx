@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { useState, type ReactElement, type ReactNode } from 'react';
 
+import { SudoProvider } from '@/components/sudo-dialog';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ThemeProvider } from '@/components/theme/theme-provider';
 
@@ -27,7 +28,9 @@ export function AppProviders({
   return (
     <ThemeProvider>
       <ErrorBoundary>
-        <QueryClientProvider client={queryClient ?? fallbackClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient ?? fallbackClient}>
+          <SudoProvider>{children}</SudoProvider>
+        </QueryClientProvider>
       </ErrorBoundary>
     </ThemeProvider>
   );

@@ -58,6 +58,16 @@ export class SudoGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const session = request.session;
 
+    if (request.apiToken !== undefined) {
+      // A token has no session and so no re-authentication to age. These
+      // operations are for a person at a browser, never for a credential that
+      // can be copied.
+      throw new ForbiddenException({
+        message: 'this operation requires a signed-in session, not an API token',
+        sudoRequired: true,
+      });
+    }
+
     if (session === undefined) {
       // Unauthenticated: let SessionGuard produce the 401. Reporting a sudo
       // failure here would be misleading.

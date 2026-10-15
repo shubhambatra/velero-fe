@@ -82,6 +82,7 @@ model User {
   teamMemberships  TeamMember[]
   oidcIdentities   OidcIdentity[]
   mfaRecoveryCodes MfaRecoveryCode[]
+  apiTokens        ApiToken[]
 
   @@index([disabledAt])
   @@map("users")
@@ -142,6 +143,7 @@ model Organization {
   invites       Invite[]
   oidcProviders OidcProvider[]
   roleBindings  RoleBinding[]
+  apiTokens     ApiToken[]
 
   @@map("organizations")
 }
@@ -368,4 +370,104 @@ model RoleBinding {
   @@index([orgId, clusterId])
   @@index([orgId, subjectType, subjectId])
   @@map("role_bindings")
+}
+
+enum AuditActorType {
+  USER
+  TOKEN
+  SYSTEM
+  AGENT
+
+  @@map("audit_actor_type")
+}
+
+enum AuditOutcome {
+  SUCCESS
+  DENIED
+  FAILED
+
+  @@map("audit_outcome")
+}
+
+/// Append-only record of who did what, where, when and with what result
+/// (PLAN.md §8.4, §9; principle P5).
+///
+/// No foreign keys, on purpose: an audit row must outlive the org, user or
+/// cluster it describes, and a cascade would make deletion a way to erase
+/// history. Immutability is enforced by a database trigger, not by the
+/// application (docs/DECISIONS.md ADR-013).
+///
+/// `orgId` is nullable because some events precede any org (a failed login).
+model AuditEvent {
+  id String @id @db.Uuid
+
+  orgId String? @map("org_id") @db.Uuid
+
+  actorType AuditActorType @map("actor_type")
+  actorId   String?        @map("actor_id") @db.Uuid
+
+  /// `METHOD /route/:pattern` for API calls, or a dotted name for events the
+  /// application records itself (`auth.oidc.login`).
+  action String
+
+  targetType String? @map("target_type")
+  targetId   String? @map("target_id")
+  clusterId  String? @map("cluster_id") @db.Uuid
+
+  ip        String?
+  userAgent String? @map("user_agent")
+  requestId String? @map("request_id")
+
+  outcome AuditOutcome
+
+  /// Redacted. Holds field *names* and status codes, never request values.
+  details Json @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([orgId, id])
+  @@index([orgId, actorId])
+  @@index([orgId, clusterId])
+  @@index([orgId, action])
+  @@map("audit_events")
+}
+
+/// A long-lived credential for automation (PLAN.md §8.3, §9).
+///
+/// Acts as `userId` inside `orgId`, never with more than that user holds: at
+/// use time the user's own grants are intersected with `permissions` and
+/// `clusterIds`, so a token cannot outlive a demotion or outgrow its owner.
+/// Only the SHA-256 of the token is stored (ADR-009); the plaintext is shown
+/// once, at creation.
+model ApiToken {
+  id String @id @db.Uuid
+
+  orgId  String @map("org_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  name String
+
+  /// `vfm_` plus the first characters of the secret, for recognising a token
+  /// in a list. Not sufficient to authenticate.
+  prefix    String
+  tokenHash String @unique @map("token_hash")
+
+  /// Permission keys the token is limited to; `null` means "all of the
+  /// owner's", which is the owner's permissions, not every permission.
+  permissions Json?
+  /// Cluster ids the token is limited to; `null` means all of the owner's.
+  clusterIds  Json?  @map("cluster_ids")
+
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([userId])
+  @@map("api_tokens")
 }

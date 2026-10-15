@@ -14,6 +14,7 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 
+import { setAuditContext } from '../audit/audit.middleware';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { RequiresSudo } from '../auth/sudo.guard';
@@ -70,11 +71,17 @@ export class OrgsController {
     description:
       'Platform administrators only. PLAN.md §8.1: the platform admin bootstraps orgs; there is no open org creation. The creator becomes the first Owner.',
   })
-  async create(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
+  async create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+    @Req() request: Request,
+  ) {
     if (!user.isPlatformAdmin) {
       throw new ForbiddenException('only platform administrators create organizations');
     }
-    return this.orgs.create(user.id, parseBody(createOrgSchema, body));
+    const created = await this.orgs.create(user.id, parseBody(createOrgSchema, body));
+    setAuditContext(request, { orgId: created.id, targetType: 'org', targetId: created.id });
+    return created;
   }
 
   @Get('orgs/:orgId')

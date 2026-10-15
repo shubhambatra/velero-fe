@@ -493,6 +493,87 @@ paths:
       summary: Remove a member from a team (Owner/Admin)
       tags:
         - teams
+  /orgs/{orgId}/audit:
+    get:
+      operationId: AuditController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Audit log, newest first (Owner/Admin)
+      tags:
+        - audit
+  /orgs/{orgId}/audit/export:
+    get:
+      operationId: AuditController_export
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Audit log as CSV (Owner/Admin); the export is itself audited
+      tags:
+        - audit
+  /orgs/{orgId}/tokens:
+    get:
+      operationId: TokensController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "List tokens: your own, or the whole org with ?scope=org (Owner/Admin)"
+      tags:
+        - tokens
+    post:
+      description: The secret is returned once and never again. A token acts as its owner and can only
+        narrow, never widen, what the owner holds.
+      operationId: TokensController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Create a token (sudo)
+      tags:
+        - tokens
+  /orgs/{orgId}/tokens/{tokenId}:
+    delete:
+      operationId: TokensController_revoke
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: tokenId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Revoke a token (own, or any as Owner/Admin)
+      tags:
+        - tokens
   /auth/oidc/providers:
     get:
       description: Public. Returns only id and display name of enabled providers.
