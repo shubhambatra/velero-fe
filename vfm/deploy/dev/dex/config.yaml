@@ -60,9 +60,10 @@ staticClients:
       - http://127.0.0.1:3000/api/v1/auth/oidc/callback
       # Control plane on the e2e/port used by the built-server checks.
       - http://localhost:3100/api/v1/auth/oidc/callback
-      # Vite dev server, if the callback is proxied through the web app.
-      - http://localhost:5173/auth/oidc/callback
-      - http://127.0.0.1:5173/auth/oidc/callback
+      # Vite dev server proxying /api to the control plane, with
+      # API_PUBLIC_URL=http://localhost:5173 so the browser stays on one origin.
+      - http://localhost:5173/api/v1/auth/oidc/callback
+      - http://127.0.0.1:5173/api/v1/auth/oidc/callback
       # OIDC debugging without the app.
       - http://localhost:55556/callback
 

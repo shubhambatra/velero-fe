@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/login-page';
 import { MfaPage } from '@/pages/mfa-page';
 import { SetupPage } from '@/pages/setup-page';
 import { CreateOrgPage } from '@/pages/admin/create-org-page';
+import { InvitePage } from '@/pages/invite-page';
 import { TokensPage } from '@/pages/tokens-page';
 import { AuditPage } from '@/pages/admin/audit-page';
 import { MembersPage } from '@/pages/admin/members-page';
@@ -22,6 +23,17 @@ export const loginRoute = createRoute({
   component: function Login() {
     const { sso } = loginRoute.useSearch();
     return <LoginPage ssoFailed={sso === 'failed'} />;
+  },
+});
+
+export const inviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/invite',
+  validateSearch: (search: Record<string, unknown>): { token?: string } =>
+    typeof search.token === 'string' ? { token: search.token } : {},
+  component: function Invite() {
+    const { token } = inviteRoute.useSearch();
+    return <InvitePage token={token} />;
   },
 });
 

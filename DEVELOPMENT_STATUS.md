@@ -713,7 +713,7 @@ make them obvious.
 | R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere | 401 | M1 | ✅ |
 | R-092 | CSRF double-submit token on all state-changing REST calls | 402 | M1 | ✅ |
 | R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ✅ including the notification email (day 6; e2e asserts exactly one mail to a real account, none for an unknown address; seen arriving in Mailpit) |
-| R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset | 404 | M1 | ✅ `src/tokens/**`, 16 e2e tests + 7 engine tests; opt-in per route (ADR-014); `/tokens` page (unit-tested, not browser-driven) |
+| R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset | 404 | M1 | ✅ `src/tokens/**`, 16 e2e tests + 7 engine tests; opt-in per route (ADR-014); `/tokens` page, driven in a browser incl. the sudo dialog |
 | R-095 | Sudo mode: re-authentication within 5 minutes for restore create, any delete, storage write, cluster delete and role-binding changes | 405 | M1 | ✅ the window and guard; the operations it protects arrive with them in M2–M6 |
 | R-096 | Optional restore approval, default off, approver must differ from requester, both actions audited | 407–409 | M6 | ⬜ |
 

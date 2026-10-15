@@ -9,6 +9,59 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M1 day 9 follow-up: the UI flows driven in a browser
+
+Session 6, continued.
+
+### What was exercised (real Chrome, built server, Vite dev server, live Dex and
+
+Mailpit, throwaway database dropped afterwards)
+
+- Sign-in form, MFA enrolment (TOTP computed from the displayed secret,
+  recovery codes shown once), MFA challenge (a wrong code refused, a valid
+  code accepted), sign out.
+- Org switcher with two orgs; confirmed server-side that the active org
+  changed.
+- Invite by email: the email arrived in Mailpit, the invitee registered from the
+  link, landed in the app as a MEMBER of that org only, and saw no admin pages.
+- Teams: create, add member, remove member, rename, delete.
+- API tokens: create behind the **sudo dialog** (session aged in Redis first;
+  the dialog appeared, the original request retried after the password), secret
+  shown once and gone after dismissal, revoke.
+- SSO: provider created in the UI with a group mapping, sign-in through Dex's
+  mock connector, JIT user created as MEMBER and placed in the mapped team.
+- The audit table recorded all of it, including the refused sudo attempt, the
+  wrong MFA code (DENIED) and the SSO sign-in.
+
+### Defects this found (both fixed)
+
+- **Invitation emails led nowhere.** The link is `/invite?token=…` and the web
+  app had no such route, so the only account-creation path after setup was
+  unreachable from a browser. Added `InvitePage` (register, or accept when
+  signed in), with tests.
+- **The dev Dex client registered `localhost:5173/auth/oidc/callback`**, a path
+  that is neither the Vite-proxied nor the server route; with
+  `API_PUBLIC_URL=http://localhost:5173` the real callback is
+  `/api/v1/auth/oidc/callback`. Corrected.
+
+### Tooling notes (not app bugs)
+
+- The browser tool's screenshot coordinates are in a frame narrower than the
+  viewport here, so coordinate clicks missed their targets; I drove forms with
+  `requestSubmit()` and native value setters instead.
+- Vite served a stale empty copy of a file created while it was running;
+  restarting with `--force` fixed it.
+
+### Still not driven in a browser
+
+- Resetting a password or re-enrolling MFA (no UI for either exists yet).
+- SSO provider edit and delete; invite revoke; member role change and removal
+  (the pages exist and the endpoints are e2e-tested).
+- Entra, Okta and Keycloak (only Dex was exercised, as before).
+- A narrow viewport and keyboard-only operation; no accessibility audit.
+
+---
+
 ## 2026-10-16 — M1 day 9: audit log, API tokens and the M1 UI
 
 Session 6, continued. Resumed from `2f08daf`.

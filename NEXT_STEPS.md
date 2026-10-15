@@ -131,10 +131,9 @@ closed.
 Audit log (ADR-013), API tokens (ADR-014), their `/tokens` page and the UI are
 in. **Before the checkpoint:**
 
-- **Exercise in a browser what was only unit-tested:** MFA enrolment and
-  challenge, invite by email, teams, SSO create/edit against Dex, the sudo
-  dialog, org switching. Session 6 drove only setup, create-org, members,
-  audit, SSO list and security.
+- ~~Exercise the UI flows in a browser~~ — done; see the follow-up entry in
+  `vfm/docs/PROGRESS.md`. Left over: SSO provider edit/delete, invite revoke,
+  member role change and removal, a narrow viewport, and an accessibility pass.
 
 Then ⛔ **HUMAN CHECKPOINT** (plan line 662): the human reviews the RBAC model
 (ADR-012) and the auth flows (ADR-008…011, 014) before M2 starts. M0's exit
