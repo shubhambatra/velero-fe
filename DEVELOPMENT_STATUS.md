@@ -517,7 +517,9 @@ reports success.
 | 20 | `9683cc5` | `docs(vfm): record M1 day 6, ADR-010 and the day 7 handoff` | ✅ pushed |
 | 21 | `dbf8573` | `docs(vfm): record push status for day 6` | ✅ pushed |
 | 22 | `57575e2` | `fix(server): bump nodemailer to 10.0.14, which patches two high advisories` | ✅ pushed |
-| 23 | `f6fe5f8` | `feat(auth): per-org OIDC with JIT provisioning and group to team mapping for M1 day 7` | pending push |
+| 23 | `f6fe5f8` | `feat(auth): per-org OIDC with JIT provisioning and group to team mapping for M1 day 7` | ✅ pushed |
+| 24 | `7f484e5` | `docs(vfm): record M1 day 7, ADR-011, the red CI and the day 8 handoff` | ✅ pushed — CI red: the e2e job had no Dex |
+| 25 | `d8eb76f` | `ci(vfm): fix Dex paths, the job already runs in vfm/` | ✅ pushed — **CI green on this SHA**, all five jobs |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
