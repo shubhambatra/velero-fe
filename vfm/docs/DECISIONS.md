@@ -346,3 +346,92 @@ things the plan's shape assumes:
 - `pg` becomes a runtime dependency of the control plane.
 - Prisma 8 is already in release-candidate. Upgrading is a separate decision
   and needs its own ADR; nothing here depends on 8.
+
+---
+
+## ADR-008 — `mfa_recovery_codes` as a table, which PLAN.md §9 does not list
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+
+### Context
+
+PLAN.md §8.3 requires "recovery codes (10, hashed)" but §9's table list has no
+home for them. The two candidates were a JSON column on `users` and a dedicated
+table.
+
+### Decision
+
+A dedicated `mfa_recovery_codes` table: `(id, user_id, code_hash, used_at)`.
+
+The deciding factor is **single use under concurrency**. With a table, spending
+a code is one atomic statement:
+
+```sql
+UPDATE mfa_recovery_codes SET used_at = now() WHERE id = $1 AND used_at IS NULL
+```
+
+Two requests presenting the same code cannot both succeed — the second matches
+zero rows. In a JSON column the same operation is a read-modify-write, and
+making it safe would need `SELECT … FOR UPDATE` or a hand-written `jsonb_set`
+with a guard clause, which is the kind of code that looks correct and is not.
+
+A second, smaller reason: a table makes "how many codes does this user have
+left" an indexed count rather than a JSON scan, which the MFA status endpoint
+calls on every page load.
+
+Also added in the same migration: `users.mfa_last_time_step`, a BigInt holding
+the highest TOTP time step already accepted for that user. Without it a TOTP
+code is replayable for its whole 30-second window.
+
+### Consequences
+
+- §9's table list is now a subset of what exists. The schema header says so, and
+  this ADR is the record. Future additions of this kind get the same treatment
+  rather than silently diverging.
+- `users` cascades to `mfa_recovery_codes`, so deleting a user cleans up.
+- The table is **not** org-owned and carries no `org_id`: recovery codes belong
+  to a user, who may be a member of several orgs. The org-scoping extension of
+  §8.1 (M1 day 6) must therefore not treat it as org-scoped.
+
+---
+
+## ADR-009 — SHA-256 for recovery codes and API tokens, argon2id for passwords
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+
+### Context
+
+PLAN.md §8.3 says recovery codes are "hashed" and that API tokens are "stored
+hashed", without naming an algorithm, while specifying argon2id for passwords.
+Using argon2id everywhere looks like the conservative choice.
+
+### Decision
+
+Hash **passwords** with argon2id, and **recovery codes and API tokens** with
+SHA-256.
+
+The reason argon2id exists is that human-chosen passwords are low-entropy and
+reused, so an attacker with the hashes guesses them offline; a deliberately slow
+hash makes that expensive. Neither property applies to a value the server
+generates: a recovery code is 80 bits of CSPRNG output and an API token will be 256. There is nothing to guess, so the slow KDF buys no security.
+
+It does cost something. Verifying a recovery code compares against up to ten
+stored hashes, which with argon2id at our parameters is roughly half a second of
+CPU per attempt — a denial-of-service lever on an unauthenticated-adjacent
+endpoint.
+
+The hash still matters: a database leak must not yield usable codes, and
+SHA-256 of an 80-bit random value is not invertible in any practical sense.
+
+### Consequences
+
+- Recovery-code verification is an indexed equality lookup on the hash, which
+  is only safe _because_ the input is high-entropy; the same shortcut would be
+  wrong for passwords.
+- The comparison is still done in constant time after the lookup, so the
+  outcome never depends on a partial comparison in the query layer.
+- M1 day 9 applies the same reasoning to API tokens. If either value ever
+  becomes user-chosen, this ADR must be revisited — that would change the
+  threat model entirely.

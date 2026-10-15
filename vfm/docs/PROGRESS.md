@@ -9,6 +9,98 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-15 — M1 day 5: MFA and sudo mode
+
+M0's exit criteria remain unmet (B-1, B-2) and the owner asked to continue
+regardless; day 5 depends on neither blocker, needing only PostgreSQL and
+Redis.
+
+### Completed (§16 day 5, §8.3, §9)
+
+- **Envelope encryption** — the first `*_encrypted` column. AES-256-GCM with a
+  per-ciphertext data key wrapped under `VFM_MASTER_KEY`, which is now
+  **required**. The key id is derived from the key material, and
+  `VFM_MASTER_KEY_PREVIOUS` accepts retired keys for decryption so a rotation
+  needs no downtime. Every ciphertext is bound to an encryption _context_
+  (`user.mfa_secret:<id>`) as associated data, so a value cannot be moved
+  between rows or columns.
+- **TOTP** with two-step enrolment (the secret is not trusted until a code from
+  it verifies) and replay protection: the highest accepted time step is
+  recorded per user and advanced with a conditional `UPDATE`, so each code is
+  usable exactly once rather than for its whole 30-second window.
+- **Recovery codes** — ten 80-bit codes, one row each, spent atomically so
+  single use holds under concurrency. SHA-256 rather than argon2id; ADR-009
+  gives the reasoning.
+- **The MFA gate**, closing the seam day 4 left open. A session owing a factor
+  reaches only the endpoints that can satisfy it; everything else is 403 with a
+  marker, and the two reasons (`challenge` vs `enrolment`) are distinguished so
+  the UI can act. Satisfying the factor **rotates the session id** and reissues
+  the cookies, per §8.3's rotation-on-privilege-change requirement.
+- **Org-enforced MFA** — Owners and Admins always owe a factor and cannot turn
+  that off; `mfaRequired` extends it to all members. Evaluated as a union
+  across a user's organizations.
+- **Sudo mode** — `POST /auth/sudo` takes the password or a second factor and
+  opens a 5-minute window held on the session, with `@RequiresSudo()` and a
+  global guard. Exactly one credential must be supplied.
+- `SessionCookiesService` extracted, because two controllers now set the
+  cookies and `clearCookie` only works when the attributes match.
+- `test/app-harness.ts` extracted after the two e2e suites drifted — one set
+  `VFM_MASTER_KEY` and the other did not, which surfaced as an unrelated
+  "invalid environment configuration" failure.
+
+### Test status — actually executed
+
+| Gate                                       | Result                                                                                                                                                                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run test` (unit, all workspaces)     | **202 passed** — shared 13, server 166, web 23                                                                                                                                                                                                    |
+| `pnpm --filter @vfm/server test:e2e`       | **52 passed** against real PostgreSQL and Redis                                                                                                                                                                                                   |
+| `pnpm run lint` / `typecheck` / `build`    | clean across all three workspaces                                                                                                                                                                                                                 |
+| OpenAPI regeneration                       | clean; five new `/auth/mfa/*` and `/auth/sudo` operations                                                                                                                                                                                         |
+| **Twenty checks against the built server** | enrolment → encrypted secret in the database → hashed recovery codes → gate refusing with 403 → session id rotated → old id dead → recovery code refused on reuse → sudo window closing and reopening → platform admin refused when disabling MFA |
+| Go build / vet / test                      | **not run — B-1**                                                                                                                                                                                                                                 |
+| `smoke.sh`                                 | **not run — B-2**                                                                                                                                                                                                                                 |
+
+62 new server unit tests and 25 new e2e tests.
+
+### Two real defects in the TOTP integration, both caught by tests
+
+1. otplib's `epochTolerance` is in **seconds**, not steps. Passing `1` allowed
+   one second of clock drift instead of one 30-second period — phone clocks
+   drift, so this would have produced support tickets that looked like user
+   error rather than a bug.
+2. otplib's `epoch` is in **seconds**, not milliseconds. The test helper was
+   generating codes for a time roughly 56 000 years away, which simply failed
+   to verify.
+
+Both were found because the tests asserted the _behaviour_ (a code from the
+adjacent step verifies) rather than that the function was called.
+
+### Deferred
+
+- **The lockout notification email** of §8.3 still waits on the SMTP mailer,
+  which arrives with org invites on day 6.
+- **`org_id` scoping** of the new `mfa_recovery_codes` table: it is
+  deliberately **not** org-owned (a user may belong to several orgs), so the
+  org-scoping Prisma extension in day 6 must exclude it. Recorded in ADR-008.
+- Everything previously deferred stands: the Go agent (B-1), `smoke.sh` (B-2),
+  the §14.1 seed script (needs day 6 tables), `libs/velero` model reuse (M2
+  day 10), and a test asserting the security headers.
+
+### Blockers
+
+Unchanged: **B-1** (no Go toolchain) and **B-2** (host inotify limits). Both
+need root; commands are in `NEXT_STEPS.md`.
+
+### Next
+
+M1 day 6 — orgs, members, invites and teams: CRUD, email invites over SMTP
+(Mailpit in dev), the org switcher, and **the org-scoping Prisma extension plus
+the "every query is org-scoped" test** that §8.1 demands. That extension is the
+most consequential piece of M1 after the RBAC engine: §8.1 requires it be
+impossible to forget org scoping, not merely conventional.
+
+---
+
 ## 2026-10-15 — M1 day 4: users and local authentication
 
 **Note on milestone gating.** PLAN.md §0 rule 1 says a milestone does not start

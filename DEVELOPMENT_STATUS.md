@@ -1,6 +1,6 @@
 # Velero Fleet Manager — implementation status
 
-**Last updated:** 2026-10-15 09:00 IST (session 2 — M1 day 4)
+**Last updated:** 2026-10-15 10:15 IST (session 3 — M1 day 5)
 **Branch:** `vfm/m0-foundation` · **Source of truth:** [`VELERO_FLEET_PLAN.md`](./VELERO_FLEET_PLAN.md) (848 lines)
 **Continuation point:** [`NEXT_STEPS.md`](./NEXT_STEPS.md)
 
@@ -47,9 +47,9 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **17 / 152 — 11.2 %** |
-| Requirements partial | 21 |
-| Requirements not started | 112 |
+| **Requirements verified** | **21 / 152 — 13.8 %** |
+| Requirements partial | 20 |
+| Requirements not started | 109 |
 | Requirements blocked | 2 |
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
@@ -60,8 +60,14 @@ bundled breached list), **R-091** (Redis sessions, 12 h/1 h, rotation, sign out
 everywhere), **R-092** (CSRF double-submit), **R-093** (per-IP and per-account
 limits, progressive delay, lockout — minus the notification email, which is
 deferred to day 6 with the mailer), **R-112** (validation at every boundary,
-now with zod schemas on the auth routes). Nothing else met its acceptance
-criteria.
+now with zod schemas on the auth routes).
+
+Verified in session 3 (M1 day 5): **R-089** (TOTP with ten hashed recovery
+codes, org-enforced), **R-095** (sudo mode, 5-minute window, guard decorator),
+**R-099** (AES-256-GCM envelope encryption with a key id and working
+rotation), and **R-110** (every secret from the environment — `VFM_MASTER_KEY`
+is now required and validated, and no secret is committed). Nothing else met
+its acceptance criteria.
 
 **Milestone view** (task completion, shown for orientation only — not the
 progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1.
@@ -69,7 +75,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 | Milestone | Plan lines | State |
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
-| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **day 4 complete and verified**; days 5–9 not started |
+| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–5 complete and verified**; days 6–9 not started |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | not started |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
@@ -179,6 +185,37 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 - **Not covered by R-093:** the lockout *notification email* — the SMTP mailer
   arrives with org invites on day 6. Listed under Deferred in
   `vfm/docs/PROGRESS.md`.
+
+### R-089 / R-095 / R-099 — MFA, sudo mode and encryption at rest (`PLAN.md` §8.3, §9 line 437)
+
+- **Files:** `vfm/server/src/crypto/**`, `vfm/server/src/auth/{totp,mfa,recovery-codes}.service.ts`,
+  `vfm/server/src/auth/{sudo.guard,org-mfa-policy,mfa.controller}.ts`
+- **R-099 encryption:** AES-256-GCM envelope encryption. A per-ciphertext data
+  key is wrapped under the key from `VFM_MASTER_KEY`, so the key-encryption key
+  never touches user data and rotation re-wraps a short key instead of
+  re-encrypting every row. The key id is derived from the key material, which
+  makes mislabelling impossible; `VFM_MASTER_KEY_PREVIOUS` accepts retired keys
+  for decryption. Every ciphertext is bound to a context such as
+  `user.mfa_secret:<id>` as associated data, so a value lifted into another row
+  fails to decrypt rather than decrypting as someone else's secret.
+- **R-089 MFA:** TOTP with two-step enrolment (the secret is not trusted until
+  a code from it verifies) and replay protection that records the highest
+  accepted time step, making each code single-use rather than valid for its
+  whole 30-second window. Ten 80-bit recovery codes, one row each, spent with
+  an atomic conditional `UPDATE`. Owners, Admins and platform admins always owe
+  a factor and cannot disable it; `mfaRequired` extends the obligation to all
+  members. A session owing a factor reaches only the endpoints that can satisfy
+  it, and satisfying it rotates the session id.
+- **R-095 sudo:** `POST /auth/sudo` accepts the password or a second factor and
+  opens a 5-minute window held on the session, so revoking the session revokes
+  the elevation. `@RequiresSudo()` plus a global guard enforce it, returning
+  403 with a marker so a client can prompt in place rather than being bounced
+  to login.
+- **Verification:** 62 unit tests and 25 e2e tests, plus **twenty checks
+  against the built server**: enrolment, the encrypted secret in the database,
+  hashed recovery codes, the gate refusing with 403, the session id rotating,
+  the old id dying, a recovery code refused on reuse, the sudo window closing
+  and reopening, and a platform admin refused when disabling MFA.
 
 ### R-025 — Monorepo tooling and CI (`PLAN.md` §4.5, lines 164–169)
 
@@ -436,6 +473,7 @@ reports success.
 | 10 | `31b5481` | `docs(vfm): record M1 day 4 status and the day 5 handoff` | ✅ pushed |
 | 11 | `d23c664` | `fix(vfm): four defects that only running the built server could find` | ✅ pushed |
 | 12 | `afe3bac` | `chore(vfm): drop the superseded single-target build config` | ✅ pushed |
+| 16 | `5a8bc63` | `feat(auth): TOTP MFA, recovery codes and sudo mode for M1 day 5` | see end-of-session report |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
@@ -587,22 +625,22 @@ make them obvious.
 | R-086 | Org Owner/Admin implicitly Cluster Admin on all org clusters | 393 | M1 | ⬜ |
 | R-087 | Namespace-scoping rule: every included namespace in scope (after mapping), no cluster-scoped resources, wildcards only for whole-cluster bindings; exhaustively unit-tested | 395 | M1 | ⬜ |
 | R-088 | Local auth: argon2id, 12-char minimum, breached-password check against a bundled list with no external calls | 399 | M1 | ✅ |
-| R-089 | TOTP MFA with 10 hashed recovery codes, enforceable per org | 399 | M1 | ⬜ |
+| R-089 | TOTP MFA with 10 hashed recovery codes, enforceable per org | 399 | M1 | ✅ |
 | R-090 | OIDC per org: issuer, client, group claim, group→team mapping, JIT provisioning, multiple providers | 400 | M1 | ⬜ |
 | R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere | 401 | M1 | ✅ |
 | R-092 | CSRF double-submit token on all state-changing REST calls | 402 | M1 | ✅ |
 | R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ✅ limits, delay and lockout; the notification email is deferred to day 6 with the mailer |
 | R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset | 404 | M1 | ⬜ |
-| R-095 | Sudo mode: re-authentication within 5 minutes for restore create, any delete, storage write, cluster delete and role-binding changes | 405 | M1 | ⬜ |
+| R-095 | Sudo mode: re-authentication within 5 minutes for restore create, any delete, storage write, cluster delete and role-binding changes | 405 | M1 | ✅ the window and guard; the operations it protects arrive with them in M2–M6 |
 | R-096 | Optional restore approval, default off, approver must differ from requester, both actions audited | 407–409 | M6 | ⬜ |
 
 ### §9 Data model (lines 413–439)
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 (3/19) |
+| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 3 of 19, plus `mfa_recovery_codes` which §9 does not list (ADR-008) |
 | R-098 | UUIDv7 ids, `created_at`/`updated_at` everywhere, `org_id` with an index on every org-owned table | 415 | M1–M6 | 🟡 |
-| R-099 | AES-256-GCM envelope encryption for `*_encrypted` columns, key id stored with each ciphertext, `VFM_MASTER_KEY` from env, rotation supported | 437 | M1 | ⬜ |
+| R-099 | AES-256-GCM envelope encryption for `*_encrypted` columns, key id stored with each ciphertext, `VFM_MASTER_KEY` from env, rotation supported | 437 | M1 | ✅ |
 | R-100 | `audit_events` append-only: UPDATE/DELETE revoked from the application DB role, separate role for retention | 432 | M1 | ⬜ |
 | R-101 | Daily retention jobs for inventory events, log cache, commands (180 d) and audit (org setting, default 400 d) with optional export before delete | 439 | M6 | ⬜ |
 
@@ -628,7 +666,7 @@ make them obvious.
 |---|---|---|---|---|
 | R-108 | TLS everywhere; mTLS required for `Connect` and `RenewCertificate` | 512 | M2 | ⬜ |
 | R-109 | Internal CA key encrypted with `VFM_MASTER_KEY`; CA rotation with overlap via `HelloAck` | 513 | M2 | ⬜ |
-| R-110 | All secrets from env or Kubernetes Secrets, never from committed config | 514 | all | 🟡 |
+| R-110 | All secrets from env or Kubernetes Secrets, never from committed config | 514 | all | ✅ for the control plane; the Helm Secret wiring lands in M8 |
 | R-111 | Strict CSP, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy` | 515 | M0 | 🟡 |
 | R-112 | Validation at every boundary; the agent treated as semi-trusted; everything escaped in the UI; JSON sizes capped | 516 | all | ✅ for the REST boundary (zod per route via `parseBody`); the agent boundary arrives with the gateway in M2 |
 | R-113 | Central `redact()` before logging, before `commands.payload`, before audit details, with credential-field tests | 517 | M0 | ✅ |

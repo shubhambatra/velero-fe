@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-15 08:45 IST (end of session 2) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-15 10:15 IST (end of session 3) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -100,10 +100,10 @@ change in `vfm/docs/DECISIONS.md`.
 **Only when all four pass is M0 complete.** Record it in `vfm/docs/PROGRESS.md`
 and move R-021, R-129, R-130 and R-132 to ✅ in `DEVELOPMENT_STATUS.md`.
 
-Already done, do not redo: the first migration is applied and `migrate status`
-reports in sync; `openapi.yaml` is committed and verified in sync with the
-decorators; 140 unit tests plus 27 e2e tests, lint, format, typecheck and build
-are green; M1 day 4 is complete and verified.
+Already done, do not redo: migrations are applied to both `vfm` and `vfm_test`
+and `migrate status` reports in sync; `openapi.yaml` is committed and verified
+in sync with the decorators; 202 unit tests plus 52 e2e tests, lint, format,
+typecheck and build are green; M1 days 4 and 5 are complete and verified.
 
 ### 2. ~~M1 day 4~~ — **done** in session 2 (`1f0162d`)
 
@@ -111,7 +111,40 @@ R-088, R-091, R-092, R-093 and R-112 are verified: 104 unit tests and a 27-test
 e2e suite against real PostgreSQL and Redis. Details in
 `vfm/docs/PROGRESS.md`. Do not redo it.
 
-### 3. Then M1 day 5 — MFA and sudo mode
+### 3. ~~M1 day 5~~ — **done** in session 3 (`5a8bc63`)
+
+R-089, R-095, R-099 and R-110 are verified. Both seams day 4 left open are
+closed: `SessionGuard` now refuses an `mfaPending` session everywhere except
+the MFA endpoints, and `VFM_MASTER_KEY` is required. Details in
+`vfm/docs/PROGRESS.md`. Do not redo it.
+
+### 4. Then M1 day 6 — orgs, members, invites and teams
+
+`VELERO_FLEET_PLAN.md` §16 day 6 (line 646–647), implementing §8.1 (line 374)
+and §9 (`organizations`, `memberships`, `teams`, `team_members`).
+
+- CRUD for organizations, members and teams.
+- **Email invites over SMTP**, with Mailpit as the dev sink (§14.1). This is
+  where the mailer arrives, so the **lockout notification email** of §8.3 —
+  deferred from day 4 — lands with it.
+- The org switcher (API side; the UI is day 9).
+- **The org-scoping Prisma extension plus the "every query is org-scoped"
+  test.** §8.1 is explicit that it must be *impossible* to forget org scoping,
+  not merely conventional — "Write a test that fails if any repository query
+  lacks org scoping". This is the most consequential piece of M1 after the
+  RBAC engine itself.
+
+**Requirements covered:** R-083 (the rest of the identity model), R-084 (org
+scoping, enforced and tested), and the remainder of R-093 (the lockout email).
+
+**Acceptance criteria:** the org-scoping test fails when a query omits
+`org_id`; an invite cannot be replayed or accepted by a different address; a
+user in two orgs sees only the active one's data. `pnpm run test` and
+`test:e2e` green, and the built server exercised over HTTP.
+
+**One thing to get right:** `mfa_recovery_codes` is **not** org-owned — a user
+may belong to several orgs — so the scoping extension must exclude it rather
+than demand an `org_id` it does not have. See ADR-008.
 
 `VELERO_FLEET_PLAN.md` §16 day 5 (lines 643–644), implementing §8.3 (lines 399,
 405) and §9 (`mfa_secret_encrypted`).
@@ -173,10 +206,19 @@ one with `openssl rand -base64 32`.
   On a fresh machine: `docker exec vfm-dev-postgres createdb -U vfm vfm_test`
   then `DATABASE_URL=...vfm_test pnpm --filter @vfm/server exec prisma migrate
   deploy`. Override targets with `TEST_DATABASE_URL` / `TEST_REDIS_URL`.
-- **Authentication is deny-by-default.** `SessionGuard` and `CsrfGuard` are
-  global, so any new controller is protected until it carries `@Public()`.
-  Forgetting it on a probe or a webhook shows up as a 401, not as a missing
-  guard — that is deliberate.
+- **Authentication is deny-by-default**, and now in three layers: `SessionGuard`
+  (401 without a session, 403 while a second factor is outstanding), `CsrfGuard`
+  (403 without a matching token on a state-changing call) and `SudoGuard` (403
+  without recent re-authentication on a `@RequiresSudo()` route). All three are
+  global, so a new controller is protected until it opts out with `@Public()`,
+  `@AllowsMfaPending()` or neither. Forgetting it shows up as a 401/403, not as
+  a missing guard — that is deliberate.
+- **`VFM_MASTER_KEY` is required** and must be 32 bytes of base64. Generate one
+  with `openssl rand -base64 32`. `server/.env` has a local value already;
+  it is gitignored.
+- **TOTP codes are single-use.** A test that spends the current time step must
+  ask for the next one — `totp.generateForTesting(secret, 1)` — rather than
+  calling again and getting the same six digits back.
 
 ---
 
