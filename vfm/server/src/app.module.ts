@@ -1,15 +1,20 @@
 import type { IncomingMessage } from 'node:http';
 
 import { Inject, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 
 import { PINO_REDACT_PATHS } from './common/redact';
 import { REQUEST_ID_HEADER, requestIdOf } from './common/request-id';
 import { ConfigModule, ENV } from './config/config.module';
 import type { Env } from './config/env.schema';
+import { AuthModule } from './auth/auth.module';
+import { CsrfGuard } from './auth/csrf.guard';
+import { SessionGuard } from './auth/session.guard';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -41,7 +46,17 @@ import { RedisModule } from './redis/redis.module';
     }),
     PrismaModule,
     RedisModule,
+    UsersModule,
+    AuthModule,
     HealthModule,
+  ],
+  providers: [
+    // Order matters: authentication resolves the session first, so the CSRF
+    // guard can compare the submitted token against the session's copy.
+    // Both are global, which makes authentication and CSRF deny-by-default —
+    // a new controller is protected the moment it exists (PLAN.md §12.1).
+    { provide: APP_GUARD, useClass: SessionGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
   ],
 })
 export class AppModule {

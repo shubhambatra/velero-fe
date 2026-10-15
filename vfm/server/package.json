@@ -6,17 +6,19 @@
   "type": "commonjs",
   "scripts": {
     "postinstall": "prisma generate",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && pnpm run build:assets",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
     "gen": "tsx src/openapi.ts",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "build:assets": "node -e \"require('node:fs').cpSync('src/auth/data', 'dist/auth/data', { recursive: true })\""
   },
   "dependencies": {
     "@nestjs/common": "12.1.3",
@@ -29,6 +31,8 @@
     "@prisma/client": "7.10.0",
     "@prometheus-io/client": "0.16.1",
     "@vfm/shared": "workspace:*",
+    "argon2": "0.45.1",
+    "cookie-parser": "1.4.7",
     "helmet": "8.3.0",
     "ioredis": "6.0.0",
     "nestjs-pino": "5.3.1",
@@ -43,6 +47,7 @@
   },
   "devDependencies": {
     "@nestjs/testing": "12.1.3",
+    "@types/cookie-parser": "1.4.10",
     "@types/express": "5.0.6",
     "@types/node": "22.15.33",
     "@types/pg": "8.23.1",

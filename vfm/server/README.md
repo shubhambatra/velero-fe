@@ -18,8 +18,26 @@ alerts and reports described in `PLAN.md` §4.2, §8–§10.
   details.
 - Prisma schema and first migration: `users`, `organizations`, `memberships`.
 
-Authentication, RBAC, the agent gateway and every Velero operation are later
-milestones. There are no stubbed handlers pretending otherwise (§0 rule 7).
+## Authentication (M1 day 4)
+
+- One-time first-admin setup: a token is printed to the logs on first start
+  while `users` is empty, stored hashed in Redis with a 24 h TTL, and burned
+  atomically on use. **There is no open self-signup** (§16 day 4).
+- Login and logout with **argon2id** (19 MiB, t=2, p=1), a 12-character
+  minimum, and a bundled 97 747-entry breached-password list — no external
+  calls, so it works air-gapped (§8.3, §1.1 P6).
+- Redis-backed sessions: httpOnly, Secure, SameSite=Lax; **12 h absolute and
+  1 h idle**; rotation; "sign out everywhere" (§8.3, §9).
+- Double-submit **CSRF** on every state-changing call, compared against the
+  token held in the session rather than only against a second cookie.
+- Brute-force protection: per-account and per-IP counters with progressive
+  delay and a timed lockout (§8.3).
+- Authentication is **deny by default** — `SessionGuard` and `CsrfGuard` are
+  global, so a route is protected unless it carries `@Public()`.
+
+MFA, sudo re-auth, orgs, OIDC and RBAC are days 5–9. The agent gateway and
+every Velero operation are later milestones. There are no stubbed handlers
+pretending otherwise (§0 rule 7).
 
 ## Running locally
 
@@ -43,8 +61,17 @@ from what the decorators produce.
 ## Tests
 
 ```bash
-pnpm --filter @vfm/server test
+pnpm --filter @vfm/server test       # unit; no services needed
+pnpm --filter @vfm/server test:e2e   # boots the app against the dev stack
 ```
 
-Integration tests against real Postgres and Redis via Testcontainers arrive
-with the first database-backed feature in M1 (§15).
+The e2e suite needs `make dev-up` and a `vfm_test` database:
+
+```bash
+docker exec vfm-dev-postgres createdb -U vfm vfm_test
+DATABASE_URL='postgresql://vfm:vfm-dev-password@localhost:55432/vfm_test?schema=public' \
+  pnpm --filter @vfm/server exec prisma migrate deploy
+```
+
+Override the targets with `TEST_DATABASE_URL` and `TEST_REDIS_URL`. CI runs the
+same suite against service containers.

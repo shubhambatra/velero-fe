@@ -36,6 +36,22 @@ export const envSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
 
   /**
+   * Whether to believe `X-Forwarded-For`, and how far back.
+   *
+   * Brute-force protection keys on the client address (PLAN.md §8.3), so this
+   * has to be deliberate: trusting the header unconditionally lets any caller
+   * set it and walk around the per-IP limit, while not trusting it behind a
+   * load balancer collapses every client onto the proxy's address and locks
+   * everyone out together.
+   *
+   * `false` (default) trusts nothing. A number is the count of trusted proxy
+   * hops — `1` is correct for a single Ingress or load balancer. A string is
+   * passed through to Express's `trust proxy` for subnet forms such as
+   * `loopback` or a CIDR.
+   */
+  TRUST_PROXY: z.string().default('false'),
+
+  /**
    * Pretty-printed logs are a development convenience only; production emits
    * structured JSON (PLAN.md §4.2).
    */

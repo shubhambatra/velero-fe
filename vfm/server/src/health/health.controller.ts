@@ -2,6 +2,7 @@ import { Controller, Get, HttpCode, HttpStatus, Res } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
+import { Public } from '../auth/public.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -28,8 +29,11 @@ export interface ReadinessResponse {
  * Redis are checked only in readiness.
  *
  * Neither endpoint is authenticated — they are reachable only on the cluster
- * network and reveal nothing beyond up/down.
+ * network and reveal nothing beyond up/down. `@Public()` is required because
+ * `SessionGuard` is global: without it the kubelet's probes would get 401 and
+ * every replica would restart-loop.
  */
+@Public()
 @ApiTags('health')
 @Controller()
 export class HealthController {

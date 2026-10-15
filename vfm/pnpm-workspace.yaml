@@ -9,6 +9,8 @@ packages:
 # stays blocked, which is the behaviour we want for a product that has to be
 # auditable and air-gap installable (PLAN.md §1.1 P6, §12.1).
 onlyBuiltDependencies:
+  # argon2 is a native addon (PLAN.md §4.2 names it for password hashing).
+  - argon2
   - '@prisma/client'
   - '@prisma/engines'
   - '@swc/core'

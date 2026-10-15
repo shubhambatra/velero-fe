@@ -118,6 +118,58 @@ jobs:
           version: v2.6.2
           working-directory: vfm/agent
 
+  server-e2e:
+    name: Control-plane end-to-end tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.15-alpine
+        env:
+          POSTGRES_DB: vfm_test
+          POSTGRES_USER: vfm
+          POSTGRES_PASSWORD: vfm-ci-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U vfm -d vfm_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:7.2.14-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "valkey-cli ping | grep -q PONG"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://vfm:vfm-ci-password@localhost:5432/vfm_test?schema=public
+      TEST_REDIS_URL: redis://localhost:6379/15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        working-directory: vfm/server
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: pnpm exec prisma migrate deploy
+
+      - name: End-to-end tests
+        run: pnpm --filter @vfm/server run test:e2e
+
+      # The committed OpenAPI document is a contract (PLAN.md §0 rule 5), so a
+      # decorator change that is not regenerated must fail rather than drift.
+      - name: OpenAPI contract is in sync
+        run: |
+          pnpm --filter @vfm/server run gen
+          git diff --exit-code -- server/openapi.yaml
+
   proto:
     name: Proto lint and breaking-change check
     runs-on: ubuntu-latest
