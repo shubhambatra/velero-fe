@@ -166,9 +166,9 @@ jobs:
       # issuer is http://localhost:55556/dex, hence the host port.
       - name: Start Dex
         run: |
-          image=$(grep '^VFM_DEX_IMAGE=' vfm/deploy/dev/versions.env | cut -d= -f2)
+          image=$(grep '^VFM_DEX_IMAGE=' deploy/dev/versions.env | cut -d= -f2)
           docker run -d --name dex -p 55556:5556 \
-            -v "$PWD/vfm/deploy/dev/dex/config.yaml:/etc/dex/config.yaml:ro" \
+            -v "$PWD/deploy/dev/dex/config.yaml:/etc/dex/config.yaml:ro" \
             "$image" dex serve /etc/dex/config.yaml
           for i in $(seq 1 30); do
             curl -fsS http://localhost:55556/dex/.well-known/openid-configuration >/dev/null && exit 0
