@@ -28,12 +28,10 @@ Session 6, continued. Resumed from `2f08daf`.
 - **A gap only a real run found:** after first-run setup a platform admin has
   no org and nowhere to create one, so every admin page said "No
   organization". Added `/admin/orgs/new` (platform admins only).
-- **Hook-less found defects:** none new on the server this day; the day-5
-  problem+json fix landed with day 8.
 
 ### Verification (actually run)
 
-- Shared 128, server unit 420, e2e 156 (36 new: 20 audit, 16 tokens), web 36;
+- Shared 128, server unit 420, e2e 156 (36 new: 20 audit, 16 tokens), web 38;
   lint, typecheck, build clean; `pnpm audit --audit-level=high` clean.
 - **Browser, against a built server on a throwaway DB (dropped after):** first-run
   setup through the UI, create an org, land on Members with the real member
@@ -48,11 +46,11 @@ Session 6, continued. Resumed from `2f08daf`.
 
 - **UI flows not exercised in a browser:** MFA enrolment and challenge, invite
   by email, team management, SSO provider create/edit, sudo dialog, org
-  switching with two orgs, token management UI (there is none yet: the API
-  exists, the page does not).
-- **No API-token management page**, though §11 screen 9 lists API tokens.
-- **No tests for the admin pages or the create-org page** (client, login and
-  sudo dialog are covered).
+  switching with two orgs, token creation and revocation.
+- **Token page** (`/tokens`, any member) is unit-tested but, like the other
+  pages below, not driven in a browser.
+- **No tests for the admin pages or the create-org page** (client, login, sudo
+  dialog and tokens page are covered).
 - Retention job (R-101, M6); per-token rate limits (M7); the audit table is
   unbounded until then.
 - The pre-commit hook runs the whole workspace lint, so a half-finished web
@@ -62,8 +60,8 @@ Session 6, continued. Resumed from `2f08daf`.
 ### Next
 
 The ⛔ human checkpoint (plan line 662): review of the RBAC model and auth flows
-before agent work (M2) starts. Before it: a token-management page, and the
-remaining UI flows above exercised in a browser.
+before agent work (M2) starts. Before it: the remaining UI flows above
+exercised in a browser.
 
 ---
 

@@ -128,11 +128,9 @@ closed.
 
 ### 5. ~~M1 day 9~~ — **built** in session 6; two small items remain
 
-Audit log (ADR-013), API tokens (ADR-014) and the UI are in. **Before the
-checkpoint:**
+Audit log (ADR-013), API tokens (ADR-014), their `/tokens` page and the UI are
+in. **Before the checkpoint:**
 
-- **An API-token management page** (§11 screen 9): the endpoints exist
-  (`/orgs/{orgId}/tokens`, secret shown once, create needs sudo).
 - **Exercise in a browser what was only unit-tested:** MFA enrolment and
   challenge, invite by email, teams, SSO create/edit against Dex, the sudo
   dialog, org switching. Session 6 drove only setup, create-org, members,
