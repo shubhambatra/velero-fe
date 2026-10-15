@@ -288,6 +288,7 @@ counts as zero in the progress figure.
 | `dev-down.sh --clusters-only` | correct, and left the unrelated `velero` cluster untouched |
 | Session 2: `pnpm run build` across all three workspaces | clean |
 | Session 2: operator flow against the **built** server | setup → login → CSRF → logout all behave as specified |
+| Session 2 CI (`vfm-ci`) on `2c57bea` | **all five jobs green**, including the new control-plane e2e job against PostgreSQL and Valkey service containers |
 | Go build / vet / test / golangci-lint | **not run — B-1** |
 | `smoke.sh` | **not run — B-2** |
 | CI (`vfm-ci`) run 38630008601 | **all four jobs green** — TypeScript, Go (correctly skipped, B-1), dependency scan, proto |
@@ -435,6 +436,9 @@ reports success.
 | 10 | `31b5481` | `docs(vfm): record M1 day 4 status and the day 5 handoff` | ✅ pushed |
 | 11 | `d23c664` | `fix(vfm): four defects that only running the built server could find` | ✅ pushed |
 | 12 | `afe3bac` | `chore(vfm): drop the superseded single-target build config` | ✅ pushed |
+| 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
+| 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
+| 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
 
 Commits 1–3 are also pushed. `git status -sb` reports
 `## vfm/m0-foundation...origin/vfm/m0-foundation` with no divergence, and
