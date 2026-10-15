@@ -553,6 +553,10 @@ reports success.
 | 26 | `d5db61e` | `docs(vfm): record CI green on d8eb76f` | ✅ pushed |
 | 27 | `682c671` | `feat(rbac): role bindings, pure authorize() engine and permission guard for M1 day 8` | ✅ pushed — its own CI run was superseded by the next push |
 | 28 | `aa4b15a` | `docs(vfm): record M1 day 8, ADR-012 and the day 9 handoff` | ✅ pushed — **CI green on this SHA**, all five jobs (includes 27) |
+| 29 | `2f08daf` | `docs(vfm): record CI green on aa4b15a` | ✅ pushed |
+| 30 | `3bf5069` | `feat(auth): API tokens, audit actor for tokens and the M1 web UI for M1 day 9` | ✅ pushed — own CI run superseded |
+| 31 | `aa2e1f3` | `feat(web): API token page, create-organization page, and the day 9 record` | ✅ pushed — own CI run superseded |
+| 32 | `f647bf1` | `docs(vfm): correct the day 9 record now that the token page exists` | ✅ pushed — **CI green on this SHA**, all five jobs (includes 30–31) |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
