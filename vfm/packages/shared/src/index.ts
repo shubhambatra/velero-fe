@@ -2,4 +2,5 @@
 // web app and by the server, which compiles with moduleResolution "nodenext"
 // and requires them.
 export * from './product.js';
+export * from './rbac.js';
 export * from './velero-support.js';

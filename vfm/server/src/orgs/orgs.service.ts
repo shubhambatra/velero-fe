@@ -115,12 +115,19 @@ export class OrgsService {
 
   async update(
     orgId: string,
-    input: { name?: string | undefined; mfaRequired?: boolean | undefined },
+    input: {
+      name?: string | undefined;
+      mfaRequired?: boolean | undefined;
+      allowBackupContentDownload?: boolean | undefined;
+    },
   ) {
     const current = await this.get(orgId);
     const settings = {
       ...current.settings,
       ...(input.mfaRequired === undefined ? {} : { mfaRequired: input.mfaRequired }),
+      ...(input.allowBackupContentDownload === undefined
+        ? {}
+        : { allowBackupContentDownload: input.allowBackupContentDownload }),
     };
     await this.prisma.organization.update({
       where: { id: orgId },
@@ -225,6 +232,11 @@ export class OrgsService {
             await this.assertAnotherOwner(tx, orgId, targetUserId);
           }
           await tx.teamMember.deleteMany({ where: { userId: targetUserId } });
+          // Otherwise re-inviting the person later would silently restore
+          // access granted before they left.
+          await tx.roleBinding.deleteMany({
+            where: { subjectType: 'USER', subjectId: targetUserId },
+          });
           await tx.membership.delete({
             where: { orgId_userId: { orgId, userId: targetUserId } },
           });

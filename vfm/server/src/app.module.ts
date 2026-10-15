@@ -15,6 +15,7 @@ import { SudoGuard } from './auth/sudo.guard';
 import { CryptoModule } from './crypto/crypto.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
+import { RbacModule } from './rbac/rbac.module';
 import { OidcModule } from './oidc/oidc.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -76,6 +77,7 @@ function prettyTransportAvailable(): boolean {
     UsersModule,
     OrgsModule,
     OidcModule,
+    RbacModule,
     AuthModule,
     HealthModule,
   ],

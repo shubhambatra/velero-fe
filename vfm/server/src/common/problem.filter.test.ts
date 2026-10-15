@@ -120,4 +120,33 @@ describe('ProblemExceptionFilter', () => {
       'https://vfm.io/problems/bad-request',
     );
   });
+
+  describe('extension members', () => {
+    it('passes through the step-up and MFA markers clients act on', () => {
+      const sudo = catchException(
+        new ForbiddenException({
+          message: 'recent re-authentication required',
+          sudoRequired: true,
+        }),
+      );
+      expect(sudo.body.sudoRequired).toBe(true);
+
+      const mfa = catchException(
+        new ForbiddenException({
+          message: 'multi-factor authentication required',
+          mfaRequired: true,
+          mfaPendingReason: 'challenge',
+        }),
+      );
+      expect(mfa.body).toMatchObject({ mfaRequired: true, mfaPendingReason: 'challenge' });
+    });
+
+    it('drops anything else an exception body carries', () => {
+      const { body } = catchException(
+        new ForbiddenException({ message: 'no', secret: 'hunter2', mfaPendingReason: 'other' }),
+      );
+      expect(body).not.toHaveProperty('secret');
+      expect(body).not.toHaveProperty('mfaPendingReason');
+    });
+  });
 });

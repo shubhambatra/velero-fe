@@ -599,6 +599,70 @@ paths:
       summary: Remove an OIDC provider (Owner/Admin, sudo required)
       tags:
         - oidc
+  /clusters/{clusterId}/my-access:
+    get:
+      operationId: RoleBindingsController_myAccess
+      parameters:
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: What the caller may do on this cluster
+      tags:
+        - rbac
+  /clusters/{clusterId}/role-bindings:
+    get:
+      operationId: RoleBindingsController_list
+      parameters:
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List role bindings (cluster:manage)
+      tags:
+        - rbac
+    post:
+      operationId: RoleBindingsController_create
+      parameters:
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Grant a role (cluster:manage, sudo)
+      tags:
+        - rbac
+  /clusters/{clusterId}/role-bindings/{bindingId}:
+    delete:
+      operationId: RoleBindingsController_remove
+      parameters:
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: bindingId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Revoke a role binding (cluster:manage, sudo)
+      tags:
+        - rbac
   /healthz:
     get:
       description: Returns 200 while the process is able to serve requests.

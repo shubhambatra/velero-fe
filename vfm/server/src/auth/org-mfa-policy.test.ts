@@ -4,25 +4,56 @@ import { mfaObligationFor, parseOrgSettings } from './org-mfa-policy';
 
 describe('parseOrgSettings', () => {
   it('defaults mfaRequired to off, so adopting the product does not start with an enrolment drive', () => {
-    expect(parseOrgSettings({})).toStrictEqual({ mfaRequired: false });
-    expect(parseOrgSettings(null)).toStrictEqual({ mfaRequired: false });
-    expect(parseOrgSettings(undefined)).toStrictEqual({ mfaRequired: false });
+    expect(parseOrgSettings({})).toStrictEqual({
+      mfaRequired: false,
+      allowBackupContentDownload: false,
+    });
+    expect(parseOrgSettings(null)).toStrictEqual({
+      mfaRequired: false,
+      allowBackupContentDownload: false,
+    });
+    expect(parseOrgSettings(undefined)).toStrictEqual({
+      mfaRequired: false,
+      allowBackupContentDownload: false,
+    });
   });
 
   it('reads an explicit setting', () => {
-    expect(parseOrgSettings({ mfaRequired: true })).toStrictEqual({ mfaRequired: true });
+    expect(parseOrgSettings({ mfaRequired: true })).toStrictEqual({
+      mfaRequired: true,
+      allowBackupContentDownload: false,
+    });
   });
 
   it('ignores unknown keys, so a row written by a newer version still parses', () => {
     expect(parseOrgSettings({ mfaRequired: true, somethingNewer: 42 })).toStrictEqual({
       mfaRequired: true,
+      allowBackupContentDownload: false,
     });
   });
 
   it('falls back to the defaults for a malformed value rather than throwing', () => {
     // A hand-edited row must not be able to take the process down.
-    expect(parseOrgSettings({ mfaRequired: 'yes' })).toStrictEqual({ mfaRequired: false });
-    expect(parseOrgSettings('not an object')).toStrictEqual({ mfaRequired: false });
+    expect(parseOrgSettings({ mfaRequired: 'yes' })).toStrictEqual({
+      mfaRequired: false,
+      allowBackupContentDownload: false,
+    });
+    expect(parseOrgSettings('not an object')).toStrictEqual({
+      mfaRequired: false,
+      allowBackupContentDownload: false,
+    });
+  });
+});
+
+describe('allowBackupContentDownload', () => {
+  it('is off unless explicitly on, and a malformed value does not turn it on', () => {
+    expect(parseOrgSettings({}).allowBackupContentDownload).toBe(false);
+    expect(parseOrgSettings({ allowBackupContentDownload: true }).allowBackupContentDownload).toBe(
+      true,
+    );
+    expect(
+      parseOrgSettings({ allowBackupContentDownload: 'true' }).allowBackupContentDownload,
+    ).toBe(false);
   });
 });
 

@@ -28,8 +28,15 @@ export const updateOrgSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
     mfaRequired: z.boolean().optional(),
+    allowBackupContentDownload: z.boolean().optional(),
   })
-  .refine((v) => v.name !== undefined || v.mfaRequired !== undefined, 'nothing to update');
+  .refine(
+    (v) =>
+      v.name !== undefined ||
+      v.mfaRequired !== undefined ||
+      v.allowBackupContentDownload !== undefined,
+    'nothing to update',
+  );
 
 export const setActiveOrgSchema = z.object({ orgId: z.uuid() });
 
@@ -58,3 +65,31 @@ export const updateTeamSchema = z
   .refine((v) => v.name !== undefined || v.description !== undefined, 'nothing to update');
 
 export const orgIdParam = z.uuid();
+
+const clusterRole = z.enum(['VIEWER', 'OPERATOR', 'RESTORER', 'CLUSTER_ADMIN']);
+
+/** A Kubernetes namespace name (RFC 1123 label); no wildcards in a scoped binding. */
+const namespaceName = z
+  .string()
+  .regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/, 'a lowercase RFC 1123 namespace name');
+
+export const createRoleBindingSchema = z.object({
+  subjectType: z.enum(['USER', 'TEAM']),
+  subjectId: z.uuid(),
+  role: clusterRole,
+  scope: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('CLUSTER') }),
+    z.object({
+      type: z.literal('NAMESPACES'),
+      namespaces: z.array(namespaceName).min(1).max(100),
+    }),
+    z.object({
+      type: z.literal('SELECTOR'),
+      selector: z.object({
+        matchLabels: z
+          .record(z.string().min(1).max(63), z.string().max(63))
+          .refine((m) => Object.keys(m).length > 0, 'at least one label is required'),
+      }),
+    }),
+  ]),
+});

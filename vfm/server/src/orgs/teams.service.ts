@@ -69,7 +69,14 @@ export class TeamsService {
 
   async remove(orgId: string, teamId: string): Promise<void> {
     try {
-      await this.prisma.inOrg(orgId, () => this.prisma.team.delete({ where: { id: teamId } }));
+      await this.prisma.inOrg(orgId, () =>
+        this.prisma.$transaction(async (tx) => {
+          await tx.team.delete({ where: { id: teamId } });
+          // Bindings reference teams by a polymorphic id, so no foreign key
+          // removes them; a dangling grant must not outlive its team.
+          await tx.roleBinding.deleteMany({ where: { subjectType: 'TEAM', subjectId: teamId } });
+        }),
+      );
     } catch (error: unknown) {
       throw notFoundOn(error);
     }

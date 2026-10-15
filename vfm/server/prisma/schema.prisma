@@ -141,6 +141,7 @@ model Organization {
   teams         Team[]
   invites       Invite[]
   oidcProviders OidcProvider[]
+  roleBindings  RoleBinding[]
 
   @@map("organizations")
 }
@@ -324,4 +325,47 @@ model OidcIdentity {
   @@index([orgId])
   @@index([userId])
   @@map("oidc_identities")
+}
+
+enum RoleBindingSubject {
+  USER
+  TEAM
+
+  @@map("role_binding_subject")
+}
+
+/// Grants a user or team a built-in cluster role, optionally limited to some
+/// namespaces (PLAN.md §8.2, §9). Evaluated by `authorize()` in @vfm/shared.
+///
+/// `clusterId` is a plain UUID with no foreign key: the `clusters` table
+/// arrives in M2, which adds the constraint (docs/DECISIONS.md ADR-012).
+/// `subjectId` is polymorphic (user or team) and so cannot be a foreign key
+/// either; the service validates it and removes bindings when the subject
+/// leaves the org or is deleted.
+model RoleBinding {
+  id String @id @db.Uuid
+
+  orgId     String @map("org_id") @db.Uuid
+  clusterId String @map("cluster_id") @db.Uuid
+
+  subjectType RoleBindingSubject @map("subject_type")
+  subjectId   String             @map("subject_id") @db.Uuid
+
+  /// A built-in role key (`VIEWER`, `OPERATOR`, `RESTORER`, `CLUSTER_ADMIN`).
+  /// A string, not an enum, so v1.1 custom roles need no migration.
+  role String
+
+  /// `{type: CLUSTER}` | `{type: NAMESPACES, namespaces}` | `{type: SELECTOR, selector}`.
+  scope Json
+
+  createdById String? @map("created_by_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, clusterId])
+  @@index([orgId, subjectType, subjectId])
+  @@map("role_bindings")
 }

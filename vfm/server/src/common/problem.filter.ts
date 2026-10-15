@@ -36,6 +36,34 @@ export interface ApiProblem {
   requestId?: string | undefined;
   /** Field-level validation failures, when the status is 422. */
   errors?: { path: string; message: string }[] | undefined;
+  /** Step-up marker (RFC 9457 extension member): re-authenticate, then retry. */
+  sudoRequired?: true | undefined;
+  /** The session still owes a second factor; see `mfaPendingReason`. */
+  mfaRequired?: true | undefined;
+  mfaPendingReason?: 'enrolment' | 'challenge' | undefined;
+}
+
+/**
+ * Extension members that guards attach to an exception body and that clients
+ * act on. An allow-list, not a spread: an exception body is not a response
+ * contract, and copying it wholesale is how internals end up on the wire.
+ */
+function extensionMembers(body: unknown): Partial<ApiProblem> {
+  if (body === null || typeof body !== 'object') {
+    return {};
+  }
+  const source = body as Record<string, unknown>;
+  const out: Partial<ApiProblem> = {};
+  if (source.sudoRequired === true) {
+    out.sudoRequired = true;
+  }
+  if (source.mfaRequired === true) {
+    out.mfaRequired = true;
+  }
+  if (source.mfaPendingReason === 'enrolment' || source.mfaPendingReason === 'challenge') {
+    out.mfaPendingReason = source.mfaPendingReason;
+  }
+  return out;
 }
 
 export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
@@ -100,6 +128,7 @@ export class ProblemExceptionFilter implements ExceptionFilter {
         title: statusTitle(status),
         status,
         ...(detail === undefined ? {} : { detail }),
+        ...extensionMembers(body),
         instance: request.url,
         requestId,
       };

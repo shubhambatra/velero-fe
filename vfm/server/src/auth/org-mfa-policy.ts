@@ -26,6 +26,12 @@ import type { OrgRole } from '@prisma/client';
 export const orgSettingsSchema = z.object({
   /** Require MFA of every member, not only Owners and Admins. */
   mfaRequired: z.boolean().default(false),
+  /**
+   * Whether `backup:download` can ever be granted (PLAN.md §8.2). Off by
+   * default: downloading backup content moves customer data out of the
+   * cluster, so it takes an explicit org decision on top of the role.
+   */
+  allowBackupContentDownload: z.boolean().default(false),
 });
 
 export type OrgSettings = z.infer<typeof orgSettingsSchema>;
