@@ -1,5 +1,8 @@
 import 'reflect-metadata';
 
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { Logger as NestLogger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
@@ -15,7 +18,29 @@ import type { Env } from './config/env.schema';
 import { startMetricsServer } from './metrics/metrics.server';
 import { applySecurity, MAX_JSON_BODY } from './security';
 
+/**
+ * Loads `server/.env` when it is present, for local development.
+ *
+ * Deliberately *before* the Nest app is created, because the config module
+ * validates `process.env` during construction. Node's built-in loader keeps
+ * this dotenv-free, and `override: false` semantics are what we want: a real
+ * environment variable always wins, so the file cannot quietly shadow what an
+ * operator set. In Kubernetes there is no such file and every value comes from
+ * the environment or a Secret (PLAN.md §12.1).
+ */
+function loadDotEnvForDevelopment(): void {
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+  const file = resolve(__dirname, '..', '.env');
+  if (existsSync(file)) {
+    process.loadEnvFile(file);
+  }
+}
+
 async function bootstrap(): Promise<void> {
+  loadDotEnvForDevelopment();
+
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const env = app.get<Env>(ENV);
 

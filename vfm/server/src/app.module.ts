@@ -16,6 +16,22 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { UsersModule } from './users/users.module';
 
+/**
+ * Whether `pino-pretty` can actually be loaded.
+ *
+ * It is a devDependency (LOG_PRETTY is a development convenience and
+ * production emits JSON), so this keeps `LOG_PRETTY=true` in an image that
+ * does not bundle it from taking the process down at startup.
+ */
+function prettyTransportAvailable(): boolean {
+  try {
+    require.resolve('pino-pretty');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 @Module({
   imports: [
     ConfigModule,
@@ -27,7 +43,11 @@ import { UsersModule } from './users/users.module';
           level: env.LOG_LEVEL,
           // Structured JSON in every real deployment (PLAN.md §4.2); pretty
           // output is a local-development affordance only.
-          ...(env.LOG_PRETTY
+          //
+          // pino-pretty is a devDependency, so a production image does not
+          // carry it. Asking for it there must degrade to JSON rather than
+          // refuse to boot — a logging preference is never worth an outage.
+          ...(env.LOG_PRETTY && prettyTransportAvailable()
             ? { transport: { target: 'pino-pretty', options: { singleLine: true } } }
             : {}),
           redact: { paths: [...PINO_REDACT_PATHS], censor: '[REDACTED]' },

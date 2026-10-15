@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -30,19 +31,26 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   /**
-   * A real argon2id hash of a random value, computed once at startup.
+   * A real argon2id hash of a random value, used as the comparison target when
+   * no account matches so an unknown email costs the same work as a real one.
+   * Nothing can ever match it.
    *
-   * Verified against when no account matches, purely to spend the same work
-   * as a real attempt. Nothing can ever match it.
+   * Computed lazily and memoised rather than in the constructor: doing async
+   * work during construction is fragile — parameter properties are not
+   * reliably assigned at that point across TypeScript transpilers, which broke
+   * startup under tsx while passing under the test runner's SWC config.
    */
-  private dummyHash: Promise<string>;
+  private dummyHashPromise: Promise<string> | undefined;
 
   constructor(
     private readonly users: UsersService,
     private readonly passwords: PasswordService,
     private readonly throttle: LoginThrottleService,
-  ) {
-    this.dummyHash = this.passwords.hash(`unused-${Math.random().toString(36)}`);
+  ) {}
+
+  private dummyHash(): Promise<string> {
+    this.dummyHashPromise ??= this.passwords.hash(`unused-${randomBytes(16).toString('hex')}`);
+    return this.dummyHashPromise;
   }
 
   async login(input: LoginInput): Promise<LoginResult> {
@@ -67,7 +75,7 @@ export class AuthService {
 
     // Spend the same work whether or not the account exists, and whether or
     // not it has a password set (an OIDC-only user has a null hash, §9).
-    const hash = candidate?.passwordHash ?? (await this.dummyHash);
+    const hash = candidate?.passwordHash ?? (await this.dummyHash());
     const passwordMatches = await this.passwords.verify(hash, input.password);
 
     const usable =

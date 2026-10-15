@@ -9,6 +9,14 @@
     "baseUrl": ".",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    // Required by Nest's constructor injection. With ES2022+ class-field
+    // semantics (the default for this target), a transpiler declares the
+    // fields generated from TypeScript parameter properties *after* assigning
+    // them, so every injected dependency reads back as undefined at runtime.
+    // It fails only outside the test runner, whose SWC config already uses
+    // set semantics — which is how it reached a running server before being
+    // caught.
+    "useDefineForClassFields": false,
     "verbatimModuleSyntax": false,
     "noEmit": false,
     "types": ["node"]
