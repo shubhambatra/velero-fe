@@ -544,6 +544,9 @@ reports success.
 | 23 | `f6fe5f8` | `feat(auth): per-org OIDC with JIT provisioning and group to team mapping for M1 day 7` | ✅ pushed |
 | 24 | `7f484e5` | `docs(vfm): record M1 day 7, ADR-011, the red CI and the day 8 handoff` | ✅ pushed — CI red: the e2e job had no Dex |
 | 25 | `d8eb76f` | `ci(vfm): fix Dex paths, the job already runs in vfm/` | ✅ pushed — **CI green on this SHA**, all five jobs |
+| 26 | `d5db61e` | `docs(vfm): record CI green on d8eb76f` | ✅ pushed |
+| 27 | `682c671` | `feat(rbac): role bindings, pure authorize() engine and permission guard for M1 day 8` | ✅ pushed — its own CI run was superseded by the next push |
+| 28 | `aa4b15a` | `docs(vfm): record M1 day 8, ADR-012 and the day 9 handoff` | ✅ pushed — **CI green on this SHA**, all five jobs (includes 27) |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
