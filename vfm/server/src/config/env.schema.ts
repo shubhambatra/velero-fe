@@ -15,8 +15,22 @@ import { z } from 'zod';
 
 const port = z.coerce.number().int().min(1).max(65_535);
 
+/** A 32-byte key supplied as base64. The value is never echoed on failure. */
+const base64Key32 = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => Buffer.from(value, 'base64').length === 32,
+    'must be 32 bytes encoded as base64',
+  );
+
 /** Variables whose values must never be logged or echoed back (PLAN.md §12.1). */
-export const SECRET_ENV_KEYS = ['DATABASE_URL', 'REDIS_URL', 'VFM_MASTER_KEY'] as const;
+export const SECRET_ENV_KEYS = [
+  'DATABASE_URL',
+  'REDIS_URL',
+  'VFM_MASTER_KEY',
+  'VFM_MASTER_KEY_PREVIOUS',
+] as const;
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -76,16 +90,36 @@ export const envSchema = z.object({
 
   /**
    * Key-encryption key for the `*_encrypted` columns of PLAN.md §9: 32 bytes,
-   * base64-encoded. Required from M1 onward, when the first encrypted column
-   * (a user's TOTP secret) exists. Optional today so the M0 skeleton can boot
-   * without inventing a key that would then look load-bearing.
+   * base64-encoded. Generate with `openssl rand -base64 32`.
+   *
+   * **Required from M1 day 5**, where `users.mfa_secret_encrypted` becomes the
+   * first encrypted column. Starting without it would mean either storing a
+   * TOTP secret in the clear or failing at the first write, so startup refuses
+   * instead.
    */
-  VFM_MASTER_KEY: z
+  VFM_MASTER_KEY: base64Key32,
+
+  /**
+   * Previously used key-encryption keys, comma-separated, accepted for
+   * **decryption only**.
+   *
+   * This is what makes the key rotation §9 asks for a non-event: deploy the
+   * new key as `VFM_MASTER_KEY` with the old one listed here, let the rewrap
+   * job work through the stored ciphertexts, then remove it. Without the old
+   * key present, every row encrypted under it becomes unreadable.
+   */
+  VFM_MASTER_KEY_PREVIOUS: z
     .string()
-    .optional()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part !== ''),
+    )
     .refine(
-      (value) => value === undefined || Buffer.from(value, 'base64').length === 32,
-      'must be 32 bytes encoded as base64',
+      (keys) => keys.every((key) => Buffer.from(key, 'base64').length === 32),
+      'every key must be 32 bytes encoded as base64',
     ),
 });
 

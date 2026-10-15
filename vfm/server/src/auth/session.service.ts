@@ -60,9 +60,11 @@ export class SessionService {
       csrfToken,
       ip: input.ip,
       userAgent: input.userAgent,
-      // Set once MFA is enrolled and verified (M1 day 5). Until then every
-      // session is fully authenticated the moment the password check passes.
+      // True while a second-factor obligation is unsatisfied. The session is
+      // real — the challenge has to be answerable — but authenticates nothing
+      // until this clears (PLAN.md §8.3; see SessionGuard).
       mfaPending: input.mfaPending ?? false,
+      mfaPendingReason: input.mfaPendingReason ?? null,
       // "sudo mode" re-auth timestamp (§8.3). Login counts as a re-auth.
       lastReauthAt: now,
     };
@@ -121,7 +123,7 @@ export class SessionService {
   /** Overwrites the mutable parts of a live session. */
   async update(
     id: string,
-    changes: Partial<Pick<SessionRecord, 'mfaPending' | 'lastReauthAt'>>,
+    changes: Partial<Pick<SessionRecord, 'mfaPending' | 'mfaPendingReason' | 'lastReauthAt'>>,
   ): Promise<void> {
     const raw = await this.redis.connection.get(sessionKey(id));
     if (raw === null) {
@@ -246,7 +248,18 @@ export interface CreateSessionInput {
   ip: string;
   userAgent: string;
   mfaPending?: boolean;
+  mfaPendingReason?: MfaPendingReason | null;
 }
+
+/**
+ * Why a second factor is outstanding.
+ *
+ * `challenge` — the user has MFA and must enter a code.
+ * `enrolment` — the user owes MFA by role or org policy and has none yet, so
+ * they must set one up before doing anything else (PLAN.md §8.3 makes it
+ * required for Owner/Admin by default).
+ */
+export type MfaPendingReason = 'challenge' | 'enrolment';
 
 export interface SessionRecord {
   userId: string;
@@ -257,6 +270,7 @@ export interface SessionRecord {
   ip: string;
   userAgent: string;
   mfaPending: boolean;
+  mfaPendingReason: MfaPendingReason | null;
   lastReauthAt: number;
 }
 

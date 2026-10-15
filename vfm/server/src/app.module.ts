@@ -11,6 +11,8 @@ import type { Env } from './config/env.schema';
 import { AuthModule } from './auth/auth.module';
 import { CsrfGuard } from './auth/csrf.guard';
 import { SessionGuard } from './auth/session.guard';
+import { SudoGuard } from './auth/sudo.guard';
+import { CryptoModule } from './crypto/crypto.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
@@ -66,6 +68,7 @@ function prettyTransportAvailable(): boolean {
     }),
     PrismaModule,
     RedisModule,
+    CryptoModule,
     UsersModule,
     AuthModule,
     HealthModule,
@@ -77,6 +80,9 @@ function prettyTransportAvailable(): boolean {
     // a new controller is protected the moment it exists (PLAN.md §12.1).
     { provide: APP_GUARD, useClass: SessionGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
+    // Last: the session must be resolved before its re-authentication age can
+    // be judged (PLAN.md §8.3 sudo mode).
+    { provide: APP_GUARD, useClass: SudoGuard },
   ],
 })
 export class AppModule {

@@ -41,6 +41,21 @@ paths:
       summary: Sign in with email and password
       tags:
         - auth
+  /auth/sudo:
+    post:
+      description: PLAN.md §8.3 requires re-authentication within the last 5 minutes for restore create,
+        any delete, storage write, cluster delete and role-binding changes. Accepts the account
+        password or a second factor.
+      operationId: AuthController_sudo
+      parameters: []
+      responses:
+        "200":
+          description: The sudo window is open.
+        "401":
+          description: The password or code did not verify.
+      summary: Re-authenticate to open the sudo window
+      tags:
+        - auth
   /auth/logout:
     post:
       operationId: AuthController_logout
@@ -70,6 +85,86 @@ paths:
         "200":
           description: ""
       summary: The currently authenticated user
+      tags:
+        - auth
+  /auth/mfa:
+    get:
+      description: Reports whether MFA is on, whether an enrolment is half-finished, how many recovery
+        codes remain, and whether the user is obliged to have MFA at all.
+      operationId: MfaController_status
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Multi-factor authentication status for the current user
+      tags:
+        - auth
+    delete:
+      description: Requires a currently valid second factor as well as recent re-authentication. Destroys
+        the stored secret and every recovery code.
+      operationId: MfaController_disable
+      parameters: []
+      responses:
+        "204":
+          description: MFA disabled.
+        "401":
+          description: The code did not verify.
+        "403":
+          description: Recent re-authentication required, or MFA is obliged.
+      summary: Disable multi-factor authentication
+      tags:
+        - auth
+  /auth/mfa/enrol:
+    post:
+      description: "Generates a shared secret and returns it with an otpauth:// URI for a QR code. MFA is
+        not yet active: it is turned on only once a code from this secret has been verified, so an
+        unscanned QR cannot lock the account out."
+      operationId: MfaController_beginEnrolment
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Begin TOTP enrolment
+      tags:
+        - auth
+  /auth/mfa/enrol/confirm:
+    post:
+      description: Verifies a code from the pending secret, turns MFA on, and returns ten single-use
+        recovery codes. The codes are shown exactly once and stored only as hashes.
+      operationId: MfaController_confirmEnrolment
+      parameters: []
+      responses:
+        "200":
+          description: MFA enabled; recovery codes returned once.
+        "401":
+          description: The code did not verify.
+      summary: Confirm TOTP enrolment and receive recovery codes
+      tags:
+        - auth
+  /auth/mfa/challenge:
+    post:
+      description: Accepts either a six-digit TOTP code or a recovery code. On success the session becomes
+        fully authenticated and its id is rotated.
+      operationId: MfaController_challenge
+      parameters: []
+      responses:
+        "200":
+          description: The factor was accepted.
+        "401":
+          description: The code did not verify.
+      summary: Answer the second-factor challenge for the current session
+      tags:
+        - auth
+  /auth/mfa/recovery-codes:
+    post:
+      description: Issues ten new single-use codes and invalidates the previous set. Shown once. Requires
+        recent re-authentication.
+      operationId: MfaController_regenerateRecoveryCodes
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Replace the recovery codes
       tags:
         - auth
   /healthz:

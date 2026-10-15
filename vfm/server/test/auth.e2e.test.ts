@@ -1,18 +1,12 @@
-import { type INestApplication, Logger } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import cookieParser from 'cookie-parser';
-import { json } from 'express';
-import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
+import type request from 'supertest';
 
-import { AppModule } from '../src/app.module';
-import { ProblemExceptionFilter } from '../src/common/problem.filter';
-import { requestIdMiddleware } from '../src/common/request-id';
 import { CSRF_HEADER } from '../src/auth/csrf.guard';
 import { SessionService } from '../src/auth/session.service';
 import { SetupService } from '../src/auth/setup.service';
-import { PrismaService } from '../src/prisma/prisma.service';
-import { RedisService } from '../src/redis/redis.service';
+import type { PrismaService } from '../src/prisma/prisma.service';
+import type { RedisService } from '../src/redis/redis.service';
+import { createTestApp, readCookie, type TestApp } from './app-harness';
 
 /**
  * End-to-end coverage of the M1 day 4 authentication flow against **real**
@@ -23,59 +17,31 @@ import { RedisService } from '../src/redis/redis.service';
  * once with the printed token, that the resulting session works, that CSRF is
  * enforced on state-changing calls, and that none of it can be bypassed.
  *
- * It runs against `vfm_test`, a separate database, and truncates `users`
- * between tests. It needs `make dev-up`; without it the suite is skipped
- * rather than reported as passing.
+ * Needs `make dev-up` and a migrated `vfm_test` database; see the server
+ * README.
  */
-const DATABASE_URL =
-  process.env.TEST_DATABASE_URL ??
-  'postgresql://vfm:vfm-dev-password@localhost:55432/vfm_test?schema=public';
-const REDIS_URL = process.env.TEST_REDIS_URL ?? 'redis://localhost:56379/15';
-
 const PASSWORD = 'canopy-vellum-ratchet-82';
 const EMAIL = 'admin@vfm.local';
 
 describe('auth (e2e)', () => {
-  let app: INestApplication;
+  let harness: TestApp;
   let prisma: PrismaService;
   let redis: RedisService;
   let setup: SetupService;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = DATABASE_URL;
-    process.env.REDIS_URL = REDIS_URL;
-    process.env.NODE_ENV = 'test';
-    // pino logs every request; the assertions are what matter here.
-    process.env.LOG_LEVEL = 'fatal';
-    Logger.overrideLogger(false);
-
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-
-    app = moduleRef.createNestApplication();
-    // The same middleware and filters main.ts installs, so the behaviour under
-    // test is the behaviour that ships.
-    app.use(requestIdMiddleware);
-    app.use(cookieParser());
-    app.use(json({ limit: '1mb' }));
-    app.useGlobalFilters(new ProblemExceptionFilter());
-    app.setGlobalPrefix('api/v1', { exclude: ['healthz', 'readyz'] });
-
-    await app.init();
-
-    prisma = app.get(PrismaService);
-    redis = app.get(RedisService);
-    setup = app.get(SetupService);
+    harness = await createTestApp();
+    prisma = harness.prisma;
+    redis = harness.redis;
+    setup = harness.app.get(SetupService);
   }, 60_000);
 
   afterAll(async () => {
-    await prisma.user.deleteMany();
-    await redis.connection.flushdb();
-    await app.close();
+    await harness.close();
   });
 
   beforeEach(async () => {
-    await prisma.user.deleteMany();
-    await redis.connection.flushdb();
+    await harness.reset();
   });
 
   /** Issues a fresh setup token the way bootstrap does, returning the plaintext. */
@@ -96,7 +62,7 @@ describe('auth (e2e)', () => {
     return token;
   }
 
-  const api = (): request.Agent => request.agent(app.getHttpServer() as never);
+  const api = (): request.Agent => harness.api();
 
   describe('first-time setup', () => {
     it('reports that setup is open while no user exists', async () => {
@@ -231,6 +197,11 @@ describe('auth (e2e)', () => {
         .post('/api/v1/auth/setup')
         .send({ token, email: EMAIL, password: PASSWORD })
         .expect(201);
+
+      // M1 day 5 makes MFA obligatory for a platform admin (PLAN.md §8.3), so
+      // these password-only assertions clear that flag. The obligation itself
+      // is covered in mfa.e2e.test.ts.
+      await prisma.user.update({ where: { email: EMAIL }, data: { isPlatformAdmin: false } });
     });
 
     it('signs in with the right password and returns the user', async () => {
@@ -240,7 +211,9 @@ describe('auth (e2e)', () => {
         .expect(200);
 
       expect(response.body.user.email).toBe(EMAIL);
-      expect(response.body.mfaRequired).toBe(false);
+      // No second factor is owed: this account has no MFA and, with
+      // isPlatformAdmin cleared below, no obligation either.
+      expect(response.body.mfaPendingReason).toBeNull();
     });
 
     it('accepts the email in any case', async () => {
@@ -326,6 +299,10 @@ describe('auth (e2e)', () => {
         .expect(201);
 
       csrfToken = readCookie(response.get('Set-Cookie') ?? [], SessionService.CSRF_COOKIE);
+
+      // See above: day 5's MFA obligation for platform admins is covered in
+      // mfa.e2e.test.ts, not here.
+      await prisma.user.update({ where: { email: EMAIL }, data: { isPlatformAdmin: false } });
     });
 
     it('serves /auth/me from the session cookie', async () => {
@@ -408,12 +385,3 @@ describe('auth (e2e)', () => {
     });
   });
 });
-
-function readCookie(cookies: string[], name: string): string {
-  const match = cookies.find((cookie) => cookie.startsWith(`${name}=`));
-  if (match === undefined) {
-    throw new Error(`cookie ${name} was not set`);
-  }
-  const value = match.slice(name.length + 1).split(';')[0];
-  return decodeURIComponent(value ?? '');
-}

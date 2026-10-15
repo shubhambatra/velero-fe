@@ -5,7 +5,9 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import type { AuthenticatedUser } from './authenticated-user';
 import { LoginThrottleService } from './login-throttle.service';
+import { MfaService } from './mfa.service';
 import { PasswordService } from './password.service';
+import type { MfaPendingReason } from './session.service';
 import { normalizeEmail, UsersService } from '../users/users.service';
 
 /**
@@ -46,6 +48,7 @@ export class AuthService {
     private readonly users: UsersService,
     private readonly passwords: PasswordService,
     private readonly throttle: LoginThrottleService,
+    private readonly mfa: MfaService,
   ) {}
 
   private dummyHash(): Promise<string> {
@@ -114,15 +117,35 @@ export class AuthService {
       mfaEnabled: candidate.mfaEnabled,
     };
 
+    // A password alone is never enough for anyone who has a second factor, or
+    // who owes one by role or org policy (PLAN.md §8.3). The session is issued
+    // either way — the challenge has to be answerable — but SessionGuard
+    // refuses it everywhere except the MFA endpoints until this clears.
+    const mfaPendingReason = await this.secondFactorObligation(candidate.id, candidate.mfaEnabled);
+
     return {
       ok: true,
       user,
-      // MFA enrolment and the challenge arrive in M1 day 5. A user with MFA
-      // enabled must not be fully authenticated by a password alone, so the
-      // session is marked pending and the guard will refuse to treat it as
-      // authenticated once day 5 wires that in.
-      mfaRequired: candidate.mfaEnabled,
+      mfaPendingReason,
     };
+  }
+
+  /**
+   * What the user still owes after a correct password.
+   *
+   * `challenge` when they have a factor to present; `enrolment` when they are
+   * required to have one and do not yet; null when nothing is outstanding.
+   */
+  private async secondFactorObligation(
+    userId: string,
+    mfaEnabled: boolean,
+  ): Promise<MfaPendingReason | null> {
+    if (mfaEnabled) {
+      return 'challenge';
+    }
+
+    const obligation = await this.mfa.obligationFor(userId);
+    return obligation.required ? 'enrolment' : null;
   }
 }
 
@@ -133,6 +156,6 @@ export interface LoginInput {
 }
 
 export type LoginResult =
-  | { ok: true; user: AuthenticatedUser; mfaRequired: boolean }
+  | { ok: true; user: AuthenticatedUser; mfaPendingReason: MfaPendingReason | null }
   | { ok: false; reason: 'invalid_credentials' }
   | { ok: false; reason: 'account_locked' | 'ip_throttled'; retryAfterSeconds: number };

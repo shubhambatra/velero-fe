@@ -15,8 +15,9 @@
 //   - columns holding secrets are suffixed `Encrypted` and hold AES-256-GCM
 //     envelope ciphertext with a key id (PLAN.md §9).
 //
-// This first migration covers only the three tables PLAN.md §16 day 3 calls
-// for: users, organizations, memberships. Authentication logic itself is M1.
+// Tables arrive with the feature that needs them, so this is a growing subset
+// of §9's list: users, organizations and memberships from M0 day 3, and
+// mfa_recovery_codes from M1 day 5.
 
 generator client {
   provider = "prisma-client-js"
@@ -53,6 +54,15 @@ model User {
 
   mfaEnabled Boolean @default(false) @map("mfa_enabled")
 
+  /// Highest TOTP time step already accepted for this user.
+  ///
+  /// A TOTP code stays valid for its whole 30-second step, so without this a
+  /// code observed over someone's shoulder could be replayed within the
+  /// window. Verification rejects anything at or below this value, which makes
+  /// each code usable exactly once. BigInt because a step is a Unix time
+  /// divided by 30 and will outlive a 32-bit integer.
+  mfaLastTimeStep BigInt? @map("mfa_last_time_step")
+
   /// Platform super-admin. Separate from org roles: it bootstraps the first
   /// organization and is not granted by any org (PLAN.md §8.1).
   isPlatformAdmin Boolean @default(false) @map("is_platform_admin")
@@ -65,10 +75,44 @@ model User {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships Membership[]
+  memberships       Membership[]
+  mfaRecoveryCodes  MfaRecoveryCode[]
 
   @@index([disabledAt])
   @@map("users")
+}
+
+/// A single-use MFA recovery code (PLAN.md §8.3: "recovery codes (10,
+/// hashed)").
+///
+/// One row per code rather than a JSON array on `users`, so spending a code is
+/// an atomic `UPDATE … WHERE used_at IS NULL`. In a JSON column the same
+/// operation would be a read-modify-write, and two requests presenting the
+/// same code could both succeed.
+///
+/// PLAN.md §9 does not list this table; see docs/DECISIONS.md ADR-008.
+model MfaRecoveryCode {
+  id String @id @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+
+  /// SHA-256 of the normalised code. These are 80 bits of CSPRNG output, so
+  /// there is nothing for an offline attacker to guess and a slow KDF would
+  /// only add cost to verification — see the service for the full reasoning.
+  codeHash String @map("code_hash")
+
+  /// Set when the code is spent. Never reset; a used code stays used.
+  usedAt DateTime? @map("used_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The lookup is by (user, hash, unused), which this covers.
+  @@index([userId, codeHash])
+  @@index([userId, usedAt])
+  @@map("mfa_recovery_codes")
 }
 
 /// A tenant. Every piece of customer data hangs off an organization, and all

@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { validateEnv } from './env.schema';
 
+/** 32 bytes of key material, as base64. */
+const KEY = Buffer.alloc(32, 7).toString('base64');
+
 const minimal = {
   DATABASE_URL: 'postgresql://vfm:dev@localhost:55432/vfm',
   REDIS_URL: 'redis://localhost:56379',
+  // Required from M1 day 5, where mfa_secret_encrypted becomes the first
+  // encrypted column (PLAN.md §9).
+  VFM_MASTER_KEY: KEY,
 } satisfies NodeJS.ProcessEnv;
 
 describe('validateEnv', () => {
@@ -27,9 +33,14 @@ describe('validateEnv', () => {
     expect(env.METRICS_PORT).toBe(9191);
   });
 
-  it('rejects a missing database or redis url', () => {
-    expect(() => validateEnv({ REDIS_URL: minimal.REDIS_URL })).toThrow(/DATABASE_URL/);
-    expect(() => validateEnv({ DATABASE_URL: minimal.DATABASE_URL })).toThrow(/REDIS_URL/);
+  it('rejects a missing database url, redis url or master key', () => {
+    const { DATABASE_URL: _d, ...noDatabase } = minimal;
+    const { REDIS_URL: _r, ...noRedis } = minimal;
+    const { VFM_MASTER_KEY: _k, ...noKey } = minimal;
+
+    expect(() => validateEnv(noDatabase)).toThrow(/DATABASE_URL/);
+    expect(() => validateEnv(noRedis)).toThrow(/REDIS_URL/);
+    expect(() => validateEnv(noKey)).toThrow(/VFM_MASTER_KEY/);
   });
 
   it('rejects connection strings with the wrong scheme', () => {
@@ -58,6 +69,7 @@ describe('validateEnv', () => {
 
     expect(message).toContain('DATABASE_URL');
     expect(message).toContain('REDIS_URL');
+    expect(message).toContain('VFM_MASTER_KEY');
     expect(message).toContain('PORT');
     expect(message).toContain('LOG_LEVEL');
   });
@@ -78,13 +90,16 @@ describe('validateEnv', () => {
   });
 
   describe('VFM_MASTER_KEY', () => {
-    it('is optional in M0, before any encrypted column exists', () => {
-      expect(() => validateEnv({ ...minimal })).not.toThrow();
+    it('is required, because the database holds encrypted columns', () => {
+      // Booting without it would mean either writing a TOTP secret in the
+      // clear or failing at the first write (PLAN.md §9).
+      const { VFM_MASTER_KEY: _omitted, ...withoutKey } = minimal;
+
+      expect(() => validateEnv(withoutKey)).toThrow(/VFM_MASTER_KEY/);
     });
 
     it('accepts exactly 32 bytes of base64', () => {
-      const key = Buffer.alloc(32, 7).toString('base64');
-      expect(validateEnv({ ...minimal, VFM_MASTER_KEY: key }).VFM_MASTER_KEY).toBe(key);
+      expect(validateEnv({ ...minimal }).VFM_MASTER_KEY).toBe(KEY);
     });
 
     it('rejects a key that is not 32 bytes', () => {
@@ -93,6 +108,54 @@ describe('validateEnv', () => {
 
       expect(() => validateEnv({ ...minimal, VFM_MASTER_KEY: short })).toThrow(/VFM_MASTER_KEY/);
       expect(() => validateEnv({ ...minimal, VFM_MASTER_KEY: long })).toThrow(/VFM_MASTER_KEY/);
+      expect(() => validateEnv({ ...minimal, VFM_MASTER_KEY: '' })).toThrow(/VFM_MASTER_KEY/);
+    });
+
+    it('never echoes the key material in the error', () => {
+      const short = Buffer.alloc(16, 9).toString('base64');
+      let message = '';
+      try {
+        validateEnv({ ...minimal, VFM_MASTER_KEY: short });
+      } catch (error: unknown) {
+        message = error instanceof Error ? error.message : '';
+      }
+
+      expect(message).toContain('VFM_MASTER_KEY');
+      expect(message).not.toContain(short);
+    });
+  });
+
+  describe('VFM_MASTER_KEY_PREVIOUS', () => {
+    it('defaults to no retired keys', () => {
+      expect(validateEnv({ ...minimal }).VFM_MASTER_KEY_PREVIOUS).toStrictEqual([]);
+    });
+
+    it('parses a comma-separated list, which is what a rotation sets', () => {
+      const a = Buffer.alloc(32, 1).toString('base64');
+      const b = Buffer.alloc(32, 2).toString('base64');
+
+      expect(
+        validateEnv({ ...minimal, VFM_MASTER_KEY_PREVIOUS: `${a}, ${b}` }).VFM_MASTER_KEY_PREVIOUS,
+      ).toStrictEqual([a, b]);
+    });
+
+    it('ignores empty entries and stray whitespace', () => {
+      const a = Buffer.alloc(32, 1).toString('base64');
+
+      expect(
+        validateEnv({ ...minimal, VFM_MASTER_KEY_PREVIOUS: `  ${a} , , ` }).VFM_MASTER_KEY_PREVIOUS,
+      ).toStrictEqual([a]);
+    });
+
+    it('rejects a retired key of the wrong length', () => {
+      // Silently dropping it would make every row encrypted under that key
+      // unreadable, with no indication why.
+      expect(() =>
+        validateEnv({
+          ...minimal,
+          VFM_MASTER_KEY_PREVIOUS: Buffer.alloc(8, 1).toString('base64'),
+        }),
+      ).toThrow(/VFM_MASTER_KEY_PREVIOUS/);
     });
   });
 });

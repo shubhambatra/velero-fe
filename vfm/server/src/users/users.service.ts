@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { newId } from '../common/uuid';
+import { PasswordService } from '../auth/password.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
@@ -15,7 +16,10 @@ import type { AuthenticatedUser } from '../auth/authenticated-user';
  */
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly passwords: PasswordService,
+  ) {}
 
   /**
    * Resolves a session's user id to the projection the request carries.
@@ -111,6 +115,27 @@ export class UsersService {
 
       return user;
     });
+  }
+
+  /**
+   * Checks a password for an already-authenticated user.
+   *
+   * Used by sudo re-authentication (PLAN.md §8.3), not by login — login goes
+   * through `AuthService`, which also applies the throttle and the
+   * constant-work path for unknown accounts. Here the account is known and
+   * the session is already established, so neither applies.
+   */
+  async verifyPassword(id: string, plaintext: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { passwordHash: true, disabledAt: true },
+    });
+
+    if (user === null || user.disabledAt !== null || user.passwordHash === null) {
+      return false;
+    }
+
+    return this.passwords.verify(user.passwordHash, plaintext);
   }
 
   /** Replaces a stored hash, used when login upgrades argon2 parameters. */

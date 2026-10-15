@@ -34,3 +34,34 @@ export const setupSchema = z.object({
 });
 
 export type SetupDto = z.infer<typeof setupSchema>;
+
+/**
+ * A second factor: either a six-digit TOTP code or a recovery code.
+ *
+ * One field rather than two, because the caller should not have to declare
+ * which kind it is — the server tells them apart by shape. The cap is generous
+ * enough for a grouped recovery code with its dashes.
+ */
+export const mfaCodeSchema = z.object({
+  code: z.string().trim().min(6).max(64),
+});
+
+export type MfaCodeDto = z.infer<typeof mfaCodeSchema>;
+
+/**
+ * Sudo re-authentication (PLAN.md §8.3 line 405: "password or MFA").
+ *
+ * Exactly one of the two must be supplied. Accepting both and preferring one
+ * would make the weaker factor sufficient whenever the client sent it.
+ */
+export const sudoSchema = z
+  .object({
+    password: z.string().min(1).max(1_024).optional(),
+    code: z.string().trim().min(6).max(64).optional(),
+  })
+  .refine(
+    (value) => (value.password === undefined) !== (value.code === undefined),
+    'supply either a password or a second-factor code, not both',
+  );
+
+export type SudoDto = z.infer<typeof sudoSchema>;

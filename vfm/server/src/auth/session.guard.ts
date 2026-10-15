@@ -1,6 +1,7 @@
 import {
   type CanActivate,
   type ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -8,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
 import { UsersService } from '../users/users.service';
+import { ALLOWS_MFA_PENDING } from './mfa-pending.decorator';
 import { IS_PUBLIC } from './public.decorator';
 import { SessionService } from './session.service';
 
@@ -22,6 +24,18 @@ import { SessionService } from './session.service';
  * session. That is the whole point of server-side sessions (§9 puts them in
  * Redis precisely so they are revocable): disabling an account takes effect on
  * the next request, not whenever a cached copy happens to expire.
+ *
+ * ## Two gates, not one
+ *
+ * A session that passed the password check but owes a second factor is
+ * `mfaPending`. It is a real session — it has to be, so the challenge can be
+ * answered — but it authenticates nothing: every route refuses it except the
+ * few marked `@AllowsMfaPending()` (the challenge, enrolment, logout).
+ * Without that second gate, `mfaEnabled` would be a flag the login response
+ * mentions rather than a control (PLAN.md §8.3).
+ *
+ * The refusal is **403 with `mfaRequired`**, not 401: the credentials were
+ * accepted, and sending the client back to the login form would lose that.
  */
 @Injectable()
 export class SessionGuard implements CanActivate {
@@ -55,6 +69,28 @@ export class SessionGuard implements CanActivate {
       // One message for every failure mode — expired, revoked, absent,
       // disabled — so nothing here helps an attacker tell them apart.
       throw new UnauthorizedException('authentication required');
+    }
+
+    if (request.session?.mfaPending === true) {
+      const allowsPending =
+        this.reflector.getAllAndOverride<boolean | undefined>(ALLOWS_MFA_PENDING, [
+          context.getHandler(),
+          context.getClass(),
+        ]) ?? false;
+
+      if (!allowsPending) {
+        const reason = request.session.mfaPendingReason;
+        throw new ForbiddenException({
+          message:
+            reason === 'enrolment'
+              ? 'multi-factor authentication must be set up before continuing'
+              : 'multi-factor authentication required',
+          mfaRequired: true,
+          // Lets the UI send the user to enrolment rather than to a code
+          // prompt they cannot answer.
+          mfaPendingReason: reason,
+        });
+      }
     }
 
     return true;
