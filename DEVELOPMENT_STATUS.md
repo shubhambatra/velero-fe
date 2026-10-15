@@ -508,7 +508,8 @@ reports success.
 | 16 | `5a8bc63` | `feat(auth): TOTP MFA, recovery codes and sudo mode for M1 day 5` | ✅ pushed |
 | 17 | `7f3b5b4` | `docs(vfm): record M1 day 5, ADR-008 and ADR-009, and the day 6 handoff` | ✅ pushed — **CI green on this SHA**, all five jobs |
 | 18 | `cd3234e` | `docs(vfm): record CI green on 7f3b5b4` | ✅ pushed |
-| 19 | `b124e5b` | `feat(orgs): orgs, members, invites, teams and org-scoped queries for M1 day 6` | see end-of-session report |
+| 19 | `b124e5b` | `feat(orgs): orgs, members, invites, teams and org-scoped queries for M1 day 6` | ✅ pushed — CI result not yet recorded |
+| 20 | `9683cc5` | `docs(vfm): record M1 day 6, ADR-010 and the day 7 handoff` | ✅ pushed |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
