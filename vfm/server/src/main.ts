@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { Logger as NestLogger, ValidationPipe } from '@nestjs/common';
+import { Logger as NestLogger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { type Express, json, urlencoded } from 'express';
@@ -64,13 +64,12 @@ async function bootstrap(): Promise<void> {
   app.use(urlencoded({ extended: false, limit: MAX_JSON_BODY }));
 
   app.useGlobalFilters(new ProblemExceptionFilter());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+
+  // No global ValidationPipe. Request bodies are validated by zod through
+  // `parseBody` (PLAN.md §4.2 standardises on zod, and §12.1 requires
+  // validation at every boundary), so the pipe would have no DTOs to act on
+  // while still requiring class-validator and class-transformer — which it
+  // calls process.exit(1) over when they are absent.
 
   // PLAN.md §10: every REST route lives under /api/v1. The probes are
   // excluded because orchestrators and load balancers expect them at the root

@@ -1,4 +1,4 @@
-import { type INestApplication, Logger, ValidationPipe } from '@nestjs/common';
+import { type INestApplication, Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import { json } from 'express';
@@ -58,7 +58,6 @@ describe('auth (e2e)', () => {
     app.use(cookieParser());
     app.use(json({ limit: '1mb' }));
     app.useGlobalFilters(new ProblemExceptionFilter());
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     app.setGlobalPrefix('api/v1', { exclude: ['healthz', 'readyz'] });
 
     await app.init();
