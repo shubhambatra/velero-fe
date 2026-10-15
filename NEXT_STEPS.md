@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-15 10:15 IST (end of session 3) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-15 (end of session 4) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -101,80 +101,66 @@ change in `vfm/docs/DECISIONS.md`.
 and move R-021, R-129, R-130 and R-132 to ✅ in `DEVELOPMENT_STATUS.md`.
 
 Already done, do not redo: migrations are applied to both `vfm` and `vfm_test`
-and `migrate status` reports in sync; `openapi.yaml` is committed and verified
-in sync with the decorators; 202 unit tests plus 52 e2e tests, lint, format,
-typecheck and build are green; M1 days 4 and 5 are complete and verified.
+(re-run `prisma migrate deploy` against `vfm_test` after pulling a new
+migration — the e2e suite fails with "table does not exist" otherwise);
+`openapi.yaml` is committed and in sync; 313 unit tests plus 81 e2e tests, lint,
+format, typecheck and build are green; M1 days 4, 5 and 6 are complete and
+verified.
 
-### 2. ~~M1 day 4~~ — **done** in session 2 (`1f0162d`)
+### 2. ~~M1 days 4, 5 and 6~~ — **done**
 
-R-088, R-091, R-092, R-093 and R-112 are verified: 104 unit tests and a 27-test
-e2e suite against real PostgreSQL and Redis. Details in
-`vfm/docs/PROGRESS.md`. Do not redo it.
+Day 4 `1f0162d`, day 5 `5a8bc63`, day 6 `b124e5b`. Details in
+`vfm/docs/PROGRESS.md`; design in ADR-008, ADR-009 and ADR-010. Do not redo them.
 
-### 3. ~~M1 day 5~~ — **done** in session 3 (`5a8bc63`)
+### 3. Then M1 day 7 — OIDC
 
-R-089, R-095, R-099 and R-110 are verified. Both seams day 4 left open are
-closed: `SessionGuard` now refuses an `mfaPending` session everywhere except
-the MFA endpoints, and `VFM_MASTER_KEY` is required. Details in
-`vfm/docs/PROGRESS.md`. Do not redo it.
+`VELERO_FLEET_PLAN.md` §16 day 7 (line 649–650), implementing §8.3 (line 400)
+and §9 (`oidc_providers`, line 421); routes under `/auth/*` per §10 line 451.
 
-### 4. Then M1 day 6 — orgs, members, invites and teams
+- **Per-org providers**, several allowed per org: issuer, client id, client
+  secret (**encrypted** — `client_secret_encrypted`, use `CryptoService` with a
+  context such as `oidc.client_secret:<id>`), group claim, group → team
+  `mappings` JSONB, `jit_enabled`.
+- **Login flow** with `openid-client` (add the dependency and record it in an
+  ADR): start → redirect with state, nonce and PKCE → callback → session. Reuse
+  `SessionService.create`, `SessionCookiesService.issue` and
+  `MfaService.obligationFor`, exactly as `invites.controller.ts` does for a
+  newly registered user.
+- **JIT provisioning** when `jit_enabled`, creating a `users` row with a null
+  `password_hash` and a membership (`MEMBER`) in the provider's org.
+- **Group → team mapping** onto the `teams` table built on day 6; sync on every
+  login, adding and removing only the mappings this provider manages.
+- **Tested against Dex** (`vfm/deploy/dev/dex`, port 55556).
 
-`VELERO_FLEET_PLAN.md` §16 day 6 (line 646–647), implementing §8.1 (line 374)
-and §9 (`organizations`, `memberships`, `teams`, `team_members`).
+**Acceptance criteria:** a Dex user signs in and lands in the right org; JIT off
+refuses an unknown user; the mock connector's `authors` group lands the user in
+the mapped team and a changed claim moves them on the next login; state, nonce
+and PKCE are each verified (a replayed or tampered callback is refused); an
+OIDC-only user cannot sign in with a password. `pnpm run test` and `test:e2e`
+green, and the built server exercised over HTTP against the running Dex.
 
-- CRUD for organizations, members and teams.
-- **Email invites over SMTP**, with Mailpit as the dev sink (§14.1). This is
-  where the mailer arrives, so the **lockout notification email** of §8.3 —
-  deferred from day 4 — lands with it.
-- The org switcher (API side; the UI is day 9).
-- **The org-scoping Prisma extension plus the "every query is org-scoped"
-  test.** §8.1 is explicit that it must be *impossible* to forget org scoping,
-  not merely conventional — "Write a test that fails if any repository query
-  lacks org scoping". This is the most consequential piece of M1 after the
-  RBAC engine itself.
+**Three things to get right:**
+- **Redirect URIs.** `dex/config.yaml` registers
+  `http://localhost:3000/api/auth/oidc/callback`, but every route lives under
+  `/api/v1`. Either add `/api/v1/auth/oidc/callback` to the static client or
+  change the route; do not leave them disagreeing. The Dex dev secret is
+  `vfm-dev-oidc-client-secret`.
+- **Never match an existing account on email alone.** An IdP asserting an
+  address someone already registered with a password is an account-takeover
+  primitive unless the provider is trusted for that domain and `email_verified`
+  is true. Decide the rule, write it as an ADR, and test the refusal.
+- **Org scoping.** `oidc_providers` has an `org_id`, so it is org-owned and the
+  extension will demand `inOrg()`. The callback resolves the provider from the
+  state, so it must use `unscoped()` with a stated reason — and that list is
+  pinned in `src/prisma/org-scope.test.ts`, which you will have to extend
+  deliberately.
 
-**Requirements covered:** R-083 (the rest of the identity model), R-084 (org
-scoping, enforced and tested), and the remainder of R-093 (the lockout email).
+### 4. Then days 8 and 9
 
-**Acceptance criteria:** the org-scoping test fails when a query omits
-`org_id`; an invite cannot be replayed or accepted by a different address; a
-user in two orgs sees only the active one's data. `pnpm run test` and
-`test:e2e` green, and the built server exercised over HTTP.
-
-**One thing to get right:** `mfa_recovery_codes` is **not** org-owned — a user
-may belong to several orgs — so the scoping extension must exclude it rather
-than demand an `org_id` it does not have. See ADR-008.
-
-`VELERO_FLEET_PLAN.md` §16 day 5 (lines 643–644), implementing §8.3 (lines 399,
-405) and §9 (`mfa_secret_encrypted`).
-
-- TOTP enrol / verify / disable, with the shared secret in
-  `users.mfa_secret_encrypted`.
-- **10 recovery codes**, hashed, shown once.
-- Org-enforced MFA — default required for Owner and Admin. Note this needs the
-  `organizations.settings` shape, which exists in the schema already.
-- Sudo re-auth endpoint plus a guard decorator, re-authentication valid for
-  5 minutes (§8.3 line 405).
-
-**Requirements covered:** R-089, R-095, and R-099 (envelope encryption — this
-is the first `*_encrypted` column, so AES-256-GCM with a key id lands here).
-
-**Acceptance criteria:** unit tests for TOTP window handling and replay
-rejection, recovery-code single use, and the 5-minute sudo window including its
-expiry; an e2e test proving a password-only session cannot pass a sudo-guarded
-route. `pnpm run test` and `test:e2e` green.
-
-**Two seams already in place for it:**
-- `SessionRecord.mfaPending` is set by `login` when the user has MFA enabled,
-  but `SessionGuard` does **not** yet refuse such a session. Day 5 must close
-  that. It is currently unreachable because nothing can set `mfaEnabled`.
-- `SessionRecord.lastReauthAt` is written on login and is what the sudo guard
-  will read; `SessionService.update` already persists it.
-
-**Dependency:** `VFM_MASTER_KEY` becomes **required** rather than optional in
-`env.schema.ts`, because the TOTP secret is the first encrypted column. Generate
-one with `openssl rand -base64 32`.
+Day 8 RBAC engine (§16 line 652–655, §8.2, §8.2 namespace rule at line 395 —
+"the most security-critical function in the codebase"); day 9 audit log, API
+tokens and the M1 UI, then ⛔ **HUMAN CHECKPOINT** (line 662). Day 9 also owes
+auditing of today's mutations (see Deferred in `PROGRESS.md`).
 
 ---
 
@@ -206,6 +192,17 @@ one with `openssl rand -base64 32`.
   On a fresh machine: `docker exec vfm-dev-postgres createdb -U vfm vfm_test`
   then `DATABASE_URL=...vfm_test pnpm --filter @vfm/server exec prisma migrate
   deploy`. Override targets with `TEST_DATABASE_URL` / `TEST_REDIS_URL`.
+- **Org-scoped data needs a scope.** Any model with an `orgId` can only be
+  queried inside `prisma.inOrg(orgId, …)` (or a reasoned `prisma.unscoped(…)`);
+  otherwise it throws. A new table with an `orgId` is covered automatically; one
+  without must be added to `NOT_ORG_OWNED` in `src/prisma/org-scope.ts` or its
+  test fails. Every `/orgs/{orgId}/…` route starts with
+  `OrgAccessService.require`. Details: ADR-010.
+- **`pnpm run gen` builds first.** It compiles and runs `dist/openapi.js`
+  because `tsx` emits no decorator metadata. It needs `DATABASE_URL`,
+  `REDIS_URL` and `VFM_MASTER_KEY` set to anything well-formed.
+- **Mail.** `SMTP_HOST` unset makes invitations return 503. Dev sink is Mailpit:
+  `SMTP_HOST=localhost SMTP_PORT=51025`, UI on 58025. `server/.env` has it set.
 - **Authentication is deny-by-default**, and now in three layers: `SessionGuard`
   (401 without a session, 403 while a second factor is outstanding), `CsrfGuard`
   (403 without a matching token on a state-changing call) and `SudoGuard` (403

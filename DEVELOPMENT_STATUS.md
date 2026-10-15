@@ -1,6 +1,6 @@
 # Velero Fleet Manager — implementation status
 
-**Last updated:** 2026-10-15 10:15 IST (session 3 — M1 day 5)
+**Last updated:** 2026-10-15 (session 4 — M1 day 6)
 **Branch:** `vfm/m0-foundation` · **Source of truth:** [`VELERO_FLEET_PLAN.md`](./VELERO_FLEET_PLAN.md) (848 lines)
 **Continuation point:** [`NEXT_STEPS.md`](./NEXT_STEPS.md)
 
@@ -47,9 +47,9 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **21 / 152 — 13.8 %** |
+| **Requirements verified** | **22 / 152 — 14.5 %** |
 | Requirements partial | 20 |
-| Requirements not started | 109 |
+| Requirements not started | 108 |
 | Requirements blocked | 2 |
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
@@ -69,13 +69,20 @@ rotation), and **R-110** (every secret from the environment — `VFM_MASTER_KEY`
 is now required and validated, and no secret is committed). Nothing else met
 its acceptance criteria.
 
+Verified in session 4 (M1 day 6): **R-084** (every query on an org-owned model
+is org-scoped by a Prisma client extension, with tests that fail when a model is
+unclassified, when a query omits the scope, or when raw SQL or an unreviewed
+`unscoped()` appears). **R-093** is now complete: the lockout notification email
+that day 4 deferred ships with the mailer. **R-083** stays partial — orgs,
+members and teams exist; role bindings are day 8 and API tokens day 9.
+
 **Milestone view** (task completion, shown for orientation only — not the
 progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1.
 
 | Milestone | Plan lines | State |
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
-| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–5 complete and verified**; days 6–9 not started |
+| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–6 complete and verified**; days 7–9 not started |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | not started |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
@@ -182,9 +189,9 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
   the limit with `Retry-After`, CSRF accept/reject, immediate revocation on
   disable, and that `/healthz` stays public. CI runs the e2e suite against
   service containers.
-- **Not covered by R-093:** the lockout *notification email* — the SMTP mailer
-  arrives with org invites on day 6. Listed under Deferred in
-  `vfm/docs/PROGRESS.md`.
+- **Lockout email:** shipped on day 6 with the mailer (see R-084 below); the
+  send is not awaited, so response timing cannot distinguish a real account from
+  an unknown address.
 
 ### R-089 / R-095 / R-099 — MFA, sudo mode and encryption at rest (`PLAN.md` §8.3, §9 line 437)
 
@@ -216,6 +223,29 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
   hashed recovery codes, the gate refusing with 403, the session id rotating,
   the old id dying, a recovery code refused on reuse, the sudo window closing
   and reopening, and a platform admin refused when disabling MFA.
+
+### R-084 — Org scoping enforced by the client (`PLAN.md` §8.1, line 374)
+
+- **Files:** `vfm/server/src/prisma/org-scope.ts`, `prisma.service.ts`,
+  `vfm/server/src/orgs/**`
+- **Detail:** a Prisma client extension wraps every operation. A model is
+  org-owned when it has an `orgId` column (derived from the generated client);
+  touching one outside `prisma.inOrg(orgId, …)` or a reasoned
+  `prisma.unscoped(reason, …)` throws. Inside `inOrg`, reads and updates gain the
+  `orgId` filter, creates are stamped, and a conflicting `orgId` — including an
+  `update` that would move a row, or the `org: { connect }` relation form — is
+  refused. Nested selections of org-owned relations from a non-org model
+  (`user.memberships`) are scoped or refused too. Design and trade-offs: ADR-010.
+- **Verification:** 111 unit tests drive every org-owned model through every
+  operation; one fails when a model is neither org-owned nor on the named
+  exemption list; one pins every `unscoped()` call site and every use of raw
+  SQL. 30 e2e tests exercise it over HTTP: a user in two orgs sees only the org
+  asked about, a non-member gets 404, a team id from another org cannot be
+  addressed through this one, and a cross-org user cannot be added to a team.
+  Adding the extension immediately broke 10 existing e2e tests, which is the
+  property wanted.
+- **Not covered:** raw SQL (no extension can see it — hence the pin), and the
+  RBAC layer on top of membership, which is day 8.
 
 ### R-025 — Monorepo tooling and CI (`PLAN.md` §4.5, lines 164–169)
 
@@ -282,7 +312,7 @@ counts as zero in the progress figure.
 | R-022 | Control-plane stack | §4.2, §16 d3 | NestJS app, zod-validated config, pino, Prisma 7 + pg adapter, Redis client, security headers, metrics listener | argon2/otplib/openid-client/BullMQ/gRPC arrive in M1–M2 |
 | R-023 | Web stack | §4.3, §16 d3 | React 19 + Vite shell, TanStack Router/Query, Tailwind + shadcn primitives, theme, error boundary, API client | virtualized ANSI log viewer (M5), recharts (M6), SSE client (M3) |
 | R-024 | Velero compatibility handling | §4.4 | pin + support window + version parsing (verified) | capability map and version-gated UI (M2/M3) |
-| R-097 | Data model tables | §9, lines 417–435 | 3 of 19 tables: `users`, `organizations`, `memberships` | the remaining 16 arrive with their features (M1–M6) |
+| R-097 | Data model tables | §9, lines 417–435 | 5 of 19 tables: `users`, `organizations`, `memberships`, `teams`, `team_members` | the remaining 16 arrive with their features (M1–M6) |
 | R-098 | Table conventions | §9, line 415 | UUIDv7 ids, `created_at`/`updated_at`, `org_id` index and unique `(org_id, user_id)` on `memberships` | applied to the remaining tables as they land |
 | R-102 | REST conventions | §10, lines 445–447 | `X-Request-Id` on every response with inbound-id validation, RFC 9457 problem+json for every error | cursor pagination, documented filter/sort params |
 | R-104 | REST endpoint groups | §10, lines 451–465 | only the probes exist | every group arrives with its milestone (M1–M6) |
@@ -326,6 +356,8 @@ counts as zero in the progress figure.
 | Session 2: `pnpm run build` across all three workspaces | clean |
 | Session 2: operator flow against the **built** server | setup → login → CSRF → logout all behave as specified |
 | Session 2 CI (`vfm-ci`) on `2c57bea` | **all five jobs green**, including the new control-plane e2e job against PostgreSQL and Valkey service containers |
+| Session 4: `pnpm run test` 313, `test:e2e` 81, lint/typecheck/build clean | all green after fixing a flaky day 5 crypto test |
+| Session 4: built server over HTTP with real SMTP into Mailpit | invite → register → replay refused → isolation → one lockout mail |
 | Go build / vet / test / golangci-lint | **not run — B-1** |
 | `smoke.sh` | **not run — B-2** |
 | CI (`vfm-ci`) run 38630008601 | **all four jobs green** — TypeScript, Go (correctly skipped, B-1), dependency scan, proto |
@@ -475,6 +507,8 @@ reports success.
 | 12 | `afe3bac` | `chore(vfm): drop the superseded single-target build config` | ✅ pushed |
 | 16 | `5a8bc63` | `feat(auth): TOTP MFA, recovery codes and sudo mode for M1 day 5` | ✅ pushed |
 | 17 | `7f3b5b4` | `docs(vfm): record M1 day 5, ADR-008 and ADR-009, and the day 6 handoff` | ✅ pushed — **CI green on this SHA**, all five jobs |
+| 18 | `cd3234e` | `docs(vfm): record CI green on 7f3b5b4` | ✅ pushed |
+| 19 | `b124e5b` | `feat(orgs): orgs, members, invites, teams and org-scoped queries for M1 day 6` | see end-of-session report |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
@@ -620,8 +654,8 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-083 | Identity model: platform admin, orgs, members, teams, clusters, role bindings, channels, API tokens | 362–372 | M1 | 🟡 platform admin and users exist; orgs, teams and bindings are days 6–8 |
-| R-084 | Every query filtered by `org_id`, enforced by a Prisma extension, with a test that fails if any repository query lacks org scoping | 374 | M1 | ⬜ |
+| R-083 | Identity model: platform admin, orgs, members, teams, clusters, role bindings, channels, API tokens | 362–372 | M1 | 🟡 platform admin, users, orgs, members and teams exist (day 6); role bindings are day 8, API tokens day 9, clusters M2 |
+| R-084 | Every query filtered by `org_id`, enforced by a Prisma extension, with a test that fails if any repository query lacks org scoping | 374 | M1 | ✅ `src/prisma/org-scope.ts`; 111 unit tests incl. every org-owned model × operation, plus 30 e2e |
 | R-085 | Four built-in roles with the exact permission matrix, stored as data not code | 376–393 | M1 | ⬜ |
 | R-086 | Org Owner/Admin implicitly Cluster Admin on all org clusters | 393 | M1 | ⬜ |
 | R-087 | Namespace-scoping rule: every included namespace in scope (after mapping), no cluster-scoped resources, wildcards only for whole-cluster bindings; exhaustively unit-tested | 395 | M1 | ⬜ |
@@ -630,7 +664,7 @@ make them obvious.
 | R-090 | OIDC per org: issuer, client, group claim, group→team mapping, JIT provisioning, multiple providers | 400 | M1 | ⬜ |
 | R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere | 401 | M1 | ✅ |
 | R-092 | CSRF double-submit token on all state-changing REST calls | 402 | M1 | ✅ |
-| R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ✅ limits, delay and lockout; the notification email is deferred to day 6 with the mailer |
+| R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ✅ including the notification email (day 6; e2e asserts exactly one mail to a real account, none for an unknown address; seen arriving in Mailpit) |
 | R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset | 404 | M1 | ⬜ |
 | R-095 | Sudo mode: re-authentication within 5 minutes for restore create, any delete, storage write, cluster delete and role-binding changes | 405 | M1 | ✅ the window and guard; the operations it protects arrive with them in M2–M6 |
 | R-096 | Optional restore approval, default off, approver must differ from requester, both actions audited | 407–409 | M6 | ⬜ |
@@ -639,7 +673,7 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 3 of 19, plus `mfa_recovery_codes` which §9 does not list (ADR-008) |
+| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 5 of 19 (`users`, `organizations`, `memberships`, `teams`, `team_members`), plus `mfa_recovery_codes` and `invites`, which §9 does not list (ADR-008, ADR-010) |
 | R-098 | UUIDv7 ids, `created_at`/`updated_at` everywhere, `org_id` with an index on every org-owned table | 415 | M1–M6 | 🟡 |
 | R-099 | AES-256-GCM envelope encryption for `*_encrypted` columns, key id stored with each ciphertext, `VFM_MASTER_KEY` from env, rotation supported | 437 | M1 | ✅ |
 | R-100 | `audit_events` append-only: UPDATE/DELETE revoked from the application DB role, separate role for retention | 432 | M1 | ⬜ |
@@ -706,7 +740,7 @@ make them obvious.
 |---|---|---|---|---|
 | R-132 | Agent unit tests: command→CR mapping per op, policy, idempotency, redaction, capability gating | 587 | M2+ | ⛔ B-1 (written, never executed) |
 | R-133 | Agent integration via envtest with Velero CRDs, including the DownloadRequest flow | 588 | M3 | ⬜ |
-| R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 104 unit + 27 e2e; the RBAC table-driven cases arrive on day 8 |
+| R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 277 unit + 81 e2e; org isolation now covered, the RBAC table-driven cases arrive on day 8 |
 | R-135 | Server integration via Testcontainers plus an in-process fake agent over real gRPC: enrollment, mTLS, reconnect, re-delivery, revocation, SSE fan-out across two instances | 590 | M2 | ⬜ |
 | R-136 | Web unit tests: form→payload mapping, CLI-equivalent generator, permission-disabled states | 591 | M3+ | 🟡 |
 | R-137 | Playwright e2e against kind, MinIO and Velero | 592 | M2+ | ⬜ |

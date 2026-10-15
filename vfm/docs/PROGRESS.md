@@ -9,6 +9,76 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-15 — M1 day 6: orgs, members, invites, teams and org scoping
+
+Session 4. Resumed from `cd3234e`, which was clean and in sync with `origin`.
+M0's exit criteria are still unmet: `fs.inotify.max_user_instances` is 128 (B-2)
+and Go, `make`, `buf` and `golangci-lint` are absent (B-1); both need root. The
+owner chose to proceed with day 6 while those are cleared in parallel (ADR-010).
+The recorded baseline matched reality before any edit: 166 server unit tests
+passing, lint clean, dev stack up.
+
+### Completed (§16 day 6, §8.1, §9, §8.3)
+
+- **The org-scoping extension (R-084).** See ADR-010. Any model with an `orgId`
+  is org-owned; reaching one outside `inOrg()` or a reasoned `unscoped()` throws.
+  It also catches nested selections: `user.memberships` was the live case, and it
+  failed the whole existing e2e suite until `MfaService.obligationFor` said, in
+  writing, that it is cross-org by nature.
+- **Orgs, members, teams, invites.** Platform-admin org creation (creator
+  becomes Owner), `/me/orgs` with an active-org switch held on the session,
+  member role changes and removal, team CRUD with membership, and invitations.
+  Deletes require sudo (§8.3 "any delete").
+- **Invitations.** Hashed token, bound to an address, single use through one
+  conditional `UPDATE`, seven-day expiry. Accept for an existing account;
+  register for a new one — the only user-creation path after setup.
+- **Last-owner protection** under Serializable isolation, and revocation of a
+  user's sessions when their role changes (§8.3 rotate on privilege change).
+- **Mailer and the lockout email (rest of R-093).** nodemailer over SMTP. The
+  lockout notification is sent without being awaited so its timing cannot
+  distinguish a real account from an unknown address.
+- **Fixes found on the way.** `gen` now runs from compiled output because `tsx`
+  emits no decorator metadata; and `envelope.test.ts` "rejects a modified
+  ciphertext" was flaky (3 of 6 runs failed) because the last base64url character
+  carries only 4 meaningful bits, so overwriting it with `A` was sometimes a
+  no-op. Neither was introduced today; the second was a day 5 test.
+
+### Test status — actually executed
+
+| Gate                                                                         | Result                                                                                                                                                                           |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run test` (unit, all workspaces)                                       | **313 passed** — shared 13, server 277, web 23                                                                                                                                   |
+| `pnpm --filter @vfm/server test:e2e`                                         | **81 passed** against real PostgreSQL and Redis (30 new)                                                                                                                         |
+| `envelope.test.ts` ×12 after the fix                                         | 12/12 pass (it failed 3 of 6 before)                                                                                                                                             |
+| `pnpm run lint` / `typecheck` / `build`                                      | clean across all three workspaces                                                                                                                                                |
+| OpenAPI regeneration                                                         | 326 lines added, none removed; 20 new operations (15 → 35)                                                                                                                       |
+| **Built server over HTTP** (`node dist/main.js`, throwaway DB, real Mailpit) | setup → org → invite → mail in Mailpit → register 201 → replay 400 → member lists orgs → member cannot create org 403 → other org 404 → 11 bad logins → exactly one lockout mail |
+| Go build / vet / test                                                        | **not run — B-1**                                                                                                                                                                |
+| `smoke.sh`                                                                   | **not run — B-2**                                                                                                                                                                |
+
+### Deferred
+
+- **Sending the invite from the UI** and the org switcher UI — day 9.
+- **`/me/tokens`, `/orgs/{orgId}/audit`** and the audit interceptor — day 9.
+  Today's mutations are not yet audited; §8.1/§P5 requires it and day 9 is where
+  `audit_events` arrives.
+- **Invite rate limiting.** `/invites/register` is public. Token guessing is
+  pointless (256 bits) and an unknown token fails before any hashing, but there
+  is no per-IP limiter on it yet.
+- **Real-SMTP e2e in CI.** The suites use an in-memory transport; the real path
+  was exercised by hand against Mailpit (above).
+- **OIDC group → team mapping** is day 7 and will use `teams` as built.
+
+### Next
+
+M1 day 7 — OIDC against Dex. See `NEXT_STEPS.md`.
+
+### Blockers
+
+B-1 and B-2 from the previous session, unchanged. Neither blocks day 7.
+
+---
+
 ## 2026-10-15 — M1 day 5: MFA and sudo mode
 
 M0's exit criteria remain unmet (B-1, B-2) and the owner asked to continue

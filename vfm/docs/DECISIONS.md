@@ -435,3 +435,68 @@ SHA-256 of an 80-bit random value is not invertible in any practical sense.
 - M1 day 9 applies the same reasoning to API tokens. If either value ever
   becomes user-chosen, this ADR must be revisited — that would change the
   threat model entirely.
+
+## ADR-010 — Org scoping by client extension, the invites table, and starting M1 before M0 exits
+
+- **Date:** 2026-10-15
+- **Status:** Accepted
+
+### Context
+
+PLAN.md §8.1 requires that every query be org-scoped in a way that cannot be
+forgotten, and asks for a test that fails if one is not. Day 6 also needs
+invitations, which §9 does not list as a table, and a way for a person with no
+account to accept one, because §16 day 4 forbids open self-signup.
+
+### Decision
+
+**Scoping.** A Prisma client extension (`src/prisma/org-scope.ts`) wraps every
+operation. A model is org-owned when it has an `orgId` column — derived from the
+generated client, not hand-listed — so a new tenant table is scoped the moment it
+has the column. Org-owned data can only be reached inside
+`prisma.inOrg(orgId, …)`, which injects the filter and refuses a conflicting
+`orgId` on reads and writes, or inside `prisma.unscoped(reason, …)`, whose
+reason is mandatory. With neither, the query throws. The ambient scope is an
+`AsyncLocalStorage`, and the wrapper `await`s inside it because a Prisma query is
+a lazy promise that would otherwise execute after the scope was left.
+
+Two tests make "impossible to forget" checkable: one fails if a model is neither
+org-owned nor on the named exemption list (`User`, `MfaRecoveryCode`,
+`Organization`), and one pins every `unscoped()` call site and every use of raw
+SQL, which no extension can see.
+
+**Tables.** `teams`, `team_members` and `invites` are added. `team_members`
+repeats `org_id` so the extension treats it like every other org-owned table.
+`invites` is not in §9; it stores a SHA-256 of the token (ADR-009), is bound to
+an address, and is consumed by one conditional `UPDATE`.
+
+**Org creation** is platform-admin-only and the creator becomes Owner. A
+platform admin has no implicit access to an org's data (§8.1 gives the flag the
+job of bootstrapping, not of reading). A non-member receives 404, not 403.
+
+**Account creation.** `POST /invites/register` is the only user-creation path
+after first-time setup. It is public but requires a valid token for an address
+with no account; an existing account must sign in and use `/invites/accept`,
+which keeps CSRF protection and avoids a forced-join by a forged cross-site
+request.
+
+**OpenAPI generation** now runs from the compiled output. `tsx` emits no
+decorator metadata, so any provider mixing `@Inject(token)` with typed
+parameters cannot resolve under it; the generator runs the same JavaScript the
+server ships.
+
+**Milestone gating.** M1 days 4–6 proceed while M0's exit criteria (B-1, B-2)
+are unmet, at the owner's direction on 2026-10-15. This is a recorded deviation
+from §0 rule 1, not a waiver: M0 still has to pass before M2, which is the first
+work that needs the agent.
+
+### Consequences
+
+- Every service that touches an org-owned model has to say which org. That is
+  the point, and it is what forces day 8's RBAC code to do the same.
+- `inOrg()` makes the filter structural; it does not replace the membership
+  check, which `OrgAccessService.require` performs on every `/orgs/{orgId}` route.
+- An un-awaited Prisma promise returned from `inOrg()`'s callback would run
+  outside the scope and throw; the wrapper's `await` prevents that for callers.
+- `SMTP_HOST` unset makes invitations fail with 503 rather than silently not
+  sending. Lockout notification is best-effort and only logs on failure.
