@@ -1,6 +1,6 @@
 # Velero Fleet Manager — implementation status
 
-**Last updated:** 2026-10-15 00:30 IST (end of session 1)
+**Last updated:** 2026-10-15 08:45 IST (session 2 — M1 day 4)
 **Branch:** `vfm/m0-foundation` · **Source of truth:** [`VELERO_FLEET_PLAN.md`](./VELERO_FLEET_PLAN.md) (848 lines)
 **Continuation point:** [`NEXT_STEPS.md`](./NEXT_STEPS.md)
 
@@ -47,13 +47,20 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **12 / 152 — 7.9 %** |
+| **Requirements verified** | **17 / 152 — 11.2 %** |
 | Requirements partial | 21 |
-| Requirements not started | 117 |
+| Requirements not started | 112 |
 | Requirements blocked | 2 |
 
-Verified this session: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
-R-025, R-103, R-105, R-113, R-127, R-152. Nothing else met its acceptance
+Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
+R-025, R-103, R-105, R-113, R-127, R-152.
+
+Verified in session 2 (M1 day 4): **R-088** (argon2id, 12-char minimum,
+bundled breached list), **R-091** (Redis sessions, 12 h/1 h, rotation, sign out
+everywhere), **R-092** (CSRF double-submit), **R-093** (per-IP and per-account
+limits, progressive delay, lockout — minus the notification email, which is
+deferred to day 6 with the mailer), **R-112** (validation at every boundary,
+now with zod schemas on the auth routes). Nothing else met its acceptance
 criteria.
 
 **Milestone view** (task completion, shown for orientation only — not the
@@ -62,7 +69,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 | Milestone | Plan lines | State |
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
-| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | not started |
+| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **day 4 complete and verified**; days 5–9 not started |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | not started |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
@@ -139,6 +146,39 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
   which of them cause rework if answered differently (Q4 Velero floor, Q6
   license and name).
 - **Verification:** ADR-005 reviewed against §18 line by line.
+
+### R-088 / R-091 / R-092 / R-093 — Local authentication (`PLAN.md` §8.3, line 399–403)
+
+- **Files:** `vfm/server/src/auth/**`, `vfm/server/src/users/users.service.ts`
+- **R-088 passwords:** argon2id at 19 MiB / t=2 / p=1; 12-character minimum;
+  a bundled 97 747-entry breached-password list (UK NCSC via SecLists,
+  lower-cased and deduplicated, 260 KB gzipped). Bundled rather than queried
+  because §8.3 says "no external calls" and §1.1 P6 forbids runtime internet
+  access, which rules out a Pwned Passwords range query. Stored parameters are
+  upgraded in place on login when they fall behind.
+- **R-091 sessions:** Redis-backed per §9, 12 h absolute and 1 h idle enforced
+  independently (the idle window is never extended past the absolute
+  deadline), rotation, and "sign out everywhere". No JWT — a stateless token
+  cannot be revoked, and the user row is re-read on every request so disabling
+  an account takes effect immediately.
+- **R-092 CSRF:** double-submit, compared against the token held in the
+  session rather than only a second cookie, because a controlled subdomain can
+  often write cookies.
+- **R-093 brute force:** per-account and per-IP counters over *fixed* windows
+  so a slow attacker cannot stay under the limit; progressive delay applied
+  before the outcome is known; timed lockout, never permanent. The account
+  counter keys on the submitted email, so the throttle is not an
+  account-enumeration oracle. Unknown email, wrong password and disabled
+  account return one identical 401, and an unknown email still pays the cost of
+  a hash verification so response time reveals nothing.
+- **Verification:** 64 unit tests plus a 27-test end-to-end suite against real
+  PostgreSQL and Redis, covering token burning, policy enforcement, lockout at
+  the limit with `Retry-After`, CSRF accept/reject, immediate revocation on
+  disable, and that `/healthz` stays public. CI runs the e2e suite against
+  service containers.
+- **Not covered by R-093:** the lockout *notification email* — the SMTP mailer
+  arrives with org invites on day 6. Listed under Deferred in
+  `vfm/docs/PROGRESS.md`.
 
 ### R-025 — Monorepo tooling and CI (`PLAN.md` §4.5, lines 164–169)
 
@@ -379,6 +419,8 @@ reports success.
 | 5 | `1c33d36` | `fix(ci): three failures from the first VFM CI run` | ✅ pushed |
 | 6 | `2265233` | `fix(vfm): generate the prisma client on install and force patched transitives` | ✅ pushed |
 | 7 | `ee17789` | `fix(ci): scope the trivy scan to code we own` | ✅ pushed |
+| 8 | `01c2023` | `docs(vfm): reconcile tracking with the green CI run` | ✅ pushed |
+| 9 | `1f0162d` | `feat(auth): local authentication for M1 day 4` | see end-of-session report |
 
 Commits 1–3 are also pushed. `git status -sb` reports
 `## vfm/m0-foundation...origin/vfm/m0-foundation` with no divergence, and
@@ -521,17 +563,17 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-083 | Identity model: platform admin, orgs, members, teams, clusters, role bindings, channels, API tokens | 362–372 | M1 | ⬜ |
+| R-083 | Identity model: platform admin, orgs, members, teams, clusters, role bindings, channels, API tokens | 362–372 | M1 | 🟡 platform admin and users exist; orgs, teams and bindings are days 6–8 |
 | R-084 | Every query filtered by `org_id`, enforced by a Prisma extension, with a test that fails if any repository query lacks org scoping | 374 | M1 | ⬜ |
 | R-085 | Four built-in roles with the exact permission matrix, stored as data not code | 376–393 | M1 | ⬜ |
 | R-086 | Org Owner/Admin implicitly Cluster Admin on all org clusters | 393 | M1 | ⬜ |
 | R-087 | Namespace-scoping rule: every included namespace in scope (after mapping), no cluster-scoped resources, wildcards only for whole-cluster bindings; exhaustively unit-tested | 395 | M1 | ⬜ |
-| R-088 | Local auth: argon2id, 12-char minimum, breached-password check against a bundled list with no external calls | 399 | M1 | ⬜ |
+| R-088 | Local auth: argon2id, 12-char minimum, breached-password check against a bundled list with no external calls | 399 | M1 | ✅ |
 | R-089 | TOTP MFA with 10 hashed recovery codes, enforceable per org | 399 | M1 | ⬜ |
 | R-090 | OIDC per org: issuer, client, group claim, group→team mapping, JIT provisioning, multiple providers | 400 | M1 | ⬜ |
-| R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere | 401 | M1 | ⬜ |
-| R-092 | CSRF double-submit token on all state-changing REST calls | 402 | M1 | ⬜ |
-| R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ⬜ |
+| R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere | 401 | M1 | ✅ |
+| R-092 | CSRF double-submit token on all state-changing REST calls | 402 | M1 | ✅ |
+| R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ✅ limits, delay and lockout; the notification email is deferred to day 6 with the mailer |
 | R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset | 404 | M1 | ⬜ |
 | R-095 | Sudo mode: re-authentication within 5 minutes for restore create, any delete, storage write, cluster delete and role-binding changes | 405 | M1 | ⬜ |
 | R-096 | Optional restore approval, default off, approver must differ from requester, both actions audited | 407–409 | M6 | ⬜ |
@@ -570,7 +612,7 @@ make them obvious.
 | R-109 | Internal CA key encrypted with `VFM_MASTER_KEY`; CA rotation with overlap via `HelloAck` | 513 | M2 | ⬜ |
 | R-110 | All secrets from env or Kubernetes Secrets, never from committed config | 514 | all | 🟡 |
 | R-111 | Strict CSP, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy` | 515 | M0 | 🟡 |
-| R-112 | Validation at every boundary; the agent treated as semi-trusted; everything escaped in the UI; JSON sizes capped | 516 | all | 🟡 |
+| R-112 | Validation at every boundary; the agent treated as semi-trusted; everything escaped in the UI; JSON sizes capped | 516 | all | ✅ for the REST boundary (zod per route via `parseBody`); the agent boundary arrives with the gateway in M2 |
 | R-113 | Central `redact()` before logging, before `commands.payload`, before audit details, with credential-field tests | 517 | M0 | ✅ |
 | R-114 | `pnpm audit`, `govulncheck` and Trivy in CI, failing on high/critical | 518 | M0 | 🟡 |
 | R-115 | Containers non-root, read-only root filesystem, all capabilities dropped, seccomp RuntimeDefault | 519 | M2/M8 | ⬜ |
@@ -607,7 +649,7 @@ make them obvious.
 |---|---|---|---|---|
 | R-132 | Agent unit tests: command→CR mapping per op, policy, idempotency, redaction, capability gating | 587 | M2+ | ⛔ B-1 (written, never executed) |
 | R-133 | Agent integration via envtest with Velero CRDs, including the DownloadRequest flow | 588 | M3 | ⬜ |
-| R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 |
+| R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 104 unit + 27 e2e; the RBAC table-driven cases arrive on day 8 |
 | R-135 | Server integration via Testcontainers plus an in-process fake agent over real gRPC: enrollment, mTLS, reconnect, re-delivery, revocation, SSE fan-out across two instances | 590 | M2 | ⬜ |
 | R-136 | Web unit tests: form→payload mapping, CLI-equivalent generator, permission-disabled states | 591 | M3+ | 🟡 |
 | R-137 | Playwright e2e against kind, MinIO and Velero | 592 | M2+ | ⬜ |

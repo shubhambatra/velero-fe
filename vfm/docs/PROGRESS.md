@@ -9,6 +9,100 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-15 — M1 day 4: users and local authentication
+
+**Note on milestone gating.** PLAN.md §0 rule 1 says a milestone does not start
+until the previous one's exit criteria pass. M0's do not: `smoke.sh` has never
+run (blocker B-2) and the Go agent has never compiled (B-1). The owner asked to
+proceed with day 4 regardless. Day 4 depends on neither — it needs only
+PostgreSQL and Redis, both of which the compose stack provides — so nothing
+here is built on unverified ground. The two blockers remain open.
+
+### Completed (§16 day 4, §8.3)
+
+- **First-admin bootstrap.** One-time token printed to the logs on first start
+  while `users` is empty; stored as a SHA-256 digest in Redis with a 24 h TTL;
+  burned atomically with `GETDEL`. No open self-signup, and the flow closes
+  permanently once a user exists.
+- **argon2id** at 19 MiB / t=2 / p=1, 12-character minimum, plus a bundled
+  97 747-entry breached-password list (UK NCSC via SecLists, normalised and
+  gzipped to 260 KB). Bundled because §8.3 says "no external calls" and §1.1 P6
+  forbids runtime internet access. Stored parameters are upgraded in place on
+  login when they fall behind.
+- **Sessions** in Redis (§9): 12 h absolute and 1 h idle enforced
+  independently, rotation, and "sign out everywhere". The user row is re-read
+  on every request, so disabling an account revokes immediately.
+- **CSRF** double-submit, compared against the token in the session rather
+  than only a second cookie.
+- **Brute-force protection**: per-account and per-IP counters over fixed
+  windows, progressive delay applied before the outcome is known, timed
+  lockout.
+- **Deny by default**: `SessionGuard` and `CsrfGuard` are global; a route is
+  open only with an explicit `@Public()`.
+- `TRUST_PROXY` added to the env schema, because rate limiting keys on the
+  client address and `X-Forwarded-For` must only be believed deliberately.
+- `/auth/*` endpoints: `GET|POST /auth/setup`, `POST /auth/login`,
+  `POST /auth/logout`, `DELETE /auth/sessions`, `GET /auth/me`. `openapi.yaml`
+  regenerated and committed.
+
+### Test status — actually executed
+
+| Gate                                          | Result                                          |
+| --------------------------------------------- | ----------------------------------------------- |
+| `pnpm run test` (unit, all workspaces)        | **140 passed** — shared 13, server 104, web 23  |
+| `pnpm --filter @vfm/server test:e2e`          | **27 passed** against real PostgreSQL and Redis |
+| `pnpm run lint` (eslint 10 + prettier)        | clean                                           |
+| `pnpm run typecheck`                          | clean                                           |
+| `pnpm --filter @vfm/server run build`         | clean, and the bundled list reaches `dist/`     |
+| OpenAPI regeneration → `git diff --exit-code` | clean                                           |
+| Go build / vet / test                         | **not run — B-1**                               |
+| `smoke.sh`                                    | **not run — B-2**                               |
+
+New: 64 server unit tests and the whole 27-test e2e suite. A CI job now runs
+the e2e suite against service containers and fails if the committed OpenAPI
+contract drifts from the decorators.
+
+### Three real defects the tests caught
+
+1. `/healthz` returned 401 once the global guard landed — which would have
+   restart-looped every pod, since the kubelet's probe is unauthenticated.
+   Caught by the e2e suite, fixed with `@Public()` on the health controller.
+2. `tsc` emits only JavaScript, so the bundled password list never reached
+   `dist/` and the built server could not start. The build copies it now, and a
+   test asserts the path resolves from both `src/` and `dist/`.
+3. A missing list file made startup **hang** rather than fail: a
+   `createReadStream` error does not surface through the readline async
+   iterator. Now checked up front and piped through `stream.pipeline`.
+
+### Deferred
+
+- **The lockout notification email** of §8.3. The lockout itself is enforced;
+  the SMTP mailer arrives with org invites on day 6, and the notification lands
+  with it. `AuthService` logs the event at warn in the meantime.
+- **MFA gating.** `login` marks a session `mfaPending` when the user has MFA
+  enabled, but `SessionGuard` does not yet refuse such a session — that is day
+  5, together with enrolment. The gap is currently unreachable: nothing in day
+  4 can set `mfaEnabled`, which defaults to false.
+- Everything else previously deferred stands: the Go agent (B-1), `smoke.sh`
+  (B-2), the §14.1 seed script (needs day 6 tables), `libs/velero` model reuse
+  (M2 day 10), and a test asserting the security headers (arrives with the
+  next HTTP suite).
+
+### Blockers
+
+Unchanged: **B-1** (no Go toolchain) and **B-2** (host inotify limits too low
+for the kind clusters). Both need root; `sudo` here requires a password.
+Commands are in `NEXT_STEPS.md`.
+
+### Next
+
+M1 day 5 — MFA and sudo mode: TOTP enrol/verify/disable, 10 hashed recovery
+codes, org-enforced MFA, and the sudo re-auth endpoint with its guard
+decorator. `VFM_MASTER_KEY` becomes **required** at that point, because
+`mfa_secret_encrypted` is the first encrypted column (§9).
+
+---
+
 ## 2026-10-14 — M0 days 2 and 3: dev environment and service skeletons
 
 ### Completed — day 2, dev environment (§14.1, §16 day 2)
