@@ -62,7 +62,9 @@ New: 64 server unit tests and the whole 27-test e2e suite. A CI job now runs
 the e2e suite against service containers and fails if the committed OpenAPI
 contract drifts from the decorators.
 
-### Three real defects the tests caught
+### Seven real defects found this session
+
+**Caught by the tests**
 
 1. `/healthz` returned 401 once the global guard landed — which would have
    restart-looped every pod, since the kubelet's probe is unauthenticated.
@@ -73,6 +75,33 @@ contract drifts from the decorators.
 3. A missing list file made startup **hang** rather than fail: a
    `createReadStream` error does not surface through the readline async
    iterator. Now checked up front and piped through `stream.pipeline`.
+
+**Caught only by running the built server** — every one of these was invisible
+to the test runner, which configures SWC with set-semantics class fields and
+resolves workspace packages through Vite. The lesson is recorded here because
+it will recur: a green suite does not mean the service starts.
+
+4. **Nest DI returned `undefined` for every injected service.**
+   `useDefineForClassFields` defaults to true for ES2022+, and under those
+   semantics the fields generated from TypeScript parameter properties are
+   declared _after_ being assigned, so each reads back as undefined. Set to
+   false in the server tsconfig, which decorator-based DI requires.
+5. **`@vfm/shared` shipped raw TypeScript**, so the built control plane could
+   not load it (`Cannot find module .../product.js`). It now has a real dual
+   build — CommonJS for the server, which compiles to CJS and cannot
+   `require()` ESM, and ESM for the web app, because Rollup cannot see named
+   exports through a CommonJS entry. Each half carries a one-line package.json
+   declaring its module type; built on install so no consumer has to remember.
+6. **`express` was imported directly but declared only transitively.** It
+   resolved locally through pnpm's layout and was missing on a clean install,
+   which is how CI found it. Pinned to the version `@nestjs/platform-express`
+   itself depends on, so the tree holds exactly one express.
+7. **The documented dev workflow crashed.** `.env.example` sets
+   `LOG_PRETTY=true` but `pino-pretty` was not a dependency, and nothing loaded
+   `server/.env` despite the README instructing you to create it. Added as a
+   devDependency, the transport degrades to JSON when unresolvable, and
+   `main.ts` loads the file outside production with real environment variables
+   still winning.
 
 ### Deferred
 

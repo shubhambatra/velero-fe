@@ -1,6 +1,6 @@
 # Velero Fleet Manager — implementation status
 
-**Last updated:** 2026-10-15 08:45 IST (session 2 — M1 day 4)
+**Last updated:** 2026-10-15 09:00 IST (session 2 — M1 day 4)
 **Branch:** `vfm/m0-foundation` · **Source of truth:** [`VELERO_FLEET_PLAN.md`](./VELERO_FLEET_PLAN.md) (848 lines)
 **Continuation point:** [`NEXT_STEPS.md`](./NEXT_STEPS.md)
 
@@ -286,6 +286,8 @@ counts as zero in the progress figure.
 | OpenAPI regeneration → `git diff --exit-code` | clean |
 | `dev-up.sh` compose stage | six services healthy, both buckets verified |
 | `dev-down.sh --clusters-only` | correct, and left the unrelated `velero` cluster untouched |
+| Session 2: `pnpm run build` across all three workspaces | clean |
+| Session 2: operator flow against the **built** server | setup → login → CSRF → logout all behave as specified |
 | Go build / vet / test / golangci-lint | **not run — B-1** |
 | `smoke.sh` | **not run — B-2** |
 | CI (`vfm-ci`) run 38630008601 | **all four jobs green** — TypeScript, Go (correctly skipped, B-1), dependency scan, proto |
@@ -388,6 +390,15 @@ cleanly rather than skipping a broken one.
 - `vfm/server/openapi.yaml` is not yet generated or committed (R-103), so the
   web app's API client is hand-written for now. Generating it is the first task
   that touches both packages.
+- **A green test suite did not mean the service started.** Four defects got
+  past 140 unit tests and 27 e2e tests and were found only by running the
+  built server: Nest DI returning `undefined` for every injected dependency
+  (`useDefineForClassFields`), `@vfm/shared` shipping raw TypeScript, `express`
+  declared only transitively, and the documented dev workflow crashing on a
+  missing `pino-pretty`. All four are fixed and detailed in
+  `vfm/docs/PROGRESS.md`. The practice to carry forward: **run the built
+  artifact**, not only the suite — the test runner's SWC and Vite resolution
+  hide a whole class of packaging and transpiler problems.
 - `pnpm audit` reports **2 remaining moderate** advisories, both in `vitest`
   and `@vitest/mocker`. The advisory names `>=4.1.11` as patched, but no such
   release exists on the 4.1.x line — the fix is only in vitest 5.x. They are
@@ -420,7 +431,10 @@ reports success.
 | 6 | `2265233` | `fix(vfm): generate the prisma client on install and force patched transitives` | ✅ pushed |
 | 7 | `ee17789` | `fix(ci): scope the trivy scan to code we own` | ✅ pushed |
 | 8 | `01c2023` | `docs(vfm): reconcile tracking with the green CI run` | ✅ pushed |
-| 9 | `1f0162d` | `feat(auth): local authentication for M1 day 4` | see end-of-session report |
+| 9  | `1f0162d` | `feat(auth): local authentication for M1 day 4` | ✅ pushed |
+| 10 | `31b5481` | `docs(vfm): record M1 day 4 status and the day 5 handoff` | ✅ pushed |
+| 11 | `d23c664` | `fix(vfm): four defects that only running the built server could find` | ✅ pushed |
+| 12 | `afe3bac` | `chore(vfm): drop the superseded single-target build config` | ✅ pushed |
 
 Commits 1–3 are also pushed. `git status -sb` reports
 `## vfm/m0-foundation...origin/vfm/m0-foundation` with no divergence, and
