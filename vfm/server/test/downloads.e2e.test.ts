@@ -233,13 +233,16 @@ describe('backup and restore files (e2e)', () => {
     expect(second.fetch.targetName).toBe('r1');
     answer(stream, second.id, '{"errors":{}}');
 
+    // Each file is stored when its own command finishes; wait for both.
     await eventually(
       () => call('get', `${base}/backups/nightly/details/resource-list`),
       (r) => r.status === 200,
     );
-    expect((await call('get', `${base}/restores/r1/details/results`).expect(200)).text).toBe(
-      '{"errors":{}}',
+    const results = await eventually(
+      () => call('get', `${base}/restores/r1/details/results`),
+      (r) => r.status === 200,
     );
+    expect(results.text).toBe('{"errors":{}}');
     // A backup's file is not a restore's.
     await call('get', `${base}/restores/r1/details/resource-list`).expect(204);
     stream.cancel();
