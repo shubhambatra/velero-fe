@@ -38,7 +38,7 @@ const MAX_ITEMS = 50;
 const MAX_NAMESPACES = 100;
 
 /** Printable ASCII and common Unicode letters; control characters are dropped, never echoed. */
-const clean = (value: string, max = MAX_TEXT): string =>
+export const clean = (value: string, max = MAX_TEXT): string =>
   // eslint-disable-next-line no-control-regex
   value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, max);
 
@@ -78,5 +78,18 @@ export function sanitizeHello(hello: Hello): SanitizedHello {
     chartVersion: optional(hello.chartVersion),
     imageTag: optional(hello.imageTag),
     fingerprint: clean(hello.clusterFingerprint, 256),
+  };
+}
+
+/** The Velero server status as reported by `RefreshServerStatus`, bounded like a Hello. */
+export function sanitizeVeleroStatus(status: {
+  serverVersion: string;
+  plugins: readonly { name: string; kind: string }[];
+}): { serverVersion: string | null; plugins: { name: string; kind: string }[] } {
+  return {
+    serverVersion: optional(status.serverVersion),
+    plugins: status.plugins
+      .slice(0, MAX_ITEMS)
+      .map((p) => ({ name: clean(p.name), kind: clean(p.kind) })),
   };
 }

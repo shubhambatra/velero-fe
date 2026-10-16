@@ -913,6 +913,98 @@ paths:
       summary: Revoke the agent’s certificates and require it to enrol again (sudo)
       tags:
         - clusters
+  /orgs/{orgId}/clusters/{clusterId}/refresh-status:
+    post:
+      description: Returns 202 with the command; poll `/commands/{id}` for the result.
+      operationId: CommandsController_refreshStatus
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Ask the agent to re-read Velero’s version and plugins
+      tags:
+        - commands
+  /orgs/{orgId}/clusters/{clusterId}/commands:
+    get:
+      operationId: CommandsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: The most recent commands for this cluster
+      tags:
+        - commands
+  /orgs/{orgId}/clusters/{clusterId}/commands/{commandId}:
+    get:
+      operationId: CommandsController_get
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: commandId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: One command and its outcome
+      tags:
+        - commands
+  /orgs/{orgId}/clusters/{clusterId}/commands/{commandId}/cancel:
+    post:
+      description: 409 once the agent has acknowledged it or it has finished.
+      operationId: CommandsController_cancel
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: commandId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Cancel a command the agent has not started
+      tags:
+        - commands
   /healthz:
     get:
       description: Returns 200 while the process is able to serve requests.

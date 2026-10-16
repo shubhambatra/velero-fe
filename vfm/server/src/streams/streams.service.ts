@@ -65,7 +65,13 @@ interface ForwardMessage {
 }
 
 /** Called for every message an agent sends after Hello except heartbeats. */
-export type AgentMessageHandler = (clusterId: string, message: AgentMessage) => void;
+export type AgentMessageHandler = (
+  clusterId: string,
+  message: AgentMessage,
+) => void | Promise<void>;
+
+/** Called once a stream has been accepted: the moment to re-deliver anything queued. */
+export type ConnectedHandler = (clusterId: string, orgId: string) => void | Promise<void>;
 
 /**
  * The gateway's view of connected agents: which streams this replica holds,
@@ -98,6 +104,7 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
 
   private readonly streams = new Map<string, LiveStream>();
   private readonly handlers: AgentMessageHandler[] = [];
+  private readonly connectedHandlers: ConnectedHandler[] = [];
   private subscriber: Redis | undefined;
   private timers: NodeJS.Timeout[] = [];
 
@@ -151,6 +158,11 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
   /** Registers a handler for agent messages other than Hello and heartbeats. */
   onAgentMessage(handler: AgentMessageHandler): void {
     this.handlers.push(handler);
+  }
+
+  /** Registers a handler run after each accepted stream. Errors are logged, never fatal. */
+  onConnected(handler: ConnectedHandler): void {
+    this.connectedHandlers.push(handler);
   }
 
   /** Whether this replica holds the stream for `clusterId`. */
@@ -250,6 +262,7 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       await this.register(live, hello);
       registered = true;
       arm();
+      this.notifyConnected(identity);
 
       const untilExpiry = identity.notAfter.getTime() - Date.now();
       expiry = setTimeout(
@@ -415,6 +428,16 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
     this.logger.log(`agent connected: cluster ${clusterId} on ${this.replicaId}`);
   }
 
+  private notifyConnected(identity: StreamIdentity): void {
+    for (const handler of this.connectedHandlers) {
+      Promise.resolve(handler(identity.clusterId, identity.orgId)).catch((error: unknown) => {
+        this.logger.warn(
+          `a connected-handler failed for cluster ${identity.clusterId}: ${error instanceof Error ? error.message : 'unknown'}`,
+        );
+      });
+    }
+  }
+
   private async dispatch(live: LiveStream, message: AgentMessage): Promise<void> {
     if (message.heartbeat !== undefined) {
       const { clusterId, orgId } = live.identity;
@@ -440,7 +463,14 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       return;
     }
     for (const handler of this.handlers) {
-      handler(live.identity.clusterId, message);
+      try {
+        await handler(live.identity.clusterId, message);
+      } catch (error) {
+        // A handler's failure is not the agent's: keep the stream.
+        this.logger.warn(
+          `an agent-message handler failed: ${error instanceof Error ? error.message : 'unknown'}`,
+        );
+      }
     }
   }
 
