@@ -239,9 +239,14 @@ describe('cluster overview', () => {
     renderApp({ path: '/clusters/c1' });
 
     const tabs = await screen.findByRole('navigation', { name: 'Cluster sections' });
-    const backups = within(tabs).getByRole('button', { name: 'Backups' });
-    expect(backups).toBeDisabled();
-    expect(backups.getAttribute('title') ?? '').toContain('day 19');
+    const workloads = within(tabs).getByRole('button', { name: 'Workloads' });
+    expect(workloads).toBeDisabled();
+    expect(workloads.getAttribute('title') ?? '').toContain('M5');
+    // The tabs that exist are real links.
+    expect(within(tabs).getByRole('link', { name: 'Backups' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/backups',
+    );
     expect(within(tabs).getByText('Overview')).toHaveAttribute('aria-current', 'page');
   });
 

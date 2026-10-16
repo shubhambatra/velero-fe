@@ -165,7 +165,8 @@ criteria are still unmet (B-1, B-2).
 - **M3 day 16 done** (ADR-021): `agent/internal/inventory`.
 - **M3 day 17 done** (ADR-022): `server/src/{inventory,events}`, `velero_resources`, SSE `/api/v1/stream`.
 - **M3 day 18 done** (ADR-023): fleet overview, cluster overview, live updates (`web/src/lib/{events,fleet}.ts`, `pages/{overview,cluster}-page.tsx`).
-- **Next: M3 day 19 — lists and detail pages** (plan line 708): backups, restores, schedules and storage (BSL/VSL/repositories) lists with filters, sorting and cursor pagination (max 200, R-102); backup and restore detail pages (spec, status, timeline, YAML). New REST endpoints read `velero_resources` (indexes exist on `(cluster_id, kind, phase)` and the start/completion columns); gate each by the kind's read permission (`inventory/kinds.ts`); a namespace-scoped user must be filtered by the backup's `spec.includedNamespaces` (not yet implemented anywhere: decide and record it). Enable the disabled tabs on `pages/cluster-page.tsx`.
+- **M3 day 19 done** (ADR-024): lists + detail pages, namespace visibility, cursor pagination (`server/src/inventory/{projections,resources.*}.ts`, `web/src/pages/cluster-{lists,detail}.tsx`).
+- **Next: M3 day 20 — DownloadRequest pipeline** (plan line ~709): `FetchDownload` command (agent creates a DownloadRequest, waits for the signed URL, fetches in-cluster, gunzips, streams `LogChunk`s keyed by command_id); server caches per plan §7.3 for 7 days behind `backup:logs`; UI log viewer and "describe --details" panels. Then the M3 human checkpoint (UI review).
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

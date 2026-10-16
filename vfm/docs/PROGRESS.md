@@ -9,6 +9,33 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M3 day 19: lists and detail pages
+
+Session 7, continued. CI green on day 18 (`e9eca65`).
+
+### Done
+
+- Server: `GET .../{backups,restores,schedules,backup-locations,snapshot-locations,repositories}` with filters,
+  sorting and cursor pagination, and `.../{backups,restores}/{name}` detail (spec, status, timeline, YAML, volumes).
+  Namespace-scoped visibility and 404 identity per ADR-024; `RbacService.visibility()`.
+- Web: shared cluster shell with working Backups/Restores/Schedules/Storage tabs, filter bar (debounced search,
+  phase groups, sort), "Load more", three distinct empty states, backup and restore detail pages.
+
+### Test status
+
+Server unit **628** (21 new), e2e **294** (23 new), web **124** (13 new); lint, typecheck, build clean; OpenAPI
+regenerated.
+
+### Not verified
+
+Not driven in a browser this time; real Velero (B-2); narrow viewports and keyboard-only use.
+
+### Next
+
+M3 day 20 — DownloadRequest pipeline (`FetchDownload`, log chunks, 7-day cache behind `backup:logs`), log viewer.
+
+---
+
 ## 2026-10-16 — M3 day 18: fleet overview and cluster overview, live
 
 Session 7, continued. CI green on day 17 (`a622daf`).

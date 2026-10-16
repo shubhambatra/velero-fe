@@ -1061,6 +1061,182 @@ paths:
       summary: Health, versions, policy, storage locations and recent activity of one cluster
       tags:
         - inventory
+  /orgs/{orgId}/clusters/{clusterId}/backups:
+    get:
+      description: "Filters: phase (comma list), q, schedule, location, createdByVfm. Sorts: startedAt,
+        completedAt, expiresAt, name, phase."
+      operationId: ResourcesController_backups
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Backups you may see
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/restores:
+    get:
+      description: "Filters: phase, q, backup, schedule, createdByVfm. Sorts: startedAt, completedAt,
+        name, phase."
+      operationId: ResourcesController_restores
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Restores you may see
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/schedules:
+    get:
+      description: "Filters: phase, q, paused, createdByVfm. Sorts: name, phase."
+      operationId: ResourcesController_schedules
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Schedules you may see
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/backup-locations:
+    get:
+      operationId: ResourcesController_backupLocations
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Backup storage locations
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/snapshot-locations:
+    get:
+      operationId: ResourcesController_snapshotLocations
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Volume snapshot locations
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/repositories:
+    get:
+      operationId: ResourcesController_repositories
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Backup repositories
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/backups/{name}:
+    get:
+      operationId: ResourcesController_backup
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One backup: summary, timeline, spec, status, YAML and its volumes. 404 if you may not see
+        it."
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/restores/{name}:
+    get:
+      operationId: ResourcesController_restore
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One restore: summary, timeline, spec, status and YAML. 404 if you may not see it."
+      tags:
+        - inventory
   /stream:
     get:
       description: Events carry no object names. Re-read through the REST API on an event.

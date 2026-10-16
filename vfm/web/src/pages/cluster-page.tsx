@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
+import { ClusterShell } from '@/components/cluster-shell';
 import { Time } from '@/components/time';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,21 +17,6 @@ import {
   type ClusterOverview,
   type Resource,
 } from '@/lib/fleet';
-
-/**
- * The cluster's other tabs (PLAN.md §11.1 page 3). Visible but disabled, each with the
- * reason, as §11.2 requires of anything not yet available; none is a mock-up.
- */
-const LATER_TABS: { label: string; reason: string }[] = [
-  { label: 'Backups', reason: 'Lists and detail pages arrive next (M3 day 19).' },
-  { label: 'Restores', reason: 'Lists and detail pages arrive next (M3 day 19).' },
-  { label: 'Schedules', reason: 'Lists arrive next (M3 day 19); editing in M4.' },
-  { label: 'Storage', reason: 'Lists arrive next (M3 day 19); editing in M4.' },
-  { label: 'Workloads', reason: 'Nodes, namespaces and pods arrive in M5.' },
-  { label: 'Events', reason: 'Arrives in M5.' },
-  { label: 'Activity', reason: 'Command history arrives with the write operations (M4).' },
-  { label: 'Access', reason: 'Per-cluster role bindings are managed through the API for now.' },
-];
 
 function Facts({ rows }: { rows: [string, ReactElement | string | null][] }): ReactElement {
   return (
@@ -139,43 +124,7 @@ export function ClusterPage({
   const policy = cluster?.agentPolicy ?? null;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm">
-          <Link to="/" className="underline">
-            Fleet overview
-          </Link>
-        </p>
-        <h1 className="text-xl font-semibold">{cluster?.name ?? 'Cluster'}</h1>
-      </div>
-
-      <nav
-        aria-label="Cluster sections"
-        className="flex flex-wrap gap-1 border-b border-border pb-2"
-      >
-        <span
-          aria-current="page"
-          className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground"
-        >
-          Overview
-        </span>
-        {LATER_TABS.map((tab) => (
-          <button
-            key={tab.label}
-            type="button"
-            disabled
-            title={tab.reason}
-            className="cursor-not-allowed rounded-md px-3 py-2 text-sm font-medium text-muted-foreground"
-          >
-            {tab.label}
-          </button>
-        ))}
-        <Link to="/clusters" className="rounded-md px-3 py-2 text-sm font-medium underline">
-          Settings
-        </Link>
-      </nav>
-
-      <ErrorNote message={overview.isError ? errorMessage(overview.error) : undefined} />
+    <ClusterShell orgId={orgId} clusterId={clusterId} tab="overview">
       <ErrorNote message={refresh.isError ? errorMessage(refresh.error) : undefined} />
 
       {cluster !== undefined && data !== undefined && (
@@ -369,6 +318,6 @@ export function ClusterPage({
           )}
         </>
       )}
-    </div>
+    </ClusterShell>
   );
 }

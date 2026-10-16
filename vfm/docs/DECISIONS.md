@@ -1371,3 +1371,45 @@ restored each time and are covered by `.prettierignore` only from the repository
 
 The pages at narrow widths and by keyboard only (I did not drive them); real Velero data; the stream through a
 buffering proxy (the server sets `X-Accel-Buffering: no`, untested behind one).
+
+---
+
+## ADR-024 — Lists, detail pages and who may see which backup (M3 day 19)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decisions
+
+- **Namespace visibility (PLAN §8.2).** A binding scoped to namespaces sees a backup, restore or schedule only if
+  _every_ namespace it covers is in scope and it does not include cluster-scoped resources. An empty or `*` namespace
+  list needs a whole-cluster binding; exclude lists never narrow coverage; restores count both their source and
+  mapped-target namespaces; schedules use `spec.template`. "Includes cluster resources" counts only when explicitly
+  `true` or `includedClusterScopedResources` is non-empty (Velero's unset/"auto" does not). That is deliberately
+  looser than the _create_ rule, which M4 must make strict (explicit `false` required). Storage objects are
+  cluster-level and are not namespace-filtered.
+- **404 for hidden and missing alike.** A detail request for an object the caller may not see answers exactly as for
+  one that does not exist (bodies differ only in `instance`/`requestId`), so names cannot be probed.
+- **Pagination.** Opaque cursor `base64url({id, s})`, where `s` signs kind+sort+order+filters, so a cursor replayed
+  with a different query is rejected. Page size default 50, max 200. Unscoped callers fetch `limit+1` for an exact
+  "more"; callers with narrowed visibility scan in batches (at most 2000 rows) so sparse pages still fill.
+  `paused=false` is decided in that scan, since SQL cannot match a missing JSON key. Unsupported sort/filter is 400,
+  a malformed query 422.
+- **Detail** returns summary, timeline, labels, spec, status, YAML and the related PodVolumeBackups/DataUploads
+  (label `velero.io/backup-name`).
+
+### Deferred
+
+Next-run times for schedules (needs a cron library; belongs to the M4 wizard). Restore action on the backup page is
+visible but disabled with its reason until M4.
+
+### Verified
+
+21 projection unit tests; 23 e2e tests over real PostgreSQL and gRPC; 13 web tests. Mutation checks: list ignoring
+visibility (5 tests failed), detail ignoring visibility (2), cursor not bound to its query (1). A fourth (exclude
+lists narrowing) is equivalent at e2e level and is covered by a projection unit test.
+
+### Not verified
+
+Real Velero data (B-2); narrow viewports and keyboard-only use; the pages were not driven in a browser this
+session (covered by web unit tests and server e2e only).

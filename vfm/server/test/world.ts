@@ -144,6 +144,9 @@ const OBJECT_KIND: Partial<Record<ResourceKind, string>> = {
   [ResourceKind.RESOURCE_KIND_SCHEDULE]: 'Schedule',
   [ResourceKind.RESOURCE_KIND_BACKUP_STORAGE_LOCATION]: 'BackupStorageLocation',
   [ResourceKind.RESOURCE_KIND_POD_VOLUME_BACKUP]: 'PodVolumeBackup',
+  [ResourceKind.RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION]: 'VolumeSnapshotLocation',
+  [ResourceKind.RESOURCE_KIND_BACKUP_REPOSITORY]: 'BackupRepository',
+  [ResourceKind.RESOURCE_KIND_DATA_UPLOAD]: 'DataUpload',
 };
 
 /** A well-formed inventory item, the way a healthy agent reports it. */
@@ -156,6 +159,9 @@ export function resource(
     rv?: string;
     status?: Record<string, unknown>;
     spec?: Record<string, unknown>;
+    labels?: Record<string, string>;
+    managed?: boolean;
+    started?: string;
   } = {},
 ): ResourceItem {
   const kind = options.kind ?? ResourceKind.RESOURCE_KIND_BACKUP;
@@ -170,11 +176,18 @@ export function resource(
     objectJson: enc({
       apiVersion: 'velero.io/v1',
       kind: OBJECT_KIND[kind] ?? 'Backup',
-      metadata: { name, namespace: 'velero', uid, creationTimestamp: '2026-10-16T01:00:00Z' },
+      metadata: {
+        name,
+        namespace: 'velero',
+        uid,
+        creationTimestamp: '2026-10-16T01:00:00Z',
+        ...(options.labels === undefined ? {} : { labels: options.labels }),
+        ...(options.managed === true ? { annotations: { 'vfm.io/managed': 'true' } } : {}),
+      },
       spec: options.spec ?? { storageLocation: 'default' },
       status: {
         phase: options.phase ?? 'Completed',
-        startTimestamp: '2026-10-16T01:00:05Z',
+        startTimestamp: options.started ?? '2026-10-16T01:00:05Z',
         ...options.status,
       },
     }),

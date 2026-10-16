@@ -148,6 +148,49 @@ export class RbacService {
     return result;
   }
 
+  /**
+   * A predicate for "may this user see an object that covers these namespaces",
+   * for list and detail endpoints (PLAN.md §8.2). It loads the facts once and then
+   * decides each object with the same pure `authorize()` as every other check, so a
+   * list can filter instead of failing and cannot disagree with a direct request.
+   *
+   * `all` is true when the user holds the permission across the whole cluster, in
+   * which case nothing needs filtering.
+   */
+  async visibility(
+    orgId: string,
+    userId: string,
+    clusterId: string,
+    permission: Permission,
+    token?: TokenLimit,
+  ): Promise<{
+    all: boolean;
+    sees: (covered: { namespaces: string[]; includesClusterScoped: boolean }) => boolean;
+  }> {
+    const { principal, bindings, context } = await this.load(orgId, userId, clusterId, token);
+    const whole = authorize(
+      principal,
+      { clusterId, permission, namespaces: ['*'], includesClusterScoped: true },
+      bindings,
+      context,
+    );
+    return {
+      all: whole.allowed,
+      sees: (covered) =>
+        authorize(
+          principal,
+          {
+            clusterId,
+            permission,
+            namespaces: covered.namespaces,
+            includesClusterScoped: covered.includesClusterScoped,
+          },
+          bindings,
+          context,
+        ).allowed,
+    };
+  }
+
   async decide(
     orgId: string,
     userId: string,

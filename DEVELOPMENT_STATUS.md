@@ -745,16 +745,16 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-102 | `/api/v1`, cursor pagination (max 200), documented filters and sorts, `X-Request-Id`, RFC 9457 problem+json | 445–447 | M1+ | 🟡 |
+| R-102 | `/api/v1`, cursor pagination (max 200), documented filters and sorts, `X-Request-Id`, RFC 9457 problem+json | 445–447 | M1+ | 🟡 cursor pagination and filters on the Velero lists (day 19); other lists pending |
 | R-103 | OpenAPI 3.1 generated from decorators, committed as `server/openapi.yaml`, web client types generated from it | 445 | M0/M1 | ✅ (generation + committed contract verified in sync; generating *web types* from it is M1) |
-| R-104 | All endpoint groups of §10 implemented | 451–465 | M1–M6 | 🟡 auth, orgs, teams, SSO, tokens, audit, role bindings, clusters, commands, inventory, fleet, overview and the stream exist; lists, writes, logs, alerts, reports do not |
+| R-104 | All endpoint groups of §10 implemented | 451–465 | M1–M6 | 🟡 auth, orgs, teams, SSO, tokens, audit, role bindings, clusters, commands, inventory, fleet, overview, the stream, and Velero lists/detail exist; writes, logs, alerts, reports do not |
 | R-105 | `/healthz`, `/readyz` (DB + Redis), `/metrics` on a separate port, not publicly exposed | 466 | M0 | ✅ |
 
 ### §11 Web UI (lines 472–505)
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-106 | All 13 pages | 474–496 | M1–M6 | 🟡 login, MFA, org admin, add cluster, fleet overview and cluster overview exist; backups, restores, schedules, storage, wizards, log viewer, alerts and reports do not |
+| R-106 | All 13 pages | 474–496 | M1–M6 | 🟡 login, MFA, org admin, add cluster, fleet overview, cluster overview, backup/restore/schedule/storage lists and backup/restore detail exist; wizards, log viewer, alerts and reports do not |
 | R-107 | UX rules: typed destructive confirmation plus sudo, command-status toasts, actions disabled-with-reason, user timezone with UTC on hover, dark/light, responsive to tablet, keyboard accessible, WCAG 2.1 AA, explanatory empty states | 500–505 | M1–M6 | 🟡 |
 
 ### §12 Security (lines 509–528)
