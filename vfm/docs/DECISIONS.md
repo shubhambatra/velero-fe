@@ -846,3 +846,30 @@ first run is the real test of that job (recorded in PROGRESS.md).
   not feasible, and per-IP limits belong with the gateway's other limits (M7).
 - The gRPC listener, `Connect` and the live revocation of open streams are day 13;
   `Enroll`/`RenewCertificate` over the wire is the next increment of day 11.
+
+### Addendum — the gateway listener (M2 day 11, part 2)
+
+- **One port, optional client certificate.** `Enroll` has no certificate yet, so the
+  listener _requests_ a client certificate and verifies it against the internal CA
+  but does not _require_ one; `RenewCertificate` and `Connect` refuse a caller with
+  no verified, unrevoked certificate per RPC. grpc-js's `createSsl` cannot express
+  this (requesting a certificate also rejects its absence), so the gateway uses
+  `experimental.createCertificateProviderServerCredentials`. That API is
+  experimental, which is why `@grpc/grpc-js` stays pinned to an exact version and
+  the behaviour is covered by real-handshake tests rather than mocks.
+- **The server certificate rotates in place.** A provider (`GatewayIdentityProvider`)
+  swaps the gateway's own 30-day certificate hourly-checked, 10 days before expiry,
+  without restarting the listener; a test reads the served serial before and after.
+- **grpc-js race, worked around.** A certificate provider that answers synchronously
+  reports its identity before the server has registered its watcher, so the server
+  believes it has no credentials and drops every connection. The provider answers on
+  a microtask. Without the workaround the symptom is "socket disconnected before
+  secure TLS connection was established" on every call.
+- **`Connect` authenticates, then answers UNIMPLEMENTED** until day 13 builds the
+  stream registry and routing. It is wired so an unauthenticated or revoked agent is
+  already refused exactly as it will be later.
+- **Limits.** 4 MB messages (§5.6) enforced by the server; the enrollment fields are
+  additionally size-capped well below that.
+- **Agents pin the CA.** A client that trusts a different CA fails the handshake
+  before the application sees the request, so the operator's bootstrap token is not
+  consumed by it (tested).

@@ -72,7 +72,7 @@ export const TEST_DATABASE_URL =
 
 export const TEST_REDIS_URL = process.env.TEST_REDIS_URL ?? 'redis://localhost:56379/15';
 
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(options: { gateway?: boolean } = {}): Promise<TestApp> {
   process.env.DATABASE_URL = TEST_DATABASE_URL;
   process.env.REDIS_URL = TEST_REDIS_URL;
   process.env.NODE_ENV = 'test';
@@ -82,6 +82,13 @@ export async function createTestApp(): Promise<TestApp> {
   // A fixed key: these tests assert on ciphertext round-tripping, not on
   // key secrecy, and a stable value keeps failures reproducible.
   process.env.VFM_MASTER_KEY ??= Buffer.alloc(32, 7).toString('base64');
+
+  // Suites that never talk to an agent must not bind a port: they run in
+  // parallel workers and 8443 would collide. The gateway suite opts in and gets
+  // an ephemeral port.
+  process.env.GATEWAY_ENABLED = options.gateway === true ? 'true' : 'false';
+  process.env.GATEWAY_PORT = '0';
+  process.env.HOST = '127.0.0.1';
 
   Logger.overrideLogger(false);
 
