@@ -259,7 +259,7 @@ func TestLoadRejectsMalformedValues(t *testing.T) {
 		},
 		{
 			name:    "control plane address with embedded credentials",
-			env:     map[string]string{EnvControlPlaneAddress: "https://user:pw@cp.example.com:8443"},
+			env:     map[string]string{EnvControlPlaneAddress: "https://user:pw@cp.example.com:8443"}, //nolint:gosec // fixture: proves userinfo is rejected
 			wantKey: EnvControlPlaneAddress,
 		},
 		{
@@ -549,7 +549,7 @@ func TestSanitizeEndpoint(t *testing.T) {
 		{name: "empty", input: "", want: ""},
 		{name: "host and port are kept as-is", input: "cp.example.com:8443", want: "cp.example.com:8443"},
 		{name: "scheme host and port are kept", input: "https://cp.example.com:8443", want: "https://cp.example.com:8443"},
-		{name: "userinfo is dropped", input: "https://user:pw@cp.example.com:8443", want: "https://cp.example.com:8443"},
+		{name: "userinfo is dropped", input: "https://user:pw@cp.example.com:8443", want: "https://cp.example.com:8443"}, //nolint:gosec // fixture: proves userinfo is stripped
 		{name: "path and query are dropped", input: "https://cp.example.com:8443/connect?token=abc", want: "https://cp.example.com:8443"},
 		{name: "unparseable input is redacted", input: "https://%zz", want: redactedValue},
 	}

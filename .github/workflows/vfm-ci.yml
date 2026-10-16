@@ -115,7 +115,11 @@ jobs:
         if: steps.agent.outputs.present == 'true'
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.6.2
+          version: v2.14.0
+          # Build golangci-lint with the job's Go (GO_VERSION). The prebuilt
+          # release binary is built with an older Go and refuses to analyse a
+          # module that targets a newer one.
+          install-mode: goinstall
           working-directory: vfm/agent
 
   server-e2e:
@@ -206,12 +210,34 @@ jobs:
           fi
         shell: bash
 
-      # PLAN.md §5.7: buf lint plus a breaking-change check against main.
+      # `buf breaking` needs a baseline. Until the first merge to main there is
+      # none, and buf fails on "no .proto files" rather than skipping, so the
+      # breaking check turns itself on once main carries the contract.
+      - name: Check whether main already has a proto baseline
+        id: baseline
+        if: steps.proto.outputs.present == 'true'
+        run: |
+          if git ls-tree -r --name-only origin/main -- vfm/proto | grep -q '\.proto$'; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+            echo 'main has no proto baseline yet — buf breaking skipped' >> "$GITHUB_STEP_SUMMARY"
+          fi
+        shell: bash
+
+      # PLAN.md §5.7: buf lint plus a breaking-change check against main. The
+      # BSR is not used, so push and archive are off (the action's default is to
+      # push on branch builds, which needs a token).
       - uses: bufbuild/buf-action@v1
         if: steps.proto.outputs.present == 'true'
         with:
           input: vfm/proto
+          lint: true
+          format: false
+          breaking: ${{ steps.baseline.outputs.exists == 'true' }}
           breaking_against: 'https://github.com/${{ github.repository }}.git#branch=main,subdir=vfm/proto'
+          push: false
+          archive: false
           pr_comment: false
 
   audit:
