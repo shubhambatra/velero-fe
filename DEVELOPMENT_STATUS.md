@@ -564,6 +564,13 @@ reports success.
 | 31 | `aa2e1f3` | `feat(web): API token page, create-organization page, and the day 9 record` | ✅ pushed — own CI run superseded |
 | 32 | `f647bf1` | `docs(vfm): correct the day 9 record now that the token page exists` | ✅ pushed — **CI green on this SHA**, all five jobs (includes 30–31) |
 | 33 | `fa86456` | `build(agent): resolve go.sum; the agent now compiles, vets and passes its tests` | ✅ pushed with day 10 (see PROGRESS.md) |
+| 34 | `ac67e5c` | `feat(proto): the agent protocol contract and generated stubs (M2 day 10, ADR-015)` | ✅ pushed |
+| 35 | `a9643fc` | `ci(vfm): fix the three jobs the first real Go and proto run turned red` | ✅ pushed — CI green |
+| 36 | `6862fa3`, `cfcd7a7`, `c657dab` | M2 day 11: CA, clusters API, enrollment; gateway; add-cluster UI | ✅ pushed — CI green on each |
+| 37 | `93e22e8` | M2 day 12: agent connection manager | ✅ pushed — CI green |
+| 38 | `2acb16a` | M2 day 13: streams, routing, liveness, live revocation | ✅ pushed — CI green |
+| 39 | `0ee2983`, `f57a446` | M2 day 14: commands on the server; policy, dispatcher and RefreshServerStatus on the agent | ✅ pushed — CI green |
+| 40 | `51541b7`, `0d9a7d3`, `0bbdafb` | M2 day 15: chart, image, hardening tests; chart-version/plugins UI; CI path fix | ✅ pushed — **CI green on `0bbdafb`**, all five jobs (`51541b7` was red on a CI path in two new steps, fixed in `0bbdafb`) |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
