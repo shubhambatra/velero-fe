@@ -1,10 +1,17 @@
+import { useMutation } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
 import { ClusterShell } from '@/components/cluster-shell';
 import { ResourceList, type Column } from '@/components/resource-list';
 import { Time } from '@/components/time';
+import { useToasts } from '@/components/toast-context';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
+import { ErrorNote } from '@/components/ui/field';
+import { lacks, useAccess } from '@/lib/access';
+import { api, errorMessage } from '@/lib/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { duration, phaseTone } from '@/lib/fleet';
 import {
@@ -52,6 +59,30 @@ interface Props {
   clusterId: string;
 }
 
+function CreateBackupLink({ orgId, clusterId }: Props): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  if (access.level('backup:create') === 'none') {
+    return (
+      <div className="flex justify-end">
+        <Button disabled title={lacks('backup:create')}>
+          Create backup
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-end">
+      <Link
+        to="/clusters/$clusterId/backups/new"
+        params={{ clusterId }}
+        className={buttonVariants({ variant: 'primary' })}
+      >
+        Create backup
+      </Link>
+    </div>
+  );
+}
+
 export function BackupsPage({ orgId, clusterId }: Props): ReactElement {
   const columns: Column<BackupRow>[] = [
     {
@@ -85,6 +116,7 @@ export function BackupsPage({ orgId, clusterId }: Props): ReactElement {
   ];
   return (
     <ClusterShell orgId={orgId} clusterId={clusterId} tab="backups">
+      <CreateBackupLink orgId={orgId} clusterId={clusterId} />
       <ResourceList<BackupRow>
         orgId={orgId}
         clusterId={clusterId}
@@ -178,6 +210,38 @@ export function RestoresPage({ orgId, clusterId }: Props): ReactElement {
   );
 }
 
+function RunNow({ orgId, clusterId, name }: Props & { name: string }): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  const { follow } = useToasts();
+  const run = useMutation({
+    mutationFn: () =>
+      api<{ id: string }>(
+        `/orgs/${orgId}/clusters/${clusterId}/schedules/${encodeURIComponent(name)}/trigger`,
+        { method: 'POST', body: {} },
+      ),
+    onSuccess: (command) => {
+      follow({ orgId, clusterId, commandId: command.id, title: `Run schedule ${name} now` });
+    },
+  });
+  const none = access.level('backup:create') === 'none';
+  return (
+    <span className="flex flex-col gap-1">
+      <Button
+        variant="outline"
+        disabled={none || run.isPending}
+        title={none ? lacks('backup:create') : undefined}
+        aria-label={`Run ${name} now`}
+        onClick={() => {
+          run.mutate();
+        }}
+      >
+        Run now
+      </Button>
+      <ErrorNote message={run.isError ? errorMessage(run.error) : undefined} />
+    </span>
+  );
+}
+
 export function SchedulesPage({ orgId, clusterId }: Props): ReactElement {
   const columns: Column<ScheduleRow>[] = [
     { header: 'Name', cell: (s) => <span className="font-mono">{s.name}</span> },
@@ -198,6 +262,10 @@ export function SchedulesPage({ orgId, clusterId }: Props): ReactElement {
     { header: 'Namespaces', cell: (s) => <ScopeText scope={s.scope} /> },
     { header: 'Storage', cell: (s) => s.storageLocation ?? 'default' },
     { header: 'Keeps for', cell: (s) => s.ttl ?? '—' },
+    {
+      header: 'Actions',
+      cell: (s) => <RunNow orgId={orgId} clusterId={clusterId} name={s.name} />,
+    },
   ];
   return (
     <ClusterShell orgId={orgId} clusterId={clusterId} tab="schedules">

@@ -5,10 +5,9 @@ import { cva } from 'class-variance-authority';
  * a link that looks like a button must still be an `<a>` for keyboard and
  * screen-reader users.
  *
- * Only the variants the shell actually uses exist. `destructive` is
- * deliberately absent: every destructive action in this product also needs a
- * typed confirmation and sudo re-auth (PLAN.md §11.2), so that variant lands
- * with the component that enforces them, not before.
+ * Only the variants the shell actually uses exist. `destructive` arrived with
+ * the typed-confirmation dialog that every destructive action in this product
+ * goes through (PLAN.md §11.2); use it only behind that dialog.
  */
 export const buttonVariants = cva(
   [
@@ -29,6 +28,8 @@ export const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground hover:bg-muted',
         outline: 'border border-control bg-background text-foreground hover:bg-muted',
         ghost: 'text-foreground hover:bg-muted',
+        // Only for an action that has a typed confirmation in front of it (PLAN.md §11.2).
+        destructive: 'border border-destructive bg-background text-destructive hover:bg-muted',
       },
       size: {
         md: 'h-9 px-4',

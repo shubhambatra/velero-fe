@@ -17,6 +17,7 @@ import { SecurityPage } from '@/pages/admin/security-page';
 import { SsoPage } from '@/pages/admin/sso-page';
 import { TeamsPage } from '@/pages/admin/teams-page';
 
+import { BackupWizardPage } from '@/pages/backup-wizard';
 import { rootRoute } from './root-route';
 
 export const loginRoute = createRoute({
@@ -146,6 +147,9 @@ export const schedulesRoute = clusterSubRoute('/clusters/$clusterId/schedules', 
 ));
 export const storageRoute = clusterSubRoute('/clusters/$clusterId/storage', (o, c) => (
   <StoragePage orgId={o} clusterId={c} />
+));
+export const newBackupRoute = clusterSubRoute('/clusters/$clusterId/backups/new', (o, c) => (
+  <BackupWizardPage orgId={o} clusterId={c} />
 ));
 export const backupDetailRoute = clusterSubRoute(
   '/clusters/$clusterId/backups/$name',

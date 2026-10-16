@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   authorize,
+  isNamespaced,
   mayAttempt,
   type AuthorizeRequest,
   type Decision,
@@ -189,6 +190,40 @@ export class RbacService {
           context,
         ).allowed,
     };
+  }
+
+  /**
+   * What the caller may do on a cluster, for the UI to disable what would be refused
+   * (PLAN.md §11.2). `cluster` is the permission across the whole cluster, `scoped`
+   * only inside some namespaces, `none` not at all. It never replaces a check: every
+   * request is still authorized by itself.
+   */
+  async access(
+    orgId: string,
+    userId: string,
+    clusterId: string,
+    permissions: readonly Permission[],
+    token?: TokenLimit,
+  ): Promise<Record<string, 'cluster' | 'scoped' | 'none'>> {
+    const { principal, bindings, context } = await this.load(orgId, userId, clusterId, token);
+    const out: Record<string, 'cluster' | 'scoped' | 'none'> = {};
+    for (const permission of permissions) {
+      const whole = authorize(
+        principal,
+        { clusterId, permission, namespaces: ['*'], includesClusterScoped: true },
+        bindings,
+        context,
+      );
+      // A cluster-level permission (storage:write, advanced:write, ...) cannot be held
+      // for some namespaces only: without a whole-cluster binding it is not held.
+      out[permission] = whole.allowed
+        ? 'cluster'
+        : isNamespaced(permission) &&
+            mayAttempt(principal, clusterId, permission, bindings, context)
+          ? 'scoped'
+          : 'none';
+    }
+    return out;
   }
 
   async decide(

@@ -568,6 +568,43 @@ describe('backup operations (e2e)', () => {
     });
   });
 
+  describe('what the caller may do (the UI’s hint)', () => {
+    const accessOf = async (call: Call, base: string) =>
+      (await call('get', `${base}/access`).expect(200)).body.access as Record<string, string>;
+
+    it('says cluster, scoped or none for each permission', async () => {
+      const s = await setup();
+      const viewer = await member(s.call, s.orgId, s.agent, 'VIEWER', whole);
+      const scoped = await member(s.call, s.orgId, s.agent, 'OPERATOR', only('dev'));
+      const scopedAdmin = await member(s.call, s.orgId, s.agent, 'CLUSTER_ADMIN', only('dev'));
+      const stranger = await world.member(s.call, s.orgId, 'nobody@acme.test');
+
+      const owner = await accessOf(s.call, s.base);
+      expect(Object.values(owner).every((v) => v === 'cluster')).toBe(true);
+
+      expect(await accessOf(viewer.call, s.base)).toMatchObject({
+        'backup:create': 'none',
+        'backup:delete': 'none',
+        'advanced:write': 'none',
+      });
+      expect(await accessOf(scoped.call, s.base)).toMatchObject({
+        'backup:create': 'scoped',
+        'backup:logs': 'scoped',
+        'backup:delete': 'none',
+        'restore:create': 'none',
+        'advanced:write': 'none',
+      });
+      // A cluster-level permission is not held "for some namespaces".
+      expect(await accessOf(scopedAdmin.call, s.base)).toMatchObject({
+        'backup:delete': 'scoped',
+        'storage:write': 'none',
+        'advanced:write': 'none',
+      });
+      await stranger.call('get', `${s.base}/access`).expect(404);
+      s.stream.cancel();
+    });
+  });
+
   it('does not reach another organization’s cluster', async () => {
     const s = await setup();
     const other = await s.call('post', '/orgs', { name: 'Other', slug: 'other' }).expect(201);

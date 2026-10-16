@@ -9,6 +9,38 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M4 day 22: backup wizard, typed delete, command notifications
+
+Session 7, continued. CI green on day 21 (`20da591`).
+
+### Done
+
+- Web: the backup create wizard with a live CLI preview, form validation and permission-aware fields; typed-name delete
+  confirmation (with the existing sudo dialog); _Run now_ on schedules; a notification layer that follows commands
+  (ADR-027).
+- Server: `GET …/clusters/{id}/access` so the UI can disable what would be refused.
+
+### Test status
+
+Server unit **706**, e2e **354** (1 new); web **203** (69 new); Go unchanged and passing; lint, typecheck, build clean;
+OpenAPI regenerated. Requirements **53/152 (34.9 %)** (R-070 now partial).
+
+### Driven for real
+
+Chrome against a real server and the real Go handlers: create (command, notification, link), delete (typed name, aged
+session, real password prompt), run now. See ADR-027.
+
+### Not verified
+
+Real Velero (B-2); a namespace-limited user in the browser; narrow viewports and keyboard-only use.
+
+### Next
+
+M4 day 23 — restores (backend and agent): `CreateRestore` with every flag, namespace mapping, the scope check on the
+**target** namespaces, the agent's denied namespaces, `DeleteRestore` (plan line 725).
+
+---
+
 ## 2026-10-16 — M4 day 21: backup create, delete and run now
 
 Session 7, continued. CI green on day 20 (`ef3ca8c`).

@@ -1517,3 +1517,51 @@ template; a delete created a request and left the backup object.
 
 Real Velero (B-2): that Velero accepts every generated spec and that `DeleteBackupRequest` behaves as the CLI's does.
 No browser UI exists for this yet.
+
+---
+
+## ADR-027 — The backup wizard, confirmations and notifications (M4 day 22)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decisions
+
+- **Four steps, one live preview.** What to back up → storage and volumes → options → review. The equivalent
+  `velero backup create …` command is on screen on every step and updates as the form changes, with a copy button
+  that says so when the browser refuses to copy. Fields with no CLI flag (advanced settings) are listed as notes
+  rather than given an invented flag. The review shows the exact request body.
+- **Pure form library.** `lib/backup-form.ts` holds the validation, the API body and the command generator, with
+  49 tests. Validation mirrors the server's rules and says what is wrong next to the field; the server stays the
+  authority. Label selectors are read the way `kubectl -l` reads them, including set expressions.
+- **What the user may do is asked, not guessed.** `GET …/clusters/{id}/access` answers `cluster`, `scoped` or `none`
+  for the write permissions; a cluster-level permission (`advanced:write`, `storage:write`) is never `scoped`. It is a
+  hint for disabling controls with a reason; every request is still authorized by itself. A user limited to some
+  namespaces starts with cluster-scoped resources set to "No" (the only setting the server accepts for them), must name
+  each namespace, and cannot use the advanced field.
+- **Typed confirmation, then sudo.** `ConfirmDelete` needs the exact name typed before its button works, closes on
+  Escape and focuses the input. The request then goes through `api()`, which opens the password dialog if the server
+  asks for a recent sign-in and repeats the request. The `destructive` button variant exists only behind that dialog.
+- **Notifications follow commands.** `ToastProvider` (in the app shell, so it survives navigation) follows a command
+  until it ends, also in a background tab; success disappears after ten seconds with a link to what was made, failure
+  stays with the agent's reason until dismissed. A 202 is never shown as success.
+- **Entry points.** _Create backup_ on the backups list, _Delete backup_ on the backup page, _Run now_ on each
+  schedule; each is disabled with its reason when the user lacks the permission.
+
+### Deferred
+
+A restore button on the backup page (day 24); the CLI preview on the schedule and restore forms (days 24–26);
+choosing namespaces from the cluster's list (needs the M5 inventory); the _Activity_ tab for command history.
+
+### Verified
+
+49 form-library tests, 20 wizard/dialog/toast page tests and one server test for `access` (mutation checks failed
+tests when the typed-name check, the limited-user rule and the limited-user wiring were removed). Driven in Chrome
+against a real server and the real Go handlers over mTLS gRPC: the wizard produced the shown command and request,
+the backup was created and the notification linked to it; a delete needed the typed name and, with an aged session,
+the real password dialog, then succeeded; _Run now_ created a backup from the schedule's template.
+
+### Not verified
+
+Real Velero (B-2). Narrow viewports and keyboard-only use beyond what the tests do (focus on the dialog input and
+Escape). A user limited to some namespaces was exercised in tests, not in the browser.

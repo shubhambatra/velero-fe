@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import type { ReactElement, ReactNode } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 
 import { ClusterShell } from '@/components/cluster-shell';
+import { ConfirmDelete } from '@/components/confirm-delete';
 import { FilePanel } from '@/components/file-panel';
+import { useToasts } from '@/components/toast-context';
 import { Time } from '@/components/time';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ErrorNote } from '@/components/ui/field';
 import { ApiProblem } from '@/lib/api';
 import { api, errorMessage } from '@/lib/client';
+import { lacks, useAccess } from '@/lib/access';
 import { useRefreshInterval } from '@/lib/events';
 import { duration } from '@/lib/fleet';
 import type { BackupRow, Detail, RestoreRow } from '@/lib/resources';
@@ -109,6 +112,70 @@ interface Props {
   orgId: string;
   clusterId: string;
   name: string;
+}
+
+/**
+ * Deleting a backup removes its data in object storage as well, so it asks for the
+ * name to be typed and, through `api()`, for a recent re-authentication.
+ */
+function DeleteBackup({
+  orgId,
+  clusterId,
+  name,
+  phase,
+}: Props & { phase: string | null }): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  const level = access.level('backup:delete');
+  const [asking, setAsking] = useState(false);
+  const { follow } = useToasts();
+  const remove = useMutation({
+    mutationFn: () =>
+      api<{ id: string }>(
+        `/orgs/${orgId}/clusters/${clusterId}/backups/${encodeURIComponent(name)}`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: (command) => {
+      follow({ orgId, clusterId, commandId: command.id, title: `Delete backup ${name}` });
+      setAsking(false);
+    },
+  });
+  const disabledReason =
+    level === 'none'
+      ? lacks('backup:delete')
+      : phase === 'Deleting'
+        ? 'This backup is already being deleted.'
+        : undefined;
+  return (
+    <>
+      <Button
+        variant="destructive"
+        disabled={disabledReason !== undefined}
+        title={disabledReason}
+        onClick={() => {
+          remove.reset();
+          setAsking(true);
+        }}
+      >
+        Delete backup
+      </Button>
+      {asking && (
+        <ConfirmDelete
+          name={name}
+          title="Delete this backup?"
+          consequence="Velero removes the backup, its files in the object storage and its volume snapshots. This cannot be undone."
+          confirmLabel="Delete backup"
+          busy={remove.isPending}
+          error={remove.isError ? errorMessage(remove.error) : undefined}
+          onConfirm={() => {
+            remove.mutate();
+          }}
+          onCancel={() => {
+            setAsking(false);
+          }}
+        />
+      )}
+    </>
+  );
 }
 
 /** Velero's own files for one object: nothing is read until someone asks (PLAN.md §7.3). */
@@ -230,13 +297,14 @@ export function BackupDetailPage({ orgId, clusterId, name }: Props): ReactElemen
                   ['Failure reason', b.failureReason],
                 ]}
               />
-              <div>
+              <div className="flex flex-wrap gap-2">
                 <Button
                   disabled
                   title="Restoring from the UI arrives with the write operations (M4)."
                 >
                   Restore from this backup
                 </Button>
+                <DeleteBackup orgId={orgId} clusterId={clusterId} name={b.name} phase={b.phase} />
               </div>
             </CardContent>
           </Card>
