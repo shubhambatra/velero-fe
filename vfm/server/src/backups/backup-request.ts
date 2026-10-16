@@ -15,10 +15,10 @@ import type { BackupSpec } from '../gateway/pb/vfm/agent/v1/velero';
  */
 
 const DNS_LABEL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
-const OBJECT_NAME = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/;
+export const OBJECT_NAME = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/;
 
 /** A namespace name, or `*` for all of them. Globs such as `dev*` are not accepted here. */
-const namespace = z.union([
+export const namespace = z.union([
   z.literal('*'),
   z
     .string()
@@ -26,14 +26,14 @@ const namespace = z.union([
     .regex(DNS_LABEL, 'a namespace name (lower-case letters, digits and "-"), or "*" for all'),
 ]);
 
-const resource = z.string().min(1).max(253);
-const names = (item: z.ZodType<string>) => z.array(item).max(200);
+export const resource = z.string().min(1).max(253);
+export const names = (item: z.ZodType<string>) => z.array(item).max(200);
 
-const labelMap = z
+export const labelMap = z
   .record(z.string().min(1).max(253), z.string().max(63))
   .refine((m) => Object.keys(m).length <= 50, 'at most 50 labels');
 
-const selector = z
+export const selector = z
   .object({
     matchLabels: labelMap.optional(),
     matchExpressions: z
@@ -52,7 +52,7 @@ const selector = z
   .strict();
 
 /** A Go-style duration such as `720h`, `30m` or `1h30m`. */
-const duration = z
+export const duration = z
   .string()
   .max(40)
   .regex(/^(\d+(\.\d+)?(ms|s|m|h))+$/, 'a duration such as "720h" or "1h30m"');
@@ -153,7 +153,7 @@ export function durationSeconds(text: string): { seconds: number; nanos: number 
   return { seconds, nanos: Math.round((total - seconds) * 1e9) };
 }
 
-const MAX_TTL_SECONDS = 10 * 365 * 24 * 3600;
+export const MAX_TTL_SECONDS = 10 * 365 * 24 * 3600;
 
 /** Whether the durations in a body are in range; a message when not. */
 export function checkDurations(body: CreateBackupBody): string | undefined {
@@ -173,7 +173,7 @@ export function checkDurations(body: CreateBackupBody): string | undefined {
   return undefined;
 }
 
-const selectorProto = (s: z.infer<typeof selector>) => ({
+export const selectorProto = (s: z.infer<typeof selector>) => ({
   matchLabels: s.matchLabels ?? {},
   matchExpressions: (s.matchExpressions ?? []).map((e) => ({
     key: e.key,

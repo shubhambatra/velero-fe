@@ -200,6 +200,12 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 		dispatcher.Register("create_backup", backupOps.Create)
 		dispatcher.Register("delete_backup", backupOps.Delete)
 		dispatcher.Register("trigger_schedule", backupOps.TriggerSchedule)
+		restoreOps := &velero.RestoreHandler{
+			BackupHandler: velero.BackupHandler{Dynamic: kubeClient.Dynamic(), Namespace: cfg.VeleroNamespace},
+			Policy:        current.get,
+		}
+		dispatcher.Register("create_restore", restoreOps.Create)
+		dispatcher.Register("delete_restore", restoreOps.Delete)
 		dispatcher.Register("fetch_download", (&velero.DownloadHandler{
 			Dynamic:   kubeClient.Dynamic(),
 			Namespace: cfg.VeleroNamespace,

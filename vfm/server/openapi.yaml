@@ -1149,6 +1149,29 @@ paths:
       summary: Restores you may see
       tags:
         - inventory
+    post:
+      description: "Needs recent re-authentication. The caller needs `restore:create` over every namespace
+        the restore reads and writes, after namespace mapping; a user with a namespace-scoped
+        binding must name them all and send `includeClusterResources: false`. `advancedSpec` needs
+        `advanced:write`."
+      operationId: RestoresController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Restore from a backup or a schedule (velero restore create)
+      tags:
+        - restores
   /orgs/{orgId}/clusters/{clusterId}/schedules:
     get:
       description: "Filters: phase, q, paused, createdByVfm. Sorts: name, phase."
@@ -1307,6 +1330,31 @@ paths:
       summary: "One restore: summary, timeline, spec, status and YAML. 404 if you may not see it."
       tags:
         - inventory
+    delete:
+      description: Needs recent re-authentication. The restored resources stay where they are.
+      operationId: RestoresController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a restore (velero restore delete)
+      tags:
+        - restores
   /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/trigger:
     post:
       description: Makes a backup from the schedule’s template. The caller needs `backup:create` over

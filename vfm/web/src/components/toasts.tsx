@@ -135,6 +135,22 @@ function ToastItem({
           </Link>
         </p>
       )}
+      {status === 'SUCCEEDED' && result?.kind === 'Restore' && result.name !== undefined && (
+        <p>
+          <Link
+            to="/clusters/$clusterId/restores/$name"
+            params={{ clusterId: toast.clusterId, name: result.name }}
+            className="underline"
+          >
+            {`Open ${result.name}`}
+          </Link>
+        </p>
+      )}
+      {status === 'SUCCEEDED' && result?.kind === 'DeletedRestore' && (
+        <p className="text-muted-foreground">
+          The restore was deleted. What it restored stays in the cluster.
+        </p>
+      )}
       {status === 'SUCCEEDED' && result?.kind === 'DeleteBackupRequest' && (
         <p className="text-muted-foreground">
           Velero is removing the backup and its data; it leaves the list when it is done.

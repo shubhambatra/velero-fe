@@ -9,6 +9,37 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M4 day 23: restore create and delete
+
+Session 7, continued. CI green on day 22 (`2f2e109`).
+
+### Done
+
+- Agent: `RestoreHandler` (create, delete), `RestoreSpecMap`, the Restore spec table behind the advanced settings,
+  and the owner's namespace policy applied to the merged spec (`Policy.CheckRestoreScope`).
+- Server: `restores` module (create and delete behind sudo), `restoreCoverage` (both sides of a mapping),
+  `CREATE_RESTORE` / `DELETE_RESTORE` commands (ADR-028). Notifications link to a new restore.
+
+### Test status
+
+Server unit **735** (29 new), e2e **384** (30 new); web **204** (1 new); Go all packages pass (11 new), golangci-lint 0,
+govulncheck clean; lint, typecheck, build clean; OpenAPI regenerated. Requirements **55/152 (36.2 %)**.
+
+### Driven for real
+
+The real Go handlers against the real server over mTLS gRPC (see ADR-028). No browser: the restore wizard is day 24.
+
+### Not verified
+
+Real Velero (B-2).
+
+### Next
+
+M4 day 24 — restore wizard UI (plan line 728): choose a backup or schedule, scope, namespace mapping, options, review with
+the CLI equivalent and an impact summary, then sudo and submit.
+
+---
+
 ## 2026-10-16 — M4 day 22: backup wizard, typed delete, command notifications
 
 Session 7, continued. CI green on day 21 (`20da591`).

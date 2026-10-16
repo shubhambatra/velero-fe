@@ -513,4 +513,43 @@ describe('the notification that follows a command', () => {
       '/clusters/c1/backups/backup-20261016',
     );
   });
+
+  it('links to a new restore, and explains a deleted one', async () => {
+    const user = userEvent.setup();
+    server({
+      command: () => ({
+        id: 'k1',
+        status: 'SUCCEEDED',
+        errorMessage: null,
+        result: { kind: 'Restore', name: 'r-1' },
+      }),
+    });
+    const first = renderApp({ path: '/clusters/c1/backups/new' });
+    await screen.findByRole('heading', { name: 'What to back up' });
+    await next(user);
+    await next(user);
+    await next(user);
+    await user.click(await screen.findByRole('button', { name: 'Create backup' }));
+    expect(await screen.findByRole('link', { name: 'Open r-1' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/restores/r-1',
+    );
+    first.unmount();
+
+    server({
+      command: () => ({
+        id: 'k2',
+        status: 'SUCCEEDED',
+        errorMessage: null,
+        result: { kind: 'DeletedRestore', name: 'r-1' },
+      }),
+    });
+    renderApp({ path: '/clusters/c1/backups/new' });
+    await screen.findByRole('heading', { name: 'What to back up' });
+    await next(user);
+    await next(user);
+    await next(user);
+    await user.click(await screen.findByRole('button', { name: 'Create backup' }));
+    expect(await screen.findByText(/What it restored stays in the cluster/)).toBeVisible();
+  });
 });

@@ -1565,3 +1565,57 @@ the real password dialog, then succeeded; _Run now_ created a backup from the sc
 
 Real Velero (B-2). Narrow viewports and keyboard-only use beyond what the tests do (focus on the dialog input and
 Escape). A user limited to some namespaces was exercised in tests, not in the browser.
+
+---
+
+## ADR-028 — Restore create and delete (M4 day 23)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decisions
+
+- **API.** `POST …/restores` (every `velero restore create` flag as a typed, strict field; exactly one of `backupName`
+  and `scheduleName`) and `DELETE …/restores/{name}`. Both need a recent re-authentication (PLAN §8.3) and therefore a
+  session: an API token is refused, as for a backup delete. Each answers 202 with the command.
+- **Authorization covers what is read and what is written (PLAN §8.2).** `restoreCoverage` counts the included
+  namespaces and, through `restoreNamespaces`, **both sides** of every mapping; empty or `*` means all; the restore
+  includes cluster-scoped resources unless `includeClusterResources` is explicitly `false` (the rule for backups).
+  A user scoped to `dev` can therefore neither restore into `prod` nor restore `prod`'s data into `dev`. Mapping
+  names are DNS labels, never `*` or a glob.
+- **Escape hatch and hooks.** As for backups: `advancedSpec` needs `advanced:write` on the whole cluster. Restore hooks
+  (exec commands, init containers) are reachable only that way. The agent validates the merged spec against a table of
+  Velero's `RestoreSpec` (hooks included; embedded containers are passed through for Kubernetes to judge).
+- **The agent's policy is applied to the spec that will really be created.** The dispatcher judges the typed command
+  before the handler runs, but the advanced settings are merged on afterwards and can name any namespace. The handler
+  therefore calls `Policy.CheckRestoreScope` on the merged namespaces and mapping and refuses a protected one
+  (`FORBIDDEN_BY_AGENT_POLICY`); a handler without a policy refuses to restore. This is the control the cluster owner
+  holds that the control plane cannot change (PLAN §5.5); a test fails if the check is moved back to the typed spec.
+- **Source must exist.** The agent looks up the backup or schedule and answers `NOT_FOUND` rather than create a
+  restore that fails validation. The server does not check, so it neither needs nor leaks inventory visibility of the
+  source; a scoped user restoring one namespace out of a backup they cannot see is the common case. Naming a backup
+  reveals only whether that name exists (same accepted class as ADR-026).
+- **Delete** removes the `Restore` object (what the CLI does); restored resources stay. A scoped administrator can
+  delete a restore only if every namespace it read or wrote (mapping included) is in scope, otherwise 404 like a missing
+  one. Deleting twice answers `NOT_FOUND` the second time; a crash between the delete and its result can show a
+  succeeded delete as `NOT_FOUND` after the retry. Accepted: the object is gone either way.
+- **UI.** Only the notification layer changed: a created restore links to its page and a deleted one is explained. The
+  restore wizard is day 24.
+
+### Deferred
+
+The restore wizard and impact summary (day 24); approval before a restore (M6, `requireRestoreApproval`); a check that
+the source backup is `Completed` before restoring.
+
+### Verified
+
+11 Go handler tests (every flag, exactly one source, the policy applied to the advanced spec, no policy no restore,
+strict advanced restore spec including real hook shapes, retry reuse, name limits, delete), 29 server unit and 30 e2e
+tests (mutation checks failed tests when removed: the mapping targets, the cluster-scoped rule, sudo, the delete
+visibility check and the `advanced:write` check). The real Go handlers ran against the real server: a restore with
+mapping, policy and timeouts arrived as intended; a protected target was refused both through the typed fields and
+through the advanced settings; a missing source was `NOT_FOUND`; a delete left the other objects alone.
+
+### Not verified
+
+Real Velero (B-2): that it accepts every generated spec. No UI for creating a restore yet.

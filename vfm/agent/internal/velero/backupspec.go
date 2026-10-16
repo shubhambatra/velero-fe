@@ -186,6 +186,8 @@ const (
 	kStringMap
 	kObject
 	kObjectList
+	// kAny is a value the agent does not look inside (an embedded Kubernetes container).
+	kAny
 )
 
 type field struct {
@@ -252,10 +254,23 @@ func (e *ErrInvalidSpec) Error() string {
 
 const maxProblems = 10
 
+// specKind is a kind of Velero spec the advanced escape hatch may extend.
+type specKind struct {
+	label string
+	shape map[string]field
+}
+
+var (
+	backupKind  = specKind{label: "Backup", shape: backupSpecShape}
+	restoreKind = specKind{label: "Restore", shape: restoreSpecShape}
+)
+
 // ValidateBackupSpec checks a Velero-shaped spec against BackupSpec.
-func ValidateBackupSpec(spec map[string]any) error {
+func ValidateBackupSpec(spec map[string]any) error { return validateSpec(backupKind, spec) }
+
+func validateSpec(kind specKind, spec map[string]any) error {
 	var problems []string
-	validateObject("spec", spec, backupSpecShape, &problems)
+	validateObject("spec", spec, kind.shape, kind.label, &problems)
 	if len(problems) == 0 {
 		return nil
 	}
@@ -266,18 +281,18 @@ func ValidateBackupSpec(spec map[string]any) error {
 	return &ErrInvalidSpec{Problems: problems}
 }
 
-func validateObject(path string, obj map[string]any, shape map[string]field, problems *[]string) {
+func validateObject(path string, obj map[string]any, shape map[string]field, label string, problems *[]string) {
 	for key, value := range obj {
 		f, known := shape[key]
 		if !known {
-			*problems = append(*problems, fmt.Sprintf("%s.%s is not a field of a Velero Backup spec", path, key))
+			*problems = append(*problems, fmt.Sprintf("%s.%s is not a field of a Velero %s spec", path, key, label))
 			continue
 		}
-		validateValue(path+"."+key, value, f, problems)
+		validateValue(path+"."+key, value, f, label, problems)
 	}
 }
 
-func validateValue(path string, value any, f field, problems *[]string) {
+func validateValue(path string, value any, f field, label string, problems *[]string) {
 	bad := func(want string) { *problems = append(*problems, fmt.Sprintf("%s must be %s", path, want)) }
 	switch f.kind {
 	case kString:
@@ -310,6 +325,10 @@ func validateValue(path string, value any, f field, problems *[]string) {
 		if d, err := time.ParseDuration(s); err != nil || d < 0 {
 			bad(`a duration such as "720h"`)
 		}
+	case kAny:
+		if value == nil {
+			bad("a value")
+		}
 	case kStringList:
 		list, ok := value.([]any)
 		if !ok {
@@ -338,7 +357,7 @@ func validateValue(path string, value any, f field, problems *[]string) {
 			bad("an object")
 			return
 		}
-		validateObject(path, m, f.fields, problems)
+		validateObject(path, m, f.fields, label, problems)
 	case kObjectList:
 		list, ok := value.([]any)
 		if !ok {
@@ -351,7 +370,7 @@ func validateValue(path string, value any, f field, problems *[]string) {
 				*problems = append(*problems, fmt.Sprintf("%s[%d] must be an object", path, i))
 				continue
 			}
-			validateObject(fmt.Sprintf("%s[%d]", path, i), m, f.fields, problems)
+			validateObject(fmt.Sprintf("%s[%d]", path, i), m, f.fields, label, problems)
 		}
 	}
 }
@@ -363,6 +382,15 @@ const MaxAdvancedSpecBytes = 256 * 1024
 // key, anything else replaces) and validates the result. An empty `raw` changes
 // nothing but the result is still validated.
 func ApplyAdvanced(spec map[string]any, raw []byte) (map[string]any, error) {
+	return applyAdvanced(backupKind, spec, raw)
+}
+
+// ApplyAdvancedRestore is [ApplyAdvanced] for a Restore spec.
+func ApplyAdvancedRestore(spec map[string]any, raw []byte) (map[string]any, error) {
+	return applyAdvanced(restoreKind, spec, raw)
+}
+
+func applyAdvanced(kind specKind, spec map[string]any, raw []byte) (map[string]any, error) {
 	if len(raw) > MaxAdvancedSpecBytes {
 		return nil, &ErrInvalidSpec{Problems: []string{"advanced_spec_json is too large"}}
 	}
@@ -377,7 +405,7 @@ func ApplyAdvanced(spec map[string]any, raw []byte) (map[string]any, error) {
 		}
 		spec = merge(spec, extra)
 	}
-	if err := ValidateBackupSpec(spec); err != nil {
+	if err := validateSpec(kind, spec); err != nil {
 		var invalid *ErrInvalidSpec
 		if errors.As(err, &invalid) {
 			return nil, invalid

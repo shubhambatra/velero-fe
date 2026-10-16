@@ -169,7 +169,8 @@ criteria are still unmet (B-1, B-2).
 - **M3 day 20 done** (ADR-025): `FetchDownload` pipeline, `velero_files` cache, backup/restore log and detail panels (`agent/internal/velero/download.go`, `server/src/downloads/`, `web/src/components/file-panel.tsx`).
 - **M4 day 21 done** (ADR-026): backup create / delete / run-now (`agent/internal/velero/backup*.go`, `server/src/backups/`).
 - **M4 day 22 done** (ADR-027): backup wizard, typed delete, command notifications, `GET …/access` (`web/src/pages/backup-wizard.tsx`, `web/src/lib/backup-form.ts`, `web/src/components/{toasts,confirm-delete}.tsx`).
-- **Next: M4 day 23 — restores (backend + agent)** (plan line 725): `CreateRestore` with every flag, namespace mapping, scope check on the **target** namespaces (`restoreNamespaces` in `@vfm/shared`), agent policy denied namespaces (already in `agent/internal/policy`), `DeleteRestore`; sudo mode for restore create and delete. Reuse the shape of `server/src/backups/` and `agent/internal/velero/backup*.go`. The ⛔ M3 human checkpoint is still open.
+- **M4 day 23 done** (ADR-028): restore create / delete (`agent/internal/velero/restore*.go`, `server/src/restores/`).
+- **Next: M4 day 24 — restore wizard UI** (plan line 728; page spec §11.1 item 5): choose backup (or schedule latest) → scope → namespace mapping → options (existing resource policy, restore PVs, …) → review with the CLI equivalent and an **impact summary** (target namespaces, whether any exist) → sudo → submit. Reuse `web/src/lib/backup-form.ts` helpers (selector/ordered parsing, shellQuote), `ConfirmDelete`, `useAccess`, `useToasts`; the API needs a session (sudo), a scoped user must name every namespace and send `includeClusterResources: false`. The "Restore from this backup" button on the backup page is still disabled. The ⛔ M3 human checkpoint is still open.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

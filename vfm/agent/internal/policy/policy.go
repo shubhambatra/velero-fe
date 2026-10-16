@@ -185,7 +185,8 @@ func (p Policy) Check(cmd *pb.Command) *Denial {
 		if !p.AllowRestore {
 			return &Denial{Reason: "restores are disabled on this cluster"}
 		}
-		return p.checkRestoreNamespaces(op.CreateRestore.GetSpec())
+		spec := op.CreateRestore.GetSpec()
+		return p.CheckRestoreScope(spec.GetIncludedNamespaces(), spec.GetExcludedNamespaces(), spec.GetNamespaceMapping())
 
 	case *pb.Command_UpsertBsl, *pb.Command_SetDefaultBsl, *pb.Command_DeleteBsl,
 		*pb.Command_UpsertVsl, *pb.Command_DeleteVsl:
@@ -196,10 +197,15 @@ func (p Policy) Check(cmd *pb.Command) *Denial {
 	return nil
 }
 
-// checkRestoreNamespaces refuses a restore that could write into a protected
+// CheckRestoreScope refuses a restore that could write into a protected
 // namespace: by naming it, by mapping into it, or by naming no namespaces at all
 // (which means every namespace) without excluding the protected ones.
-func (p Policy) checkRestoreNamespaces(spec *pb.RestoreSpec) *Denial {
+//
+// It takes the namespaces rather than a command so that it can be applied again to
+// the spec as it will really be created: the advanced settings are merged onto the
+// typed spec only on the agent, after [Policy.Check] has run, and they can say
+// anything the typed fields can.
+func (p Policy) CheckRestoreScope(included, excluded []string, mapping map[string]string) *Denial {
 	denied := p.RestoreDeniedNamespaces
 	if len(denied) == 0 {
 		return nil
@@ -208,15 +214,13 @@ func (p Policy) checkRestoreNamespaces(spec *pb.RestoreSpec) *Denial {
 		return &Denial{Reason: "restores are not permitted into any namespace on this cluster"}
 	}
 
-	for _, target := range spec.GetNamespaceMapping() {
+	for _, target := range mapping {
 		if slices.Contains(denied, target) {
 			return &Denial{Reason: fmt.Sprintf("restoring into namespace %q is not permitted on this cluster", target)}
 		}
 	}
 
-	included := spec.GetIncludedNamespaces()
 	if len(included) == 0 || slices.Contains(included, "*") {
-		excluded := spec.GetExcludedNamespaces()
 		for _, ns := range denied {
 			if !slices.Contains(excluded, ns) {
 				return &Denial{Reason: fmt.Sprintf(

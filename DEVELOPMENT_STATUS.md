@@ -47,9 +47,9 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **53 / 152 — 34.9 %** |
+| **Requirements verified** | **55 / 152 — 36.2 %** |
 | Requirements partial | 34 |
-| Requirements not started | 63 |
+| Requirements not started | 61 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
@@ -680,10 +680,10 @@ make them obvious.
 | R-054 | `backup logs` streamed, gunzipped, rendered and downloadable | 307 | M3 | ✅ verified 2026-10-16: Go handler (16 tests) and TS pipeline (23 e2e) plus the real Go handler against the real server; driven in Chrome over a fake object store. Not verified against real Velero (B-2) |
 | R-055 | `backup download` **not proxied**: presigned URL only, gated on `backup:download` and the org setting (default off) | 308 | M4 | ⬜ |
 | R-056 | `backup delete` via `DeleteBackupRequest` | 309 | M4 | ✅ verified 2026-10-16: Go handlers (18 tests) and server unit (40) and e2e (36) tests, plus the real Go handlers run against the real server (create, trigger, delete). Not verified against real Velero (B-2); the UI wizard is day 22 |
-| R-057 | `restore create` with every listed flag | 310 | M4 | ⬜ |
+| R-057 | `restore create` with every listed flag | 310 | M4 | ✅ verified 2026-10-16: Go handlers (11 tests), server unit (29) and e2e (30) tests, plus the real Go handlers run against the real server. Not verified against real Velero (B-2); the UI is day 24 |
 | R-058 | `restore get` / `describe` / `--details` | 311 | M3 | 🟡 detail page and its files exist (day 19–20); not driven against real Velero |
 | R-059 | `restore logs` | 312 | M3 | ✅ verified 2026-10-16: Go handler (16 tests) and TS pipeline (23 e2e) plus the real Go handler against the real server; driven in Chrome over a fake object store. Not verified against real Velero (B-2) |
-| R-060 | `restore delete` | 313 | M4 | ⬜ |
+| R-060 | `restore delete` | 313 | M4 | ✅ verified 2026-10-16: Go handlers (11 tests), server unit (29) and e2e (30) tests, plus the real Go handlers run against the real server. Not verified against real Velero (B-2); the UI is day 24 |
 | R-061 | `schedule create` with cron, backup-template flags, owner references, paused | 314 | M4 | ⬜ |
 | R-062 | `schedule get` / `describe` | 315 | M3 | ⬜ |
 | R-063 | `schedule pause` / `unpause` | 316 | M4 | ⬜ |
