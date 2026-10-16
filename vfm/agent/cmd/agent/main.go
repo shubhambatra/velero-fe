@@ -5,10 +5,11 @@
 // control plane and never listens for inbound connections except for its own
 // probes and metrics (PLAN.md §1.1 P1).
 //
-// What this binary does today (M0 day 3): resolve and validate configuration,
+// What this binary does today (M2 day 12): resolve and validate configuration,
 // emit JSON logs, serve /healthz, /readyz and /metrics, build a Kubernetes
-// client, and win or follow the leader election. The leader task is an empty
-// loop with a marked seam — see [leaderTask].
+// client, win or follow the leader election and, as leader, enrol with the
+// control plane and keep the mTLS stream open — see [leaderTask]. It does not
+// execute commands or sync inventory yet.
 package main
 
 import (
@@ -24,10 +25,15 @@ import (
 	"syscall"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/config"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/gateway"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/health"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/identity"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/kube"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/leader"
+	pb "github.com/shubhambatra/velero-fe/vfm/agent/internal/pb/vfm/agent/v1"
 )
 
 // version is the agent version reported in logs, metrics and (from M2) in the
@@ -109,7 +115,7 @@ func run(args []string) error {
 		logger.Warn("leader election is disabled: this replica will run unconditionally")
 		leading.Store(true)
 		defer leading.Store(false)
-		return leaderTask(logger, cfg)(ctx)
+		return leaderTask(logger, cfg, kubeClient)(ctx)
 	}
 
 	err = leader.Run(ctx, leader.Config{
@@ -123,7 +129,7 @@ func run(args []string) error {
 		TaskStopTimeout:    cfg.ShutdownTimeout,
 		OnLeadershipChange: leading.Store,
 		Logger:             logger,
-	}, leaderTask(logger, cfg))
+	}, leaderTask(logger, cfg, kubeClient))
 
 	switch {
 	case errors.Is(err, leader.ErrLostLeadership):
@@ -140,33 +146,91 @@ func run(args []string) error {
 }
 
 // leaderTask returns the work performed only while this replica holds the
-// Lease.
+// Lease: enrolling if needed, then holding the control-plane stream open with
+// Hello, heartbeats, reconnects and certificate renewal (PLAN.md §5, M2 day 12).
 //
-// SEAM — this function is deliberately inert. The gRPC connection manager
-// (enrollment, mTLS Connect, Hello, heartbeats every HeartbeatInterval,
-// reconnect with backoff and jitter) lands in M2 day 12, and the Velero and
-// core informers in M3 day 16 / M5 day 28. Until then it only ticks, so
-// nothing here can be mistaken for a working connection (PLAN.md §0 rule 7).
-func leaderTask(logger *slog.Logger, cfg *config.Config) leader.Task {
+// SEAM — command execution (day 14) and the Velero and core informers (M3 day
+// 16 / M5 day 28) attach to the manager's OnMessage hook and Send queue.
+func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client) leader.Task {
 	return func(ctx context.Context) error {
-		logger.Info("leader task started",
-			"heartbeat_interval", cfg.HeartbeatInterval.String(),
-			"control_plane_address", cfg.ControlPlaneAddress,
-			"connected", false,
-		)
-
-		ticker := time.NewTicker(cfg.HeartbeatInterval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				logger.Info("leader task stopping")
-				return nil
-			case <-ticker.C:
-				logger.Debug("heartbeat tick: no control-plane connection yet (M2 day 12)")
+		var bootstrapCA []byte
+		if cfg.ControlPlaneCAFile != "" {
+			var err error
+			bootstrapCA, err = os.ReadFile(cfg.ControlPlaneCAFile) //nolint:gosec // operator-supplied configuration, not request input
+			if err != nil {
+				// The path is not echoed: in dev it may point into a home directory.
+				return errors.New("cannot read the control-plane CA file")
 			}
 		}
+
+		manager, err := gateway.New(gateway.Options{
+			Address:         cfg.ControlPlaneAddress,
+			ServerName:      cfg.ServerName,
+			BootstrapCA:     bootstrapCA,
+			EnrollmentToken: cfg.EnrollmentToken,
+			Store: &identity.SecretStore{
+				Client:    kubeClient.Clientset(),
+				Namespace: cfg.Namespace,
+				Name:      cfg.CredentialsSecret,
+			},
+			Fingerprint:       clusterFingerprint(kubeClient),
+			Hello:             helloBuilder(kubeClient),
+			AgentVersion:      version,
+			HeartbeatInterval: cfg.HeartbeatInterval,
+			OnConnection: func(connected bool) {
+				logger.Info("control-plane connection state", "connected", connected)
+			},
+			Logger: logger,
+		})
+		if err != nil {
+			return err
+		}
+
+		logger.Info("leader task started",
+			"control_plane_address", cfg.ControlPlaneAddress,
+			"enrollment_token_set", cfg.EnrollmentToken != "",
+		)
+		err = manager.Run(ctx)
+		logger.Info("leader task stopping")
+		return err
+	}
+}
+
+// clusterFingerprint is the UID of the kube-system namespace (PLAN.md §5.1
+// step 3): stable for the life of a cluster and different in every other, so
+// the control plane can tell the same agent installed into a new cluster.
+func clusterFingerprint(k *kube.Client) func(context.Context) (string, error) {
+	return func(ctx context.Context) (string, error) {
+		ns, err := k.Clientset().CoreV1().Namespaces().Get(ctx, "kube-system", metav1.GetOptions{})
+		if err != nil {
+			return "", fmt.Errorf("read the kube-system namespace: %w", err)
+		}
+		return string(ns.UID), nil
+	}
+}
+
+// helloBuilder reports what the agent knows about itself and its cluster. The
+// policy is the built-in default (PLAN.md §5.5) until day 14 loads the
+// `vfm-agent-policy` ConfigMap; no command executes before then, so the
+// default is also what is enforced.
+func helloBuilder(k *kube.Client) func(context.Context) *pb.Hello {
+	return func(context.Context) *pb.Hello {
+		hello := &pb.Hello{
+			AgentVersion: version,
+			ChartVersion: os.Getenv("VFM_AGENT_CHART_VERSION"),
+			ImageTag:     os.Getenv("VFM_AGENT_IMAGE_TAG"),
+			Policy: &pb.AgentPolicy{
+				AllowRestore:              true,
+				RestoreDeniedNamespaces:   []string{"kube-system", "vfm-system", "velero"},
+				AllowBslWrite:             true,
+				AllowLogStreaming:         true,
+				LogStreamDeniedNamespaces: []string{},
+			},
+		}
+		if v, err := k.Clientset().Discovery().ServerVersion(); err == nil {
+			hello.KubernetesVersion = v.GitVersion
+		}
+		return hello
 	}
 }
 

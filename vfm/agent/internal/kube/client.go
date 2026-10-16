@@ -122,6 +122,12 @@ func probeTimeout(requestTimeout time.Duration) time.Duration {
 	return maxProbeTimeout
 }
 
+// FromClientset wraps an existing clientset, for tests and for callers that
+// already built one. Production code uses [New].
+func FromClientset(clientset kubernetes.Interface, host string) *Client {
+	return &Client{clientset: clientset, host: host, probeTimeout: maxProbeTimeout}
+}
+
 // Clientset returns the typed Kubernetes client. From M2 it is also the client
 // the leader election Lease and the agent's own Secret are read through.
 func (c *Client) Clientset() kubernetes.Interface { return c.clientset }

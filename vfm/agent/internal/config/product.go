@@ -41,4 +41,8 @@ const (
 	// DefaultLeaseName is the name of the Lease used for leader election in
 	// AgentNamespace (PLAN.md §3.2, §12.2).
 	DefaultLeaseName = ComponentName
+
+	// DefaultCredentialsSecret holds the agent's key, certificate and the
+	// control-plane CA in AgentNamespace (PLAN.md §5.1 step 3).
+	DefaultCredentialsSecret = ComponentName + "-credentials"
 )

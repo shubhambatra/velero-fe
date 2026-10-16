@@ -88,6 +88,10 @@ func TestLoadAppliesDefaults(t *testing.T) {
 func TestLoadFromEnvironment(t *testing.T) {
 	cfg, err := Load(nil, envOf(map[string]string{
 		EnvControlPlaneAddress:     "https://cp.example.com:8443",
+		EnvControlPlaneCAFile:      "/etc/vfm/ca.pem",
+		EnvServerName:              "gateway.internal",
+		EnvCredentialsSecret:       "my-creds",
+		EnvEnrollmentToken:         "tok-from-chart",
 		EnvClusterID:               "018f3b2c-7e4a-7c3d-9b1e-2a4c6e8f0a12",
 		EnvClusterName:             "prod-eu-1",
 		EnvInstanceID:              "vfm-agent-0",
@@ -116,6 +120,10 @@ func TestLoadFromEnvironment(t *testing.T) {
 
 	want := Config{
 		ControlPlaneAddress:     "https://cp.example.com:8443",
+		ControlPlaneCAFile:      "/etc/vfm/ca.pem",
+		ServerName:              "gateway.internal",
+		CredentialsSecret:       "my-creds",
+		EnrollmentToken:         "tok-from-chart",
 		ClusterID:               "018f3b2c-7e4a-7c3d-9b1e-2a4c6e8f0a12",
 		ClusterName:             "prod-eu-1",
 		InstanceID:              "vfm-agent-0",
@@ -522,12 +530,13 @@ func TestLogValueRedacts(t *testing.T) {
 	cfg.ControlPlaneAddress = "https://agent:" + userinfoSecret + "@cp.example.com:8443/connect?token=" + querySecret
 	cfg.KubeconfigPath = kubeconfigPath
 	cfg.InstanceID = "vfm-agent-0"
+	cfg.EnrollmentToken = "enrol-t0ken-must-not-log"
 
 	var buf bytes.Buffer
 	slog.New(slog.NewJSONHandler(&buf, nil)).Info("starting", "config", cfg)
 	logged := buf.String()
 
-	for _, forbidden := range []string{userinfoSecret, querySecret, kubeconfigPath} {
+	for _, forbidden := range []string{userinfoSecret, querySecret, kubeconfigPath, cfg.EnrollmentToken} {
 		if strings.Contains(logged, forbidden) {
 			t.Errorf("log line leaks %q: %s", forbidden, logged)
 		}
@@ -593,4 +602,24 @@ func mustFailLoad(tb testing.TB, args []string, env map[string]string) error {
 		tb.Fatalf("Load unexpectedly succeeded: %+v", cfg)
 	}
 	return err
+}
+
+func TestEnrollmentTokenIsEnvironmentOnly(t *testing.T) {
+	// A flag would put the token in the process list; there must not be one.
+	_, err := Load([]string{"-enrollment-token=abc"}, envOf(map[string]string{
+		EnvControlPlaneAddress: "cp.example.com:8443",
+	}))
+	if err == nil {
+		t.Fatal("an -enrollment-token flag was accepted")
+	}
+}
+
+func TestCredentialsSecretMustBeAValidName(t *testing.T) {
+	_, err := Load(nil, envOf(map[string]string{
+		EnvControlPlaneAddress: "cp.example.com:8443",
+		EnvCredentialsSecret:   "Not A Name",
+	}))
+	if err == nil || !strings.Contains(err.Error(), EnvCredentialsSecret) {
+		t.Fatalf("want a problem naming %s, got %v", EnvCredentialsSecret, err)
+	}
 }

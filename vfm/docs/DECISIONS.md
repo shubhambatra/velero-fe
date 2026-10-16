@@ -873,3 +873,70 @@ first run is the real test of that job (recorded in PROGRESS.md).
 - **Agents pin the CA.** A client that trusts a different CA fails the handshake
   before the application sees the request, so the operator's bootstrap token is not
   consumed by it (tested).
+
+---
+
+## ADR-017 — The agent's connection manager (M2 day 12)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+- **Packages.** `internal/identity` (key, CSR, parsed identity, `Store`),
+  `internal/gateway` (the manager, backoff). Command execution and informers attach
+  later through `Manager.OnMessage` and the `Send` queue; nothing here executes a
+  command.
+- **The key is born in the cluster.** ECDSA P-256, PKCS#8, generated per enrollment
+  and per renewal; only a CSR leaves the process. Persisted as a
+  `kubernetes.io/tls`-shaped Secret (`tls.key`, `tls.crt`, `ca.crt`) named by
+  `VFM_AGENT_CREDENTIALS_SECRET` (default `vfm-agent-credentials`), which the agent's
+  RBAC will reach by name only (§12.2, chart on day 15). An empty Secret means "not
+  enrolled", so the chart can pre-create it.
+- **Pinning.** Before enrollment the agent trusts only `controlPlane.caBundle`; after,
+  only the CA stored with its identity. TLS 1.3 minimum. A server presenting a
+  certificate from any other CA is refused before the token is sent (tested), so a
+  man in the middle cannot harvest a bootstrap token.
+- **Token handling.** `VFM_AGENT_ENROLLMENT_TOKEN` is environment-only, with no flag,
+  so it never appears in a process list; the config log reports presence only
+  (tested). It is used only when no identity is stored. If the token is spent and the
+  Secret write then fails, the error says so explicitly: the operator must issue a new
+  token. That window is unavoidable without server-side two-phase enrollment.
+- **Reconnect.** Exponential backoff 1 s → 60 s with full jitter and a Min/2 floor
+  (agents do not reconnect in lockstep); the backoff resets only after a stream has
+  lasted 30 s, so a server that accepts and immediately drops is still backed off.
+  `Unauthenticated` is logged as an operator-actionable condition (disabled, deleted,
+  rotated) and still retried, which also picks up a corrected Secret.
+- **Renewal** at two thirds of the lifetime, on the live stream's connection, with a
+  new key; the new identity is persisted before it is used; the stream is not dropped.
+  A renewed certificate naming a different cluster is rejected.
+- **Graceful stop** half-closes the stream and waits up to 2 s for the server to end
+  it, so the server records a clean close. (The stream's context is deliberately
+  detached from the shutdown context: tying them together aborted the RPC before the
+  half-close was delivered, which the first test run caught.)
+- **Hello policy.** Reports the built-in default policy (§5.5) until day 14 loads the
+  `vfm-agent-policy` ConfigMap. Since nothing executes yet, the default is also what is
+  enforced.
+- **Fingerprint** is the `kube-system` namespace UID, read at every connect.
+
+### Tooling
+
+`golangci-lint` v2.14.0 and `govulncheck` v1.9.0 run locally from `~/go/bin`
+(`go install`, built with Go 1.27.2); both clean. `-race` needs cgo and there is no C
+compiler on this machine, so the race detector runs only in CI. The fake gateway's
+configuration goes through a locked `configure()` for that reason.
+
+### Verification
+
+Eleven Go tests against an in-process control plane over real gRPC and real TLS
+(enroll, no re-enroll, missing token, reconnect, refused credentials, timed renewal,
+graceful close, CA pinning, bad token, queue overflow, backoff). Cross-checked once by
+hand against the real TypeScript gateway with a throwaway program: enrolled, got a
+certificate for the right cluster, authenticated `Connect` (reaching the server's
+day-13 placeholder) and backed off.
+
+### Not done here
+
+Leader election across two real replicas against a cluster (blocked on B-2 for kind),
+the Secret store against a real API server (the unit tests use a fake clientset), and
+the stream's server half (day 13).

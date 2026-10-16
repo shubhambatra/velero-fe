@@ -9,6 +9,43 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M2 day 12: the agent's connection manager
+
+Session 7, continued. CI is green on the whole of day 11 (`c657dab`).
+
+### Done
+
+- `internal/identity` and `internal/gateway`: first-start enrollment (ECDSA key + CSR,
+  `kube-system` UID fingerprint, identity in a Secret), mTLS `Connect` with Hello and
+  heartbeats, reconnect with backoff + jitter, renewal at 2/3 lifetime, graceful stop,
+  CA pinning (ADR-017). Wired into the leader task, replacing the inert seam.
+- New config: `VFM_AGENT_CONTROL_PLANE_CA_FILE`, `_SERVER_NAME`, `_CREDENTIALS_SECRET`,
+  and the environment-only `_ENROLLMENT_TOKEN` (never logged).
+- Real `golangci-lint` v2.14.0 and `govulncheck`: 0 issues, no vulnerabilities.
+
+### Test status
+
+Go: all packages pass (gateway 11 new, identity 6, config +2, cmd +3); server unchanged
+(517 unit, 189 e2e); web 47.
+
+### Verified against the real server
+
+A throwaway Go program using the real manager enrolled against the real TypeScript
+gateway over pinned TLS 1.3, received a certificate naming the right cluster,
+authenticated its mTLS `Connect` and backed off on the day-13 placeholder.
+
+### Not verified
+
+Two replicas electing a leader in a real cluster and the Secret store against a real
+API server (kind is blocked on B-2); `-race` locally (no C compiler; CI runs it).
+
+### Next
+
+M2 day 13 — the server's stream registry, Redis routing, status updates, disconnect
+detection and revocation closing live streams.
+
+---
+
 ## 2026-10-16 — M2 day 11: internal CA, clusters, bootstrap tokens, gateway, add-cluster UI
 
 Session 7, continued. CI on the day 10 commit was red in three jobs (buf action

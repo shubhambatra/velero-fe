@@ -1,6 +1,11 @@
 package main
 
 import (
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/fake"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -9,6 +14,7 @@ import (
 	"time"
 
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/config"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/kube"
 )
 
 func testConfig() *config.Config {
@@ -87,19 +93,21 @@ func TestNewLoggerUsesTextFormatInDevMode(t *testing.T) {
 
 // TestLeaderTaskStopsOnCancellation is the property the election depends on:
 // losing the Lease cancels the task context and the task must return
-// (PLAN.md §3.2).
+// (PLAN.md §3.2). This agent has no identity and no bootstrap token, so the
+// task sits in its retry loop — the state in which stopping is hardest.
 func TestLeaderTaskStopsOnCancellation(t *testing.T) {
 	cfg := testConfig()
 	cfg.HeartbeatInterval = 10 * time.Millisecond
+	kubeClient := kube.FromClientset(fake.NewClientset(), "https://fake")
 
 	var buf bytes.Buffer
-	task := leaderTask(newLogger(cfg, &buf), cfg)
+	task := leaderTask(newLogger(cfg, &buf), cfg, kubeClient)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- task(ctx) }()
 
-	time.Sleep(25 * time.Millisecond) // let at least one tick happen
+	time.Sleep(25 * time.Millisecond)
 	cancel()
 
 	select {
@@ -109,5 +117,50 @@ func TestLeaderTaskStopsOnCancellation(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("leader task did not return after its context was cancelled")
+	}
+}
+
+func TestLeaderTaskRefusesAnUnreadableCAFile(t *testing.T) {
+	cfg := testConfig()
+	cfg.ControlPlaneCAFile = "/nonexistent/ca.pem"
+	task := leaderTask(newLogger(cfg, &bytes.Buffer{}), cfg, kube.FromClientset(fake.NewClientset(), "https://fake"))
+
+	err := task(context.Background())
+	if err == nil {
+		t.Fatal("an unreadable CA file was ignored")
+	}
+	if bytes.Contains([]byte(err.Error()), []byte("/nonexistent")) {
+		t.Errorf("the error echoes the path: %v", err)
+	}
+}
+
+func TestClusterFingerprintIsTheKubeSystemUID(t *testing.T) {
+	cs := fake.NewClientset(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "kube-system", UID: types.UID("uid-abc")},
+	})
+	got, err := clusterFingerprint(kube.FromClientset(cs, "h"))(context.Background())
+	if err != nil || got != "uid-abc" {
+		t.Fatalf("fingerprint = %q, %v", got, err)
+	}
+
+	if _, err := clusterFingerprint(kube.FromClientset(fake.NewClientset(), "h"))(context.Background()); err == nil {
+		t.Error("a cluster without kube-system produced a fingerprint")
+	}
+}
+
+func TestHelloReportsTheDefaultPolicy(t *testing.T) {
+	hello := helloBuilder(kube.FromClientset(fake.NewClientset(), "h"))(context.Background())
+	p := hello.GetPolicy()
+	if !p.GetAllowRestore() || p.GetReadOnly() {
+		t.Errorf("default policy should allow restores and not be read-only: %+v", p)
+	}
+	for _, ns := range []string{"kube-system", "vfm-system", "velero"} {
+		found := false
+		for _, denied := range p.GetRestoreDeniedNamespaces() {
+			found = found || denied == ns
+		}
+		if !found {
+			t.Errorf("namespace %q is not in the default restore deny-list", ns)
+		}
 	}
 }

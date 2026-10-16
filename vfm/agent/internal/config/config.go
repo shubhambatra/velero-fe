@@ -37,7 +37,13 @@ const (
 // Environment variables read by the agent. Every one has a matching flag,
 // which takes precedence (see [Load]).
 const (
-	EnvControlPlaneAddress     = EnvPrefix + "CONTROL_PLANE_ADDRESS"
+	EnvControlPlaneAddress = EnvPrefix + "CONTROL_PLANE_ADDRESS"
+	EnvControlPlaneCAFile  = EnvPrefix + "CONTROL_PLANE_CA_FILE"
+	EnvServerName          = EnvPrefix + "SERVER_NAME"
+	EnvCredentialsSecret   = EnvPrefix + "CREDENTIALS_SECRET"
+	// EnvEnrollmentToken has no flag on purpose: a flag would sit in the process
+	// list for anyone on the node to read. The chart injects it from a Secret.
+	EnvEnrollmentToken         = EnvPrefix + "ENROLLMENT_TOKEN"
 	EnvClusterID               = EnvPrefix + "CLUSTER_ID"
 	EnvClusterName             = EnvPrefix + "CLUSTER_NAME"
 	EnvInstanceID              = EnvPrefix + "INSTANCE_ID"
@@ -70,6 +76,10 @@ type setting struct {
 
 var (
 	settingControlPlaneAddress     = setting{EnvControlPlaneAddress, "control-plane-address"}
+	settingControlPlaneCAFile      = setting{EnvControlPlaneCAFile, "control-plane-ca-file"}
+	settingServerName              = setting{EnvServerName, "server-name"}
+	settingCredentialsSecret       = setting{EnvCredentialsSecret, "credentials-secret"}
+	settingEnrollmentToken         = setting{env: EnvEnrollmentToken}
 	settingClusterID               = setting{EnvClusterID, "cluster-id"}
 	settingClusterName             = setting{EnvClusterName, "cluster-name"}
 	settingInstanceID              = setting{EnvInstanceID, "instance-id"}
@@ -118,6 +128,23 @@ type Config struct {
 	// ControlPlaneAddress is the agent gateway the agent dials out to. The
 	// agent never listens for inbound connections (PLAN.md §1.1 P1).
 	ControlPlaneAddress string
+
+	// ControlPlaneCAFile is the PEM CA bundle the agent pins the control plane
+	// to. Only needed until the first enrollment, after which the CA stored with
+	// the credentials is used.
+	ControlPlaneCAFile string
+
+	// ServerName overrides the TLS name checked against the gateway's
+	// certificate; empty means the host of ControlPlaneAddress.
+	ServerName string
+
+	// CredentialsSecret names the Secret in Namespace that holds the agent's
+	// private key, certificate and the CA (PLAN.md §5.1 step 3).
+	CredentialsSecret string
+
+	// EnrollmentToken is the one-time bootstrap token. Environment only, and
+	// never logged; unused once the agent holds a certificate.
+	EnrollmentToken string
 
 	// ClusterID is assigned by the control plane; empty until enrollment
 	// (PLAN.md §5.1, M2 day 11).
@@ -178,6 +205,7 @@ func Default() *Config {
 	return &Config{
 		InstanceID:         defaultInstanceID(),
 		Namespace:          AgentNamespace,
+		CredentialsSecret:  DefaultCredentialsSecret,
 		HealthAddr:         ":8081",
 		MetricsAddr:        ":9090",
 		LogLevel:           slog.LevelInfo,
@@ -237,6 +265,10 @@ func (c *Config) applyEnv(getenv func(string) (string, bool), probs *problems) {
 	env := envReader{getenv: getenv, probs: probs}
 
 	env.str(settingControlPlaneAddress, &c.ControlPlaneAddress)
+	env.str(settingControlPlaneCAFile, &c.ControlPlaneCAFile)
+	env.str(settingServerName, &c.ServerName)
+	env.str(settingCredentialsSecret, &c.CredentialsSecret)
+	env.str(settingEnrollmentToken, &c.EnrollmentToken)
 	env.str(settingClusterID, &c.ClusterID)
 	env.str(settingClusterName, &c.ClusterName)
 	env.str(settingInstanceID, &c.InstanceID)
@@ -280,6 +312,12 @@ func (c *Config) applyFlags(args []string, probs *problems) error {
 
 	fs.StringVar(&c.ControlPlaneAddress, settingControlPlaneAddress.flag, c.ControlPlaneAddress,
 		"control plane agent gateway to dial out to, host:port or an https:// URL (required)")
+	fs.StringVar(&c.ControlPlaneCAFile, settingControlPlaneCAFile.flag, c.ControlPlaneCAFile,
+		"PEM CA bundle to pin the control plane to until the agent has enrolled")
+	fs.StringVar(&c.ServerName, settingServerName.flag, c.ServerName,
+		"TLS server name to verify the gateway against (default: host of the address)")
+	fs.StringVar(&c.CredentialsSecret, settingCredentialsSecret.flag, c.CredentialsSecret,
+		"Secret in the agent namespace holding the key, certificate and CA")
 	fs.StringVar(&c.ClusterID, settingClusterID.flag, c.ClusterID,
 		"cluster ID issued by the control plane at enrollment")
 	fs.StringVar(&c.ClusterName, settingClusterName.flag, c.ClusterName,
@@ -347,6 +385,10 @@ func (c *Config) applyFlags(args []string, probs *problems) error {
 // "JSON" and " json " behave like "json".
 func (c *Config) normalize() {
 	c.ControlPlaneAddress = strings.TrimSpace(c.ControlPlaneAddress)
+	c.ControlPlaneCAFile = strings.TrimSpace(c.ControlPlaneCAFile)
+	c.ServerName = strings.TrimSpace(c.ServerName)
+	c.CredentialsSecret = strings.TrimSpace(c.CredentialsSecret)
+	c.EnrollmentToken = strings.TrimSpace(c.EnrollmentToken)
 	c.ClusterID = strings.ToLower(strings.TrimSpace(c.ClusterID))
 	c.InstanceID = strings.TrimSpace(c.InstanceID)
 	c.Namespace = strings.TrimSpace(c.Namespace)
@@ -360,6 +402,9 @@ func (c *Config) normalize() {
 // validate records a problem for every setting that cannot be used, rather
 // than returning on the first one.
 func (c *Config) validate(probs *problems) {
+	if !dns1123Subdomain.MatchString(c.CredentialsSecret) {
+		probs.add(settingCredentialsSecret, "must be a valid Kubernetes object name")
+	}
 	if c.ControlPlaneAddress == "" {
 		probs.add(settingControlPlaneAddress, "is required: the agent dials out to the control plane (PLAN.md §1.1 P1)")
 	} else if reason := checkEndpoint(c.ControlPlaneAddress); reason != "" {
@@ -517,6 +562,11 @@ func checkPort(port string) string {
 func (c *Config) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("control_plane_address", sanitizeEndpoint(c.ControlPlaneAddress)),
+		slog.Bool("control_plane_ca_file_set", c.ControlPlaneCAFile != ""),
+		slog.String("server_name", c.ServerName),
+		slog.String("credentials_secret", c.CredentialsSecret),
+		// Presence only: the token is a credential.
+		slog.Bool("enrollment_token_set", c.EnrollmentToken != ""),
 		slog.String("cluster_id", c.ClusterID),
 		slog.String("cluster_name", c.ClusterName),
 		slog.String("instance_id", c.InstanceID),

@@ -148,12 +148,14 @@ criteria are still unmet (B-1, B-2).
 - **Day 11 done** (ADR-016): CA, clusters API, bootstrap tokens, gRPC gateway
   (`Enroll`/`RenewCertificate`; `Connect` authenticates then UNIMPLEMENTED),
   add-cluster UI. Driven live; see PROGRESS.md.
-- **Next: day 12 — agent connection manager** (plan line 676): in `vfm/agent`,
-  enroll on first start (ECDSA key + CSR, `kube-system` UID fingerprint, Secret in
-  `vfm-system`), mTLS `Connect`, `Hello`, heartbeats, reconnect with backoff +
-  jitter, renewal at 2/3 lifetime, graceful shutdown, leader gating. Needs the Go
-  gRPC client; stubs are in `agent/internal/pb`. Day 13 then replaces the
-  server's UNIMPLEMENTED `Connect`.
+- **Day 12 done** (ADR-017): `agent/internal/{identity,gateway}`, wired into the
+  leader task. Run Go tooling with `export PATH=$HOME/.local/go/bin:$HOME/go/bin:$PATH`.
+- **Next: day 13 — gateway & routing** (plan line 679): replace the server's
+  UNIMPLEMENTED `Connect` with a stream registry, Redis routing
+  (`agent:{clusterId} → replica`), `CONNECTED`/`DISCONNECTED` status + `last_seen_at`,
+  45 s disconnect detection, revocation closing live streams, Hello validation
+  (fingerprint check, protocol N/N-1), then run two server replicas locally and
+  verify routing.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---
