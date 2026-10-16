@@ -246,8 +246,8 @@ func TestInALargeClusterPodsAreReportedOnlyForTheAskedForNamespaces(t *testing.T
 		t.Errorf("with no scope given a large cluster reports no pods: %v", got)
 	}
 
-	sy.HandleServerMessage(&pb.ServerMessage{Payload: &pb.ServerMessage_WatchScope{WatchScope: &pb.WatchScope{PodNamespaces: []string{"b"}}}})
 	before := latest()
+	sy.HandleServerMessage(&pb.ServerMessage{Payload: &pb.ServerMessage_WatchScope{WatchScope: &pb.WatchScope{PodNamespaces: []string{"b"}}}})
 	eventually(t, "a snapshot after the scope changed", func() bool { return latest() != before && complete(s, latest()) })
 	if got := podsIn(latest()); len(got) != 1 || got[0] != "b/p2" {
 		t.Errorf("only namespace b was asked for: %v", got)
