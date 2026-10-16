@@ -5,9 +5,9 @@
 // source: vfm/agent/v1/command.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { Timestamp } from "../../../google/protobuf/timestamp";
-import { CredentialSecret, ErrorCode, errorCodeFromJSON, errorCodeToJSON } from "./common";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
+import { Timestamp } from '../../../google/protobuf/timestamp';
+import { CredentialSecret, ErrorCode, errorCodeFromJSON, errorCodeToJSON } from './common';
 import {
   BackupSpec,
   BackupStorageLocationSpec,
@@ -17,9 +17,9 @@ import {
   RestoreSpec,
   ScheduleSpec,
   VolumeSnapshotLocationSpec,
-} from "./velero";
+} from './velero';
 
-export const protobufPackage = "vfm.agent.v1";
+export const protobufPackage = 'vfm.agent.v1';
 
 export enum CommandAckState {
   COMMAND_ACK_STATE_UNSPECIFIED = 0,
@@ -33,16 +33,16 @@ export enum CommandAckState {
 export function commandAckStateFromJSON(object: any): CommandAckState {
   switch (object) {
     case 0:
-    case "COMMAND_ACK_STATE_UNSPECIFIED":
+    case 'COMMAND_ACK_STATE_UNSPECIFIED':
       return CommandAckState.COMMAND_ACK_STATE_UNSPECIFIED;
     case 1:
-    case "COMMAND_ACK_STATE_ACKED":
+    case 'COMMAND_ACK_STATE_ACKED':
       return CommandAckState.COMMAND_ACK_STATE_ACKED;
     case 2:
-    case "COMMAND_ACK_STATE_RUNNING":
+    case 'COMMAND_ACK_STATE_RUNNING':
       return CommandAckState.COMMAND_ACK_STATE_RUNNING;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return CommandAckState.UNRECOGNIZED;
   }
@@ -51,14 +51,14 @@ export function commandAckStateFromJSON(object: any): CommandAckState {
 export function commandAckStateToJSON(object: CommandAckState): string {
   switch (object) {
     case CommandAckState.COMMAND_ACK_STATE_UNSPECIFIED:
-      return "COMMAND_ACK_STATE_UNSPECIFIED";
+      return 'COMMAND_ACK_STATE_UNSPECIFIED';
     case CommandAckState.COMMAND_ACK_STATE_ACKED:
-      return "COMMAND_ACK_STATE_ACKED";
+      return 'COMMAND_ACK_STATE_ACKED';
     case CommandAckState.COMMAND_ACK_STATE_RUNNING:
-      return "COMMAND_ACK_STATE_RUNNING";
+      return 'COMMAND_ACK_STATE_RUNNING';
     case CommandAckState.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -69,9 +69,7 @@ export interface Command {
    * command_id it has already executed rather than running it again.
    */
   commandId: string;
-  deadline:
-    | Date
-    | undefined;
+  deadline: Date | undefined;
   /**
    * Control-plane user id, for the agent's own audit log and the
    * vfm.io/requested-by label.
@@ -84,29 +82,21 @@ export interface Command {
   createSchedule?: CreateSchedule | undefined;
   updateSchedule?: UpdateSchedule | undefined;
   setSchedulePaused?: SetSchedulePaused | undefined;
-  deleteSchedule?:
-    | DeleteSchedule
-    | undefined;
+  deleteSchedule?: DeleteSchedule | undefined;
   /** `velero backup create --from-schedule`. */
   triggerSchedule?: TriggerScheduleNow | undefined;
   upsertBsl?: UpsertBackupStorageLocation | undefined;
   setDefaultBsl?: SetDefaultBackupStorageLocation | undefined;
   deleteBsl?: DeleteBackupStorageLocation | undefined;
   upsertVsl?: UpsertVolumeSnapshotLocation | undefined;
-  deleteVsl?:
-    | DeleteVolumeSnapshotLocation
-    | undefined;
+  deleteVsl?: DeleteVolumeSnapshotLocation | undefined;
   /**
    * Create a DownloadRequest, fetch the signed URL, stream the bytes back as
    * LogChunks keyed by this command_id.
    */
-  fetchDownload?:
-    | FetchDownload
-    | undefined;
+  fetchDownload?: FetchDownload | undefined;
   /** Create a ServerStatusRequest and report the processed status. */
-  refreshStatus?:
-    | RefreshServerStatus
-    | undefined;
+  refreshStatus?: RefreshServerStatus | undefined;
   /**
    * Report whether each named namespace exists. Read-only; answers for the names
    * asked about and nothing else, so a caller learns nothing about other namespaces.
@@ -165,9 +155,7 @@ export interface TriggerScheduleNow {
 
 export interface UpsertBackupStorageLocation {
   name: string;
-  spec:
-    | BackupStorageLocationSpec
-    | undefined;
+  spec: BackupStorageLocationSpec | undefined;
   /** Present only when the credential is being created or rotated. */
   credential: CredentialSecret | undefined;
 }
@@ -198,8 +186,7 @@ export interface FetchDownload {
   maxBytes: number;
 }
 
-export interface RefreshServerStatus {
-}
+export interface RefreshServerStatus {}
 
 export interface CheckNamespaces {
   /** At most 100 DNS-1123 label names. */
@@ -274,9 +261,9 @@ export interface PluginInfo {
 
 function createBaseCommand(): Command {
   return {
-    commandId: "",
+    commandId: '',
     deadline: undefined,
-    requestedBy: "",
+    requestedBy: '',
     createBackup: undefined,
     deleteBackup: undefined,
     createRestore: undefined,
@@ -299,13 +286,13 @@ function createBaseCommand(): Command {
 
 export const Command: MessageFns<Command> = {
   encode(message: Command, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.commandId !== "") {
+    if (message.commandId !== '') {
       writer.uint32(10).string(message.commandId);
     }
     if (message.deadline !== undefined) {
       Timestamp.encode(toTimestamp(message.deadline), writer.uint32(18).fork()).join();
     }
-    if (message.requestedBy !== "") {
+    if (message.requestedBy !== '') {
       writer.uint32(26).string(message.requestedBy);
     }
     if (message.createBackup !== undefined) {
@@ -339,7 +326,10 @@ export const Command: MessageFns<Command> = {
       UpsertBackupStorageLocation.encode(message.upsertBsl, writer.uint32(154).fork()).join();
     }
     if (message.setDefaultBsl !== undefined) {
-      SetDefaultBackupStorageLocation.encode(message.setDefaultBsl, writer.uint32(162).fork()).join();
+      SetDefaultBackupStorageLocation.encode(
+        message.setDefaultBsl,
+        writer.uint32(162).fork(),
+      ).join();
     }
     if (message.deleteBsl !== undefined) {
       DeleteBackupStorageLocation.encode(message.deleteBsl, writer.uint32(170).fork()).join();
@@ -366,7 +356,7 @@ export const Command: MessageFns<Command> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -552,111 +542,111 @@ export const Command: MessageFns<Command> = {
       commandId: isSet(object.commandId)
         ? globalThis.String(object.commandId)
         : isSet(object.command_id)
-        ? globalThis.String(object.command_id)
-        : "",
+          ? globalThis.String(object.command_id)
+          : '',
       deadline: isSet(object.deadline) ? fromJsonTimestamp(object.deadline) : undefined,
       requestedBy: isSet(object.requestedBy)
         ? globalThis.String(object.requestedBy)
         : isSet(object.requested_by)
-        ? globalThis.String(object.requested_by)
-        : "",
+          ? globalThis.String(object.requested_by)
+          : '',
       createBackup: isSet(object.createBackup)
         ? CreateBackup.fromJSON(object.createBackup)
         : isSet(object.create_backup)
-        ? CreateBackup.fromJSON(object.create_backup)
-        : undefined,
+          ? CreateBackup.fromJSON(object.create_backup)
+          : undefined,
       deleteBackup: isSet(object.deleteBackup)
         ? DeleteBackup.fromJSON(object.deleteBackup)
         : isSet(object.delete_backup)
-        ? DeleteBackup.fromJSON(object.delete_backup)
-        : undefined,
+          ? DeleteBackup.fromJSON(object.delete_backup)
+          : undefined,
       createRestore: isSet(object.createRestore)
         ? CreateRestore.fromJSON(object.createRestore)
         : isSet(object.create_restore)
-        ? CreateRestore.fromJSON(object.create_restore)
-        : undefined,
+          ? CreateRestore.fromJSON(object.create_restore)
+          : undefined,
       deleteRestore: isSet(object.deleteRestore)
         ? DeleteRestore.fromJSON(object.deleteRestore)
         : isSet(object.delete_restore)
-        ? DeleteRestore.fromJSON(object.delete_restore)
-        : undefined,
+          ? DeleteRestore.fromJSON(object.delete_restore)
+          : undefined,
       createSchedule: isSet(object.createSchedule)
         ? CreateSchedule.fromJSON(object.createSchedule)
         : isSet(object.create_schedule)
-        ? CreateSchedule.fromJSON(object.create_schedule)
-        : undefined,
+          ? CreateSchedule.fromJSON(object.create_schedule)
+          : undefined,
       updateSchedule: isSet(object.updateSchedule)
         ? UpdateSchedule.fromJSON(object.updateSchedule)
         : isSet(object.update_schedule)
-        ? UpdateSchedule.fromJSON(object.update_schedule)
-        : undefined,
+          ? UpdateSchedule.fromJSON(object.update_schedule)
+          : undefined,
       setSchedulePaused: isSet(object.setSchedulePaused)
         ? SetSchedulePaused.fromJSON(object.setSchedulePaused)
         : isSet(object.set_schedule_paused)
-        ? SetSchedulePaused.fromJSON(object.set_schedule_paused)
-        : undefined,
+          ? SetSchedulePaused.fromJSON(object.set_schedule_paused)
+          : undefined,
       deleteSchedule: isSet(object.deleteSchedule)
         ? DeleteSchedule.fromJSON(object.deleteSchedule)
         : isSet(object.delete_schedule)
-        ? DeleteSchedule.fromJSON(object.delete_schedule)
-        : undefined,
+          ? DeleteSchedule.fromJSON(object.delete_schedule)
+          : undefined,
       triggerSchedule: isSet(object.triggerSchedule)
         ? TriggerScheduleNow.fromJSON(object.triggerSchedule)
         : isSet(object.trigger_schedule)
-        ? TriggerScheduleNow.fromJSON(object.trigger_schedule)
-        : undefined,
+          ? TriggerScheduleNow.fromJSON(object.trigger_schedule)
+          : undefined,
       upsertBsl: isSet(object.upsertBsl)
         ? UpsertBackupStorageLocation.fromJSON(object.upsertBsl)
         : isSet(object.upsert_bsl)
-        ? UpsertBackupStorageLocation.fromJSON(object.upsert_bsl)
-        : undefined,
+          ? UpsertBackupStorageLocation.fromJSON(object.upsert_bsl)
+          : undefined,
       setDefaultBsl: isSet(object.setDefaultBsl)
         ? SetDefaultBackupStorageLocation.fromJSON(object.setDefaultBsl)
         : isSet(object.set_default_bsl)
-        ? SetDefaultBackupStorageLocation.fromJSON(object.set_default_bsl)
-        : undefined,
+          ? SetDefaultBackupStorageLocation.fromJSON(object.set_default_bsl)
+          : undefined,
       deleteBsl: isSet(object.deleteBsl)
         ? DeleteBackupStorageLocation.fromJSON(object.deleteBsl)
         : isSet(object.delete_bsl)
-        ? DeleteBackupStorageLocation.fromJSON(object.delete_bsl)
-        : undefined,
+          ? DeleteBackupStorageLocation.fromJSON(object.delete_bsl)
+          : undefined,
       upsertVsl: isSet(object.upsertVsl)
         ? UpsertVolumeSnapshotLocation.fromJSON(object.upsertVsl)
         : isSet(object.upsert_vsl)
-        ? UpsertVolumeSnapshotLocation.fromJSON(object.upsert_vsl)
-        : undefined,
+          ? UpsertVolumeSnapshotLocation.fromJSON(object.upsert_vsl)
+          : undefined,
       deleteVsl: isSet(object.deleteVsl)
         ? DeleteVolumeSnapshotLocation.fromJSON(object.deleteVsl)
         : isSet(object.delete_vsl)
-        ? DeleteVolumeSnapshotLocation.fromJSON(object.delete_vsl)
-        : undefined,
+          ? DeleteVolumeSnapshotLocation.fromJSON(object.delete_vsl)
+          : undefined,
       fetchDownload: isSet(object.fetchDownload)
         ? FetchDownload.fromJSON(object.fetchDownload)
         : isSet(object.fetch_download)
-        ? FetchDownload.fromJSON(object.fetch_download)
-        : undefined,
+          ? FetchDownload.fromJSON(object.fetch_download)
+          : undefined,
       refreshStatus: isSet(object.refreshStatus)
         ? RefreshServerStatus.fromJSON(object.refreshStatus)
         : isSet(object.refresh_status)
-        ? RefreshServerStatus.fromJSON(object.refresh_status)
-        : undefined,
+          ? RefreshServerStatus.fromJSON(object.refresh_status)
+          : undefined,
       checkNamespaces: isSet(object.checkNamespaces)
         ? CheckNamespaces.fromJSON(object.checkNamespaces)
         : isSet(object.check_namespaces)
-        ? CheckNamespaces.fromJSON(object.check_namespaces)
-        : undefined,
+          ? CheckNamespaces.fromJSON(object.check_namespaces)
+          : undefined,
     };
   },
 
   toJSON(message: Command): unknown {
     const obj: any = {};
-    if (message.commandId !== "") {
+    if (message.commandId !== '') {
       obj.commandId = message.commandId;
     }
     if (message.deadline !== undefined) {
       obj.deadline = message.deadline.toISOString();
     }
-    if (message.requestedBy !== "") {
+    if (message.requestedBy !== '') {
       obj.requestedBy = message.requestedBy;
     }
     if (message.createBackup !== undefined) {
@@ -718,71 +708,88 @@ export const Command: MessageFns<Command> = {
   },
   fromPartial(object: DeepPartial<Command>): Command {
     const message = createBaseCommand();
-    message.commandId = object.commandId ?? "";
+    message.commandId = object.commandId ?? '';
     message.deadline = object.deadline ?? undefined;
-    message.requestedBy = object.requestedBy ?? "";
-    message.createBackup = (object.createBackup !== undefined && object.createBackup !== null)
-      ? CreateBackup.fromPartial(object.createBackup)
-      : undefined;
-    message.deleteBackup = (object.deleteBackup !== undefined && object.deleteBackup !== null)
-      ? DeleteBackup.fromPartial(object.deleteBackup)
-      : undefined;
-    message.createRestore = (object.createRestore !== undefined && object.createRestore !== null)
-      ? CreateRestore.fromPartial(object.createRestore)
-      : undefined;
-    message.deleteRestore = (object.deleteRestore !== undefined && object.deleteRestore !== null)
-      ? DeleteRestore.fromPartial(object.deleteRestore)
-      : undefined;
-    message.createSchedule = (object.createSchedule !== undefined && object.createSchedule !== null)
-      ? CreateSchedule.fromPartial(object.createSchedule)
-      : undefined;
-    message.updateSchedule = (object.updateSchedule !== undefined && object.updateSchedule !== null)
-      ? UpdateSchedule.fromPartial(object.updateSchedule)
-      : undefined;
-    message.setSchedulePaused = (object.setSchedulePaused !== undefined && object.setSchedulePaused !== null)
-      ? SetSchedulePaused.fromPartial(object.setSchedulePaused)
-      : undefined;
-    message.deleteSchedule = (object.deleteSchedule !== undefined && object.deleteSchedule !== null)
-      ? DeleteSchedule.fromPartial(object.deleteSchedule)
-      : undefined;
-    message.triggerSchedule = (object.triggerSchedule !== undefined && object.triggerSchedule !== null)
-      ? TriggerScheduleNow.fromPartial(object.triggerSchedule)
-      : undefined;
-    message.upsertBsl = (object.upsertBsl !== undefined && object.upsertBsl !== null)
-      ? UpsertBackupStorageLocation.fromPartial(object.upsertBsl)
-      : undefined;
-    message.setDefaultBsl = (object.setDefaultBsl !== undefined && object.setDefaultBsl !== null)
-      ? SetDefaultBackupStorageLocation.fromPartial(object.setDefaultBsl)
-      : undefined;
-    message.deleteBsl = (object.deleteBsl !== undefined && object.deleteBsl !== null)
-      ? DeleteBackupStorageLocation.fromPartial(object.deleteBsl)
-      : undefined;
-    message.upsertVsl = (object.upsertVsl !== undefined && object.upsertVsl !== null)
-      ? UpsertVolumeSnapshotLocation.fromPartial(object.upsertVsl)
-      : undefined;
-    message.deleteVsl = (object.deleteVsl !== undefined && object.deleteVsl !== null)
-      ? DeleteVolumeSnapshotLocation.fromPartial(object.deleteVsl)
-      : undefined;
-    message.fetchDownload = (object.fetchDownload !== undefined && object.fetchDownload !== null)
-      ? FetchDownload.fromPartial(object.fetchDownload)
-      : undefined;
-    message.refreshStatus = (object.refreshStatus !== undefined && object.refreshStatus !== null)
-      ? RefreshServerStatus.fromPartial(object.refreshStatus)
-      : undefined;
-    message.checkNamespaces = (object.checkNamespaces !== undefined && object.checkNamespaces !== null)
-      ? CheckNamespaces.fromPartial(object.checkNamespaces)
-      : undefined;
+    message.requestedBy = object.requestedBy ?? '';
+    message.createBackup =
+      object.createBackup !== undefined && object.createBackup !== null
+        ? CreateBackup.fromPartial(object.createBackup)
+        : undefined;
+    message.deleteBackup =
+      object.deleteBackup !== undefined && object.deleteBackup !== null
+        ? DeleteBackup.fromPartial(object.deleteBackup)
+        : undefined;
+    message.createRestore =
+      object.createRestore !== undefined && object.createRestore !== null
+        ? CreateRestore.fromPartial(object.createRestore)
+        : undefined;
+    message.deleteRestore =
+      object.deleteRestore !== undefined && object.deleteRestore !== null
+        ? DeleteRestore.fromPartial(object.deleteRestore)
+        : undefined;
+    message.createSchedule =
+      object.createSchedule !== undefined && object.createSchedule !== null
+        ? CreateSchedule.fromPartial(object.createSchedule)
+        : undefined;
+    message.updateSchedule =
+      object.updateSchedule !== undefined && object.updateSchedule !== null
+        ? UpdateSchedule.fromPartial(object.updateSchedule)
+        : undefined;
+    message.setSchedulePaused =
+      object.setSchedulePaused !== undefined && object.setSchedulePaused !== null
+        ? SetSchedulePaused.fromPartial(object.setSchedulePaused)
+        : undefined;
+    message.deleteSchedule =
+      object.deleteSchedule !== undefined && object.deleteSchedule !== null
+        ? DeleteSchedule.fromPartial(object.deleteSchedule)
+        : undefined;
+    message.triggerSchedule =
+      object.triggerSchedule !== undefined && object.triggerSchedule !== null
+        ? TriggerScheduleNow.fromPartial(object.triggerSchedule)
+        : undefined;
+    message.upsertBsl =
+      object.upsertBsl !== undefined && object.upsertBsl !== null
+        ? UpsertBackupStorageLocation.fromPartial(object.upsertBsl)
+        : undefined;
+    message.setDefaultBsl =
+      object.setDefaultBsl !== undefined && object.setDefaultBsl !== null
+        ? SetDefaultBackupStorageLocation.fromPartial(object.setDefaultBsl)
+        : undefined;
+    message.deleteBsl =
+      object.deleteBsl !== undefined && object.deleteBsl !== null
+        ? DeleteBackupStorageLocation.fromPartial(object.deleteBsl)
+        : undefined;
+    message.upsertVsl =
+      object.upsertVsl !== undefined && object.upsertVsl !== null
+        ? UpsertVolumeSnapshotLocation.fromPartial(object.upsertVsl)
+        : undefined;
+    message.deleteVsl =
+      object.deleteVsl !== undefined && object.deleteVsl !== null
+        ? DeleteVolumeSnapshotLocation.fromPartial(object.deleteVsl)
+        : undefined;
+    message.fetchDownload =
+      object.fetchDownload !== undefined && object.fetchDownload !== null
+        ? FetchDownload.fromPartial(object.fetchDownload)
+        : undefined;
+    message.refreshStatus =
+      object.refreshStatus !== undefined && object.refreshStatus !== null
+        ? RefreshServerStatus.fromPartial(object.refreshStatus)
+        : undefined;
+    message.checkNamespaces =
+      object.checkNamespaces !== undefined && object.checkNamespaces !== null
+        ? CheckNamespaces.fromPartial(object.checkNamespaces)
+        : undefined;
     return message;
   },
 };
 
 function createBaseCreateBackup(): CreateBackup {
-  return { name: "", spec: undefined, advancedSpecJson: new Uint8Array(0) };
+  return { name: '', spec: undefined, advancedSpecJson: new Uint8Array(0) };
 }
 
 export const CreateBackup: MessageFns<CreateBackup> = {
   encode(message: CreateBackup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     if (message.spec !== undefined) {
@@ -798,7 +805,7 @@ export const CreateBackup: MessageFns<CreateBackup> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -845,19 +852,19 @@ export const CreateBackup: MessageFns<CreateBackup> = {
 
   fromJSON(object: any): CreateBackup {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       spec: isSet(object.spec) ? BackupSpec.fromJSON(object.spec) : undefined,
       advancedSpecJson: isSet(object.advancedSpecJson)
         ? bytesFromBase64(object.advancedSpecJson)
         : isSet(object.advanced_spec_json)
-        ? bytesFromBase64(object.advanced_spec_json)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.advanced_spec_json)
+          : new Uint8Array(0),
     };
   },
 
   toJSON(message: CreateBackup): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.spec !== undefined) {
@@ -874,22 +881,23 @@ export const CreateBackup: MessageFns<CreateBackup> = {
   },
   fromPartial(object: DeepPartial<CreateBackup>): CreateBackup {
     const message = createBaseCreateBackup();
-    message.name = object.name ?? "";
-    message.spec = (object.spec !== undefined && object.spec !== null)
-      ? BackupSpec.fromPartial(object.spec)
-      : undefined;
+    message.name = object.name ?? '';
+    message.spec =
+      object.spec !== undefined && object.spec !== null
+        ? BackupSpec.fromPartial(object.spec)
+        : undefined;
     message.advancedSpecJson = object.advancedSpecJson ?? new Uint8Array(0);
     return message;
   },
 };
 
 function createBaseDeleteBackup(): DeleteBackup {
-  return { name: "" };
+  return { name: '' };
 }
 
 export const DeleteBackup: MessageFns<DeleteBackup> = {
   encode(message: DeleteBackup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     return writer;
@@ -899,7 +907,7 @@ export const DeleteBackup: MessageFns<DeleteBackup> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -929,12 +937,12 @@ export const DeleteBackup: MessageFns<DeleteBackup> = {
   },
 
   fromJSON(object: any): DeleteBackup {
-    return { name: isSet(object.name) ? globalThis.String(object.name) : "" };
+    return { name: isSet(object.name) ? globalThis.String(object.name) : '' };
   },
 
   toJSON(message: DeleteBackup): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     return obj;
@@ -945,18 +953,18 @@ export const DeleteBackup: MessageFns<DeleteBackup> = {
   },
   fromPartial(object: DeepPartial<DeleteBackup>): DeleteBackup {
     const message = createBaseDeleteBackup();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     return message;
   },
 };
 
 function createBaseCreateRestore(): CreateRestore {
-  return { name: "", spec: undefined, advancedSpecJson: new Uint8Array(0) };
+  return { name: '', spec: undefined, advancedSpecJson: new Uint8Array(0) };
 }
 
 export const CreateRestore: MessageFns<CreateRestore> = {
   encode(message: CreateRestore, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     if (message.spec !== undefined) {
@@ -972,7 +980,7 @@ export const CreateRestore: MessageFns<CreateRestore> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1019,19 +1027,19 @@ export const CreateRestore: MessageFns<CreateRestore> = {
 
   fromJSON(object: any): CreateRestore {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       spec: isSet(object.spec) ? RestoreSpec.fromJSON(object.spec) : undefined,
       advancedSpecJson: isSet(object.advancedSpecJson)
         ? bytesFromBase64(object.advancedSpecJson)
         : isSet(object.advanced_spec_json)
-        ? bytesFromBase64(object.advanced_spec_json)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.advanced_spec_json)
+          : new Uint8Array(0),
     };
   },
 
   toJSON(message: CreateRestore): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.spec !== undefined) {
@@ -1048,22 +1056,23 @@ export const CreateRestore: MessageFns<CreateRestore> = {
   },
   fromPartial(object: DeepPartial<CreateRestore>): CreateRestore {
     const message = createBaseCreateRestore();
-    message.name = object.name ?? "";
-    message.spec = (object.spec !== undefined && object.spec !== null)
-      ? RestoreSpec.fromPartial(object.spec)
-      : undefined;
+    message.name = object.name ?? '';
+    message.spec =
+      object.spec !== undefined && object.spec !== null
+        ? RestoreSpec.fromPartial(object.spec)
+        : undefined;
     message.advancedSpecJson = object.advancedSpecJson ?? new Uint8Array(0);
     return message;
   },
 };
 
 function createBaseDeleteRestore(): DeleteRestore {
-  return { name: "" };
+  return { name: '' };
 }
 
 export const DeleteRestore: MessageFns<DeleteRestore> = {
   encode(message: DeleteRestore, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     return writer;
@@ -1073,7 +1082,7 @@ export const DeleteRestore: MessageFns<DeleteRestore> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1103,12 +1112,12 @@ export const DeleteRestore: MessageFns<DeleteRestore> = {
   },
 
   fromJSON(object: any): DeleteRestore {
-    return { name: isSet(object.name) ? globalThis.String(object.name) : "" };
+    return { name: isSet(object.name) ? globalThis.String(object.name) : '' };
   },
 
   toJSON(message: DeleteRestore): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     return obj;
@@ -1119,18 +1128,18 @@ export const DeleteRestore: MessageFns<DeleteRestore> = {
   },
   fromPartial(object: DeepPartial<DeleteRestore>): DeleteRestore {
     const message = createBaseDeleteRestore();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     return message;
   },
 };
 
 function createBaseCreateSchedule(): CreateSchedule {
-  return { name: "", spec: undefined, advancedSpecJson: new Uint8Array(0) };
+  return { name: '', spec: undefined, advancedSpecJson: new Uint8Array(0) };
 }
 
 export const CreateSchedule: MessageFns<CreateSchedule> = {
   encode(message: CreateSchedule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     if (message.spec !== undefined) {
@@ -1146,7 +1155,7 @@ export const CreateSchedule: MessageFns<CreateSchedule> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1193,19 +1202,19 @@ export const CreateSchedule: MessageFns<CreateSchedule> = {
 
   fromJSON(object: any): CreateSchedule {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       spec: isSet(object.spec) ? ScheduleSpec.fromJSON(object.spec) : undefined,
       advancedSpecJson: isSet(object.advancedSpecJson)
         ? bytesFromBase64(object.advancedSpecJson)
         : isSet(object.advanced_spec_json)
-        ? bytesFromBase64(object.advanced_spec_json)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.advanced_spec_json)
+          : new Uint8Array(0),
     };
   },
 
   toJSON(message: CreateSchedule): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.spec !== undefined) {
@@ -1222,22 +1231,23 @@ export const CreateSchedule: MessageFns<CreateSchedule> = {
   },
   fromPartial(object: DeepPartial<CreateSchedule>): CreateSchedule {
     const message = createBaseCreateSchedule();
-    message.name = object.name ?? "";
-    message.spec = (object.spec !== undefined && object.spec !== null)
-      ? ScheduleSpec.fromPartial(object.spec)
-      : undefined;
+    message.name = object.name ?? '';
+    message.spec =
+      object.spec !== undefined && object.spec !== null
+        ? ScheduleSpec.fromPartial(object.spec)
+        : undefined;
     message.advancedSpecJson = object.advancedSpecJson ?? new Uint8Array(0);
     return message;
   },
 };
 
 function createBaseUpdateSchedule(): UpdateSchedule {
-  return { name: "", spec: undefined, advancedSpecJson: new Uint8Array(0) };
+  return { name: '', spec: undefined, advancedSpecJson: new Uint8Array(0) };
 }
 
 export const UpdateSchedule: MessageFns<UpdateSchedule> = {
   encode(message: UpdateSchedule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     if (message.spec !== undefined) {
@@ -1253,7 +1263,7 @@ export const UpdateSchedule: MessageFns<UpdateSchedule> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1300,19 +1310,19 @@ export const UpdateSchedule: MessageFns<UpdateSchedule> = {
 
   fromJSON(object: any): UpdateSchedule {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       spec: isSet(object.spec) ? ScheduleSpec.fromJSON(object.spec) : undefined,
       advancedSpecJson: isSet(object.advancedSpecJson)
         ? bytesFromBase64(object.advancedSpecJson)
         : isSet(object.advanced_spec_json)
-        ? bytesFromBase64(object.advanced_spec_json)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.advanced_spec_json)
+          : new Uint8Array(0),
     };
   },
 
   toJSON(message: UpdateSchedule): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.spec !== undefined) {
@@ -1329,22 +1339,23 @@ export const UpdateSchedule: MessageFns<UpdateSchedule> = {
   },
   fromPartial(object: DeepPartial<UpdateSchedule>): UpdateSchedule {
     const message = createBaseUpdateSchedule();
-    message.name = object.name ?? "";
-    message.spec = (object.spec !== undefined && object.spec !== null)
-      ? ScheduleSpec.fromPartial(object.spec)
-      : undefined;
+    message.name = object.name ?? '';
+    message.spec =
+      object.spec !== undefined && object.spec !== null
+        ? ScheduleSpec.fromPartial(object.spec)
+        : undefined;
     message.advancedSpecJson = object.advancedSpecJson ?? new Uint8Array(0);
     return message;
   },
 };
 
 function createBaseSetSchedulePaused(): SetSchedulePaused {
-  return { name: "", paused: false };
+  return { name: '', paused: false };
 }
 
 export const SetSchedulePaused: MessageFns<SetSchedulePaused> = {
   encode(message: SetSchedulePaused, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     if (message.paused !== false) {
@@ -1357,7 +1368,7 @@ export const SetSchedulePaused: MessageFns<SetSchedulePaused> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1396,14 +1407,14 @@ export const SetSchedulePaused: MessageFns<SetSchedulePaused> = {
 
   fromJSON(object: any): SetSchedulePaused {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       paused: isSet(object.paused) ? globalThis.Boolean(object.paused) : false,
     };
   },
 
   toJSON(message: SetSchedulePaused): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.paused !== false) {
@@ -1417,19 +1428,19 @@ export const SetSchedulePaused: MessageFns<SetSchedulePaused> = {
   },
   fromPartial(object: DeepPartial<SetSchedulePaused>): SetSchedulePaused {
     const message = createBaseSetSchedulePaused();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     message.paused = object.paused ?? false;
     return message;
   },
 };
 
 function createBaseDeleteSchedule(): DeleteSchedule {
-  return { name: "" };
+  return { name: '' };
 }
 
 export const DeleteSchedule: MessageFns<DeleteSchedule> = {
   encode(message: DeleteSchedule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     return writer;
@@ -1439,7 +1450,7 @@ export const DeleteSchedule: MessageFns<DeleteSchedule> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1469,12 +1480,12 @@ export const DeleteSchedule: MessageFns<DeleteSchedule> = {
   },
 
   fromJSON(object: any): DeleteSchedule {
-    return { name: isSet(object.name) ? globalThis.String(object.name) : "" };
+    return { name: isSet(object.name) ? globalThis.String(object.name) : '' };
   },
 
   toJSON(message: DeleteSchedule): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     return obj;
@@ -1485,21 +1496,21 @@ export const DeleteSchedule: MessageFns<DeleteSchedule> = {
   },
   fromPartial(object: DeepPartial<DeleteSchedule>): DeleteSchedule {
     const message = createBaseDeleteSchedule();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     return message;
   },
 };
 
 function createBaseTriggerScheduleNow(): TriggerScheduleNow {
-  return { scheduleName: "", backupName: "" };
+  return { scheduleName: '', backupName: '' };
 }
 
 export const TriggerScheduleNow: MessageFns<TriggerScheduleNow> = {
   encode(message: TriggerScheduleNow, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.scheduleName !== "") {
+    if (message.scheduleName !== '') {
       writer.uint32(10).string(message.scheduleName);
     }
-    if (message.backupName !== "") {
+    if (message.backupName !== '') {
       writer.uint32(18).string(message.backupName);
     }
     return writer;
@@ -1509,7 +1520,7 @@ export const TriggerScheduleNow: MessageFns<TriggerScheduleNow> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1551,22 +1562,22 @@ export const TriggerScheduleNow: MessageFns<TriggerScheduleNow> = {
       scheduleName: isSet(object.scheduleName)
         ? globalThis.String(object.scheduleName)
         : isSet(object.schedule_name)
-        ? globalThis.String(object.schedule_name)
-        : "",
+          ? globalThis.String(object.schedule_name)
+          : '',
       backupName: isSet(object.backupName)
         ? globalThis.String(object.backupName)
         : isSet(object.backup_name)
-        ? globalThis.String(object.backup_name)
-        : "",
+          ? globalThis.String(object.backup_name)
+          : '',
     };
   },
 
   toJSON(message: TriggerScheduleNow): unknown {
     const obj: any = {};
-    if (message.scheduleName !== "") {
+    if (message.scheduleName !== '') {
       obj.scheduleName = message.scheduleName;
     }
-    if (message.backupName !== "") {
+    if (message.backupName !== '') {
       obj.backupName = message.backupName;
     }
     return obj;
@@ -1577,19 +1588,22 @@ export const TriggerScheduleNow: MessageFns<TriggerScheduleNow> = {
   },
   fromPartial(object: DeepPartial<TriggerScheduleNow>): TriggerScheduleNow {
     const message = createBaseTriggerScheduleNow();
-    message.scheduleName = object.scheduleName ?? "";
-    message.backupName = object.backupName ?? "";
+    message.scheduleName = object.scheduleName ?? '';
+    message.backupName = object.backupName ?? '';
     return message;
   },
 };
 
 function createBaseUpsertBackupStorageLocation(): UpsertBackupStorageLocation {
-  return { name: "", spec: undefined, credential: undefined };
+  return { name: '', spec: undefined, credential: undefined };
 }
 
 export const UpsertBackupStorageLocation: MessageFns<UpsertBackupStorageLocation> = {
-  encode(message: UpsertBackupStorageLocation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+  encode(
+    message: UpsertBackupStorageLocation,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     if (message.spec !== undefined) {
@@ -1605,7 +1619,7 @@ export const UpsertBackupStorageLocation: MessageFns<UpsertBackupStorageLocation
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1652,15 +1666,17 @@ export const UpsertBackupStorageLocation: MessageFns<UpsertBackupStorageLocation
 
   fromJSON(object: any): UpsertBackupStorageLocation {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       spec: isSet(object.spec) ? BackupStorageLocationSpec.fromJSON(object.spec) : undefined,
-      credential: isSet(object.credential) ? CredentialSecret.fromJSON(object.credential) : undefined,
+      credential: isSet(object.credential)
+        ? CredentialSecret.fromJSON(object.credential)
+        : undefined,
     };
   },
 
   toJSON(message: UpsertBackupStorageLocation): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.spec !== undefined) {
@@ -1677,24 +1693,29 @@ export const UpsertBackupStorageLocation: MessageFns<UpsertBackupStorageLocation
   },
   fromPartial(object: DeepPartial<UpsertBackupStorageLocation>): UpsertBackupStorageLocation {
     const message = createBaseUpsertBackupStorageLocation();
-    message.name = object.name ?? "";
-    message.spec = (object.spec !== undefined && object.spec !== null)
-      ? BackupStorageLocationSpec.fromPartial(object.spec)
-      : undefined;
-    message.credential = (object.credential !== undefined && object.credential !== null)
-      ? CredentialSecret.fromPartial(object.credential)
-      : undefined;
+    message.name = object.name ?? '';
+    message.spec =
+      object.spec !== undefined && object.spec !== null
+        ? BackupStorageLocationSpec.fromPartial(object.spec)
+        : undefined;
+    message.credential =
+      object.credential !== undefined && object.credential !== null
+        ? CredentialSecret.fromPartial(object.credential)
+        : undefined;
     return message;
   },
 };
 
 function createBaseSetDefaultBackupStorageLocation(): SetDefaultBackupStorageLocation {
-  return { name: "" };
+  return { name: '' };
 }
 
 export const SetDefaultBackupStorageLocation: MessageFns<SetDefaultBackupStorageLocation> = {
-  encode(message: SetDefaultBackupStorageLocation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+  encode(
+    message: SetDefaultBackupStorageLocation,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     return writer;
@@ -1704,7 +1725,7 @@ export const SetDefaultBackupStorageLocation: MessageFns<SetDefaultBackupStorage
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1734,12 +1755,12 @@ export const SetDefaultBackupStorageLocation: MessageFns<SetDefaultBackupStorage
   },
 
   fromJSON(object: any): SetDefaultBackupStorageLocation {
-    return { name: isSet(object.name) ? globalThis.String(object.name) : "" };
+    return { name: isSet(object.name) ? globalThis.String(object.name) : '' };
   },
 
   toJSON(message: SetDefaultBackupStorageLocation): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     return obj;
@@ -1748,20 +1769,25 @@ export const SetDefaultBackupStorageLocation: MessageFns<SetDefaultBackupStorage
   create(base?: DeepPartial<SetDefaultBackupStorageLocation>): SetDefaultBackupStorageLocation {
     return SetDefaultBackupStorageLocation.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<SetDefaultBackupStorageLocation>): SetDefaultBackupStorageLocation {
+  fromPartial(
+    object: DeepPartial<SetDefaultBackupStorageLocation>,
+  ): SetDefaultBackupStorageLocation {
     const message = createBaseSetDefaultBackupStorageLocation();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     return message;
   },
 };
 
 function createBaseDeleteBackupStorageLocation(): DeleteBackupStorageLocation {
-  return { name: "" };
+  return { name: '' };
 }
 
 export const DeleteBackupStorageLocation: MessageFns<DeleteBackupStorageLocation> = {
-  encode(message: DeleteBackupStorageLocation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+  encode(
+    message: DeleteBackupStorageLocation,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     return writer;
@@ -1771,7 +1797,7 @@ export const DeleteBackupStorageLocation: MessageFns<DeleteBackupStorageLocation
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1801,12 +1827,12 @@ export const DeleteBackupStorageLocation: MessageFns<DeleteBackupStorageLocation
   },
 
   fromJSON(object: any): DeleteBackupStorageLocation {
-    return { name: isSet(object.name) ? globalThis.String(object.name) : "" };
+    return { name: isSet(object.name) ? globalThis.String(object.name) : '' };
   },
 
   toJSON(message: DeleteBackupStorageLocation): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     return obj;
@@ -1817,18 +1843,21 @@ export const DeleteBackupStorageLocation: MessageFns<DeleteBackupStorageLocation
   },
   fromPartial(object: DeepPartial<DeleteBackupStorageLocation>): DeleteBackupStorageLocation {
     const message = createBaseDeleteBackupStorageLocation();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     return message;
   },
 };
 
 function createBaseUpsertVolumeSnapshotLocation(): UpsertVolumeSnapshotLocation {
-  return { name: "", spec: undefined, credential: undefined };
+  return { name: '', spec: undefined, credential: undefined };
 }
 
 export const UpsertVolumeSnapshotLocation: MessageFns<UpsertVolumeSnapshotLocation> = {
-  encode(message: UpsertVolumeSnapshotLocation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+  encode(
+    message: UpsertVolumeSnapshotLocation,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     if (message.spec !== undefined) {
@@ -1844,7 +1873,7 @@ export const UpsertVolumeSnapshotLocation: MessageFns<UpsertVolumeSnapshotLocati
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1891,15 +1920,17 @@ export const UpsertVolumeSnapshotLocation: MessageFns<UpsertVolumeSnapshotLocati
 
   fromJSON(object: any): UpsertVolumeSnapshotLocation {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       spec: isSet(object.spec) ? VolumeSnapshotLocationSpec.fromJSON(object.spec) : undefined,
-      credential: isSet(object.credential) ? CredentialSecret.fromJSON(object.credential) : undefined,
+      credential: isSet(object.credential)
+        ? CredentialSecret.fromJSON(object.credential)
+        : undefined,
     };
   },
 
   toJSON(message: UpsertVolumeSnapshotLocation): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.spec !== undefined) {
@@ -1916,24 +1947,29 @@ export const UpsertVolumeSnapshotLocation: MessageFns<UpsertVolumeSnapshotLocati
   },
   fromPartial(object: DeepPartial<UpsertVolumeSnapshotLocation>): UpsertVolumeSnapshotLocation {
     const message = createBaseUpsertVolumeSnapshotLocation();
-    message.name = object.name ?? "";
-    message.spec = (object.spec !== undefined && object.spec !== null)
-      ? VolumeSnapshotLocationSpec.fromPartial(object.spec)
-      : undefined;
-    message.credential = (object.credential !== undefined && object.credential !== null)
-      ? CredentialSecret.fromPartial(object.credential)
-      : undefined;
+    message.name = object.name ?? '';
+    message.spec =
+      object.spec !== undefined && object.spec !== null
+        ? VolumeSnapshotLocationSpec.fromPartial(object.spec)
+        : undefined;
+    message.credential =
+      object.credential !== undefined && object.credential !== null
+        ? CredentialSecret.fromPartial(object.credential)
+        : undefined;
     return message;
   },
 };
 
 function createBaseDeleteVolumeSnapshotLocation(): DeleteVolumeSnapshotLocation {
-  return { name: "" };
+  return { name: '' };
 }
 
 export const DeleteVolumeSnapshotLocation: MessageFns<DeleteVolumeSnapshotLocation> = {
-  encode(message: DeleteVolumeSnapshotLocation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+  encode(
+    message: DeleteVolumeSnapshotLocation,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     return writer;
@@ -1943,7 +1979,7 @@ export const DeleteVolumeSnapshotLocation: MessageFns<DeleteVolumeSnapshotLocati
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1973,12 +2009,12 @@ export const DeleteVolumeSnapshotLocation: MessageFns<DeleteVolumeSnapshotLocati
   },
 
   fromJSON(object: any): DeleteVolumeSnapshotLocation {
-    return { name: isSet(object.name) ? globalThis.String(object.name) : "" };
+    return { name: isSet(object.name) ? globalThis.String(object.name) : '' };
   },
 
   toJSON(message: DeleteVolumeSnapshotLocation): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     return obj;
@@ -1989,13 +2025,13 @@ export const DeleteVolumeSnapshotLocation: MessageFns<DeleteVolumeSnapshotLocati
   },
   fromPartial(object: DeepPartial<DeleteVolumeSnapshotLocation>): DeleteVolumeSnapshotLocation {
     const message = createBaseDeleteVolumeSnapshotLocation();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     return message;
   },
 };
 
 function createBaseFetchDownload(): FetchDownload {
-  return { targetKind: 0, targetName: "", maxBytes: 0 };
+  return { targetKind: 0, targetName: '', maxBytes: 0 };
 }
 
 export const FetchDownload: MessageFns<FetchDownload> = {
@@ -2003,7 +2039,7 @@ export const FetchDownload: MessageFns<FetchDownload> = {
     if (message.targetKind !== 0) {
       writer.uint32(8).int32(message.targetKind);
     }
-    if (message.targetName !== "") {
+    if (message.targetName !== '') {
       writer.uint32(18).string(message.targetName);
     }
     if (message.maxBytes !== 0) {
@@ -2016,7 +2052,7 @@ export const FetchDownload: MessageFns<FetchDownload> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2066,18 +2102,18 @@ export const FetchDownload: MessageFns<FetchDownload> = {
       targetKind: isSet(object.targetKind)
         ? downloadTargetKindFromJSON(object.targetKind)
         : isSet(object.target_kind)
-        ? downloadTargetKindFromJSON(object.target_kind)
-        : 0,
+          ? downloadTargetKindFromJSON(object.target_kind)
+          : 0,
       targetName: isSet(object.targetName)
         ? globalThis.String(object.targetName)
         : isSet(object.target_name)
-        ? globalThis.String(object.target_name)
-        : "",
+          ? globalThis.String(object.target_name)
+          : '',
       maxBytes: isSet(object.maxBytes)
         ? globalThis.Number(object.maxBytes)
         : isSet(object.max_bytes)
-        ? globalThis.Number(object.max_bytes)
-        : 0,
+          ? globalThis.Number(object.max_bytes)
+          : 0,
     };
   },
 
@@ -2086,7 +2122,7 @@ export const FetchDownload: MessageFns<FetchDownload> = {
     if (message.targetKind !== 0) {
       obj.targetKind = downloadTargetKindToJSON(message.targetKind);
     }
-    if (message.targetName !== "") {
+    if (message.targetName !== '') {
       obj.targetName = message.targetName;
     }
     if (message.maxBytes !== 0) {
@@ -2101,7 +2137,7 @@ export const FetchDownload: MessageFns<FetchDownload> = {
   fromPartial(object: DeepPartial<FetchDownload>): FetchDownload {
     const message = createBaseFetchDownload();
     message.targetKind = object.targetKind ?? 0;
-    message.targetName = object.targetName ?? "";
+    message.targetName = object.targetName ?? '';
     message.maxBytes = object.maxBytes ?? 0;
     return message;
   },
@@ -2120,7 +2156,7 @@ export const RefreshServerStatus: MessageFns<RefreshServerStatus> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2175,7 +2211,7 @@ export const CheckNamespaces: MessageFns<CheckNamespaces> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2205,7 +2241,11 @@ export const CheckNamespaces: MessageFns<CheckNamespaces> = {
   },
 
   fromJSON(object: any): CheckNamespaces {
-    return { names: globalThis.Array.isArray(object?.names) ? object.names.map((e: any) => globalThis.String(e)) : [] };
+    return {
+      names: globalThis.Array.isArray(object?.names)
+        ? object.names.map((e: any) => globalThis.String(e))
+        : [],
+    };
   },
 
   toJSON(message: CheckNamespaces): unknown {
@@ -2227,12 +2267,12 @@ export const CheckNamespaces: MessageFns<CheckNamespaces> = {
 };
 
 function createBaseCancelCommand(): CancelCommand {
-  return { commandId: "" };
+  return { commandId: '' };
 }
 
 export const CancelCommand: MessageFns<CancelCommand> = {
   encode(message: CancelCommand, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.commandId !== "") {
+    if (message.commandId !== '') {
       writer.uint32(10).string(message.commandId);
     }
     return writer;
@@ -2242,7 +2282,7 @@ export const CancelCommand: MessageFns<CancelCommand> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2276,14 +2316,14 @@ export const CancelCommand: MessageFns<CancelCommand> = {
       commandId: isSet(object.commandId)
         ? globalThis.String(object.commandId)
         : isSet(object.command_id)
-        ? globalThis.String(object.command_id)
-        : "",
+          ? globalThis.String(object.command_id)
+          : '',
     };
   },
 
   toJSON(message: CancelCommand): unknown {
     const obj: any = {};
-    if (message.commandId !== "") {
+    if (message.commandId !== '') {
       obj.commandId = message.commandId;
     }
     return obj;
@@ -2294,18 +2334,18 @@ export const CancelCommand: MessageFns<CancelCommand> = {
   },
   fromPartial(object: DeepPartial<CancelCommand>): CancelCommand {
     const message = createBaseCancelCommand();
-    message.commandId = object.commandId ?? "";
+    message.commandId = object.commandId ?? '';
     return message;
   },
 };
 
 function createBaseCommandAck(): CommandAck {
-  return { commandId: "", state: 0 };
+  return { commandId: '', state: 0 };
 }
 
 export const CommandAck: MessageFns<CommandAck> = {
   encode(message: CommandAck, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.commandId !== "") {
+    if (message.commandId !== '') {
       writer.uint32(10).string(message.commandId);
     }
     if (message.state !== 0) {
@@ -2318,7 +2358,7 @@ export const CommandAck: MessageFns<CommandAck> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2360,15 +2400,15 @@ export const CommandAck: MessageFns<CommandAck> = {
       commandId: isSet(object.commandId)
         ? globalThis.String(object.commandId)
         : isSet(object.command_id)
-        ? globalThis.String(object.command_id)
-        : "",
+          ? globalThis.String(object.command_id)
+          : '',
       state: isSet(object.state) ? commandAckStateFromJSON(object.state) : 0,
     };
   },
 
   toJSON(message: CommandAck): unknown {
     const obj: any = {};
-    if (message.commandId !== "") {
+    if (message.commandId !== '') {
       obj.commandId = message.commandId;
     }
     if (message.state !== 0) {
@@ -2382,7 +2422,7 @@ export const CommandAck: MessageFns<CommandAck> = {
   },
   fromPartial(object: DeepPartial<CommandAck>): CommandAck {
     const message = createBaseCommandAck();
-    message.commandId = object.commandId ?? "";
+    message.commandId = object.commandId ?? '';
     message.state = object.state ?? 0;
     return message;
   },
@@ -2390,10 +2430,10 @@ export const CommandAck: MessageFns<CommandAck> = {
 
 function createBaseCommandResult(): CommandResult {
   return {
-    commandId: "",
+    commandId: '',
     ok: false,
     errorCode: 0,
-    errorMessage: "",
+    errorMessage: '',
     finishedAt: undefined,
     serverStatus: undefined,
     created: undefined,
@@ -2404,7 +2444,7 @@ function createBaseCommandResult(): CommandResult {
 
 export const CommandResult: MessageFns<CommandResult> = {
   encode(message: CommandResult, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.commandId !== "") {
+    if (message.commandId !== '') {
       writer.uint32(10).string(message.commandId);
     }
     if (message.ok !== false) {
@@ -2413,7 +2453,7 @@ export const CommandResult: MessageFns<CommandResult> = {
     if (message.errorCode !== 0) {
       writer.uint32(24).int32(message.errorCode);
     }
-    if (message.errorMessage !== "") {
+    if (message.errorMessage !== '') {
       writer.uint32(34).string(message.errorMessage);
     }
     if (message.finishedAt !== undefined) {
@@ -2438,7 +2478,7 @@ export const CommandResult: MessageFns<CommandResult> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2536,38 +2576,40 @@ export const CommandResult: MessageFns<CommandResult> = {
       commandId: isSet(object.commandId)
         ? globalThis.String(object.commandId)
         : isSet(object.command_id)
-        ? globalThis.String(object.command_id)
-        : "",
+          ? globalThis.String(object.command_id)
+          : '',
       ok: isSet(object.ok) ? globalThis.Boolean(object.ok) : false,
       errorCode: isSet(object.errorCode)
         ? errorCodeFromJSON(object.errorCode)
         : isSet(object.error_code)
-        ? errorCodeFromJSON(object.error_code)
-        : 0,
+          ? errorCodeFromJSON(object.error_code)
+          : 0,
       errorMessage: isSet(object.errorMessage)
         ? globalThis.String(object.errorMessage)
         : isSet(object.error_message)
-        ? globalThis.String(object.error_message)
-        : "",
+          ? globalThis.String(object.error_message)
+          : '',
       finishedAt: isSet(object.finishedAt)
         ? fromJsonTimestamp(object.finishedAt)
         : isSet(object.finished_at)
-        ? fromJsonTimestamp(object.finished_at)
-        : undefined,
+          ? fromJsonTimestamp(object.finished_at)
+          : undefined,
       serverStatus: isSet(object.serverStatus)
         ? ServerStatus.fromJSON(object.serverStatus)
         : isSet(object.server_status)
-        ? ServerStatus.fromJSON(object.server_status)
-        : undefined,
+          ? ServerStatus.fromJSON(object.server_status)
+          : undefined,
       created: isSet(object.created) ? CreatedObject.fromJSON(object.created) : undefined,
       download: isSet(object.download) ? DownloadSummary.fromJSON(object.download) : undefined,
-      namespaces: isSet(object.namespaces) ? NamespaceReport.fromJSON(object.namespaces) : undefined,
+      namespaces: isSet(object.namespaces)
+        ? NamespaceReport.fromJSON(object.namespaces)
+        : undefined,
     };
   },
 
   toJSON(message: CommandResult): unknown {
     const obj: any = {};
-    if (message.commandId !== "") {
+    if (message.commandId !== '') {
       obj.commandId = message.commandId;
     }
     if (message.ok !== false) {
@@ -2576,7 +2618,7 @@ export const CommandResult: MessageFns<CommandResult> = {
     if (message.errorCode !== 0) {
       obj.errorCode = errorCodeToJSON(message.errorCode);
     }
-    if (message.errorMessage !== "") {
+    if (message.errorMessage !== '') {
       obj.errorMessage = message.errorMessage;
     }
     if (message.finishedAt !== undefined) {
@@ -2602,40 +2644,44 @@ export const CommandResult: MessageFns<CommandResult> = {
   },
   fromPartial(object: DeepPartial<CommandResult>): CommandResult {
     const message = createBaseCommandResult();
-    message.commandId = object.commandId ?? "";
+    message.commandId = object.commandId ?? '';
     message.ok = object.ok ?? false;
     message.errorCode = object.errorCode ?? 0;
-    message.errorMessage = object.errorMessage ?? "";
+    message.errorMessage = object.errorMessage ?? '';
     message.finishedAt = object.finishedAt ?? undefined;
-    message.serverStatus = (object.serverStatus !== undefined && object.serverStatus !== null)
-      ? ServerStatus.fromPartial(object.serverStatus)
-      : undefined;
-    message.created = (object.created !== undefined && object.created !== null)
-      ? CreatedObject.fromPartial(object.created)
-      : undefined;
-    message.download = (object.download !== undefined && object.download !== null)
-      ? DownloadSummary.fromPartial(object.download)
-      : undefined;
-    message.namespaces = (object.namespaces !== undefined && object.namespaces !== null)
-      ? NamespaceReport.fromPartial(object.namespaces)
-      : undefined;
+    message.serverStatus =
+      object.serverStatus !== undefined && object.serverStatus !== null
+        ? ServerStatus.fromPartial(object.serverStatus)
+        : undefined;
+    message.created =
+      object.created !== undefined && object.created !== null
+        ? CreatedObject.fromPartial(object.created)
+        : undefined;
+    message.download =
+      object.download !== undefined && object.download !== null
+        ? DownloadSummary.fromPartial(object.download)
+        : undefined;
+    message.namespaces =
+      object.namespaces !== undefined && object.namespaces !== null
+        ? NamespaceReport.fromPartial(object.namespaces)
+        : undefined;
     return message;
   },
 };
 
 function createBaseCreatedObject(): CreatedObject {
-  return { kind: "", name: "", uid: "" };
+  return { kind: '', name: '', uid: '' };
 }
 
 export const CreatedObject: MessageFns<CreatedObject> = {
   encode(message: CreatedObject, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.kind !== "") {
+    if (message.kind !== '') {
       writer.uint32(10).string(message.kind);
     }
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(18).string(message.name);
     }
-    if (message.uid !== "") {
+    if (message.uid !== '') {
       writer.uint32(26).string(message.uid);
     }
     return writer;
@@ -2645,7 +2691,7 @@ export const CreatedObject: MessageFns<CreatedObject> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2692,21 +2738,21 @@ export const CreatedObject: MessageFns<CreatedObject> = {
 
   fromJSON(object: any): CreatedObject {
     return {
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      uid: isSet(object.uid) ? globalThis.String(object.uid) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : '',
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
+      uid: isSet(object.uid) ? globalThis.String(object.uid) : '',
     };
   },
 
   toJSON(message: CreatedObject): unknown {
     const obj: any = {};
-    if (message.kind !== "") {
+    if (message.kind !== '') {
       obj.kind = message.kind;
     }
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
-    if (message.uid !== "") {
+    if (message.uid !== '') {
       obj.uid = message.uid;
     }
     return obj;
@@ -2717,9 +2763,9 @@ export const CreatedObject: MessageFns<CreatedObject> = {
   },
   fromPartial(object: DeepPartial<CreatedObject>): CreatedObject {
     const message = createBaseCreatedObject();
-    message.kind = object.kind ?? "";
-    message.name = object.name ?? "";
-    message.uid = object.uid ?? "";
+    message.kind = object.kind ?? '';
+    message.name = object.name ?? '';
+    message.uid = object.uid ?? '';
     return message;
   },
 };
@@ -2740,7 +2786,7 @@ export const NamespaceReport: MessageFns<NamespaceReport> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2796,12 +2842,12 @@ export const NamespaceReport: MessageFns<NamespaceReport> = {
 };
 
 function createBaseNamespaceState(): NamespaceState {
-  return { name: "", exists: false, terminating: false };
+  return { name: '', exists: false, terminating: false };
 }
 
 export const NamespaceState: MessageFns<NamespaceState> = {
   encode(message: NamespaceState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     if (message.exists !== false) {
@@ -2817,7 +2863,7 @@ export const NamespaceState: MessageFns<NamespaceState> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2864,7 +2910,7 @@ export const NamespaceState: MessageFns<NamespaceState> = {
 
   fromJSON(object: any): NamespaceState {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       exists: isSet(object.exists) ? globalThis.Boolean(object.exists) : false,
       terminating: isSet(object.terminating) ? globalThis.Boolean(object.terminating) : false,
     };
@@ -2872,7 +2918,7 @@ export const NamespaceState: MessageFns<NamespaceState> = {
 
   toJSON(message: NamespaceState): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.exists !== false) {
@@ -2889,7 +2935,7 @@ export const NamespaceState: MessageFns<NamespaceState> = {
   },
   fromPartial(object: DeepPartial<NamespaceState>): NamespaceState {
     const message = createBaseNamespaceState();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     message.exists = object.exists ?? false;
     message.terminating = object.terminating ?? false;
     return message;
@@ -2897,7 +2943,7 @@ export const NamespaceState: MessageFns<NamespaceState> = {
 };
 
 function createBaseDownloadSummary(): DownloadSummary {
-  return { bytesSent: 0, sha256Hex: "" };
+  return { bytesSent: 0, sha256Hex: '' };
 }
 
 export const DownloadSummary: MessageFns<DownloadSummary> = {
@@ -2905,7 +2951,7 @@ export const DownloadSummary: MessageFns<DownloadSummary> = {
     if (message.bytesSent !== 0) {
       writer.uint32(8).int64(message.bytesSent);
     }
-    if (message.sha256Hex !== "") {
+    if (message.sha256Hex !== '') {
       writer.uint32(18).string(message.sha256Hex);
     }
     return writer;
@@ -2915,7 +2961,7 @@ export const DownloadSummary: MessageFns<DownloadSummary> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2957,13 +3003,13 @@ export const DownloadSummary: MessageFns<DownloadSummary> = {
       bytesSent: isSet(object.bytesSent)
         ? globalThis.Number(object.bytesSent)
         : isSet(object.bytes_sent)
-        ? globalThis.Number(object.bytes_sent)
-        : 0,
+          ? globalThis.Number(object.bytes_sent)
+          : 0,
       sha256Hex: isSet(object.sha256Hex)
         ? globalThis.String(object.sha256Hex)
         : isSet(object.sha256_hex)
-        ? globalThis.String(object.sha256_hex)
-        : "",
+          ? globalThis.String(object.sha256_hex)
+          : '',
     };
   },
 
@@ -2972,7 +3018,7 @@ export const DownloadSummary: MessageFns<DownloadSummary> = {
     if (message.bytesSent !== 0) {
       obj.bytesSent = Math.round(message.bytesSent);
     }
-    if (message.sha256Hex !== "") {
+    if (message.sha256Hex !== '') {
       obj.sha256Hex = message.sha256Hex;
     }
     return obj;
@@ -2984,18 +3030,18 @@ export const DownloadSummary: MessageFns<DownloadSummary> = {
   fromPartial(object: DeepPartial<DownloadSummary>): DownloadSummary {
     const message = createBaseDownloadSummary();
     message.bytesSent = object.bytesSent ?? 0;
-    message.sha256Hex = object.sha256Hex ?? "";
+    message.sha256Hex = object.sha256Hex ?? '';
     return message;
   },
 };
 
 function createBaseServerStatus(): ServerStatus {
-  return { serverVersion: "", plugins: [], processedAt: undefined };
+  return { serverVersion: '', plugins: [], processedAt: undefined };
 }
 
 export const ServerStatus: MessageFns<ServerStatus> = {
   encode(message: ServerStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.serverVersion !== "") {
+    if (message.serverVersion !== '') {
       writer.uint32(10).string(message.serverVersion);
     }
     for (const v of message.plugins) {
@@ -3011,7 +3057,7 @@ export const ServerStatus: MessageFns<ServerStatus> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -3061,20 +3107,22 @@ export const ServerStatus: MessageFns<ServerStatus> = {
       serverVersion: isSet(object.serverVersion)
         ? globalThis.String(object.serverVersion)
         : isSet(object.server_version)
-        ? globalThis.String(object.server_version)
-        : "",
-      plugins: globalThis.Array.isArray(object?.plugins) ? object.plugins.map((e: any) => PluginInfo.fromJSON(e)) : [],
+          ? globalThis.String(object.server_version)
+          : '',
+      plugins: globalThis.Array.isArray(object?.plugins)
+        ? object.plugins.map((e: any) => PluginInfo.fromJSON(e))
+        : [],
       processedAt: isSet(object.processedAt)
         ? fromJsonTimestamp(object.processedAt)
         : isSet(object.processed_at)
-        ? fromJsonTimestamp(object.processed_at)
-        : undefined,
+          ? fromJsonTimestamp(object.processed_at)
+          : undefined,
     };
   },
 
   toJSON(message: ServerStatus): unknown {
     const obj: any = {};
-    if (message.serverVersion !== "") {
+    if (message.serverVersion !== '') {
       obj.serverVersion = message.serverVersion;
     }
     if (message.plugins?.length) {
@@ -3091,7 +3139,7 @@ export const ServerStatus: MessageFns<ServerStatus> = {
   },
   fromPartial(object: DeepPartial<ServerStatus>): ServerStatus {
     const message = createBaseServerStatus();
-    message.serverVersion = object.serverVersion ?? "";
+    message.serverVersion = object.serverVersion ?? '';
     message.plugins = object.plugins?.map((e) => PluginInfo.fromPartial(e)) || [];
     message.processedAt = object.processedAt ?? undefined;
     return message;
@@ -3099,15 +3147,15 @@ export const ServerStatus: MessageFns<ServerStatus> = {
 };
 
 function createBasePluginInfo(): PluginInfo {
-  return { name: "", kind: "" };
+  return { name: '', kind: '' };
 }
 
 export const PluginInfo: MessageFns<PluginInfo> = {
   encode(message: PluginInfo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
-    if (message.kind !== "") {
+    if (message.kind !== '') {
       writer.uint32(18).string(message.kind);
     }
     return writer;
@@ -3117,7 +3165,7 @@ export const PluginInfo: MessageFns<PluginInfo> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -3156,17 +3204,17 @@ export const PluginInfo: MessageFns<PluginInfo> = {
 
   fromJSON(object: any): PluginInfo {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : '',
     };
   },
 
   toJSON(message: PluginInfo): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
-    if (message.kind !== "") {
+    if (message.kind !== '') {
       obj.kind = message.kind;
     }
     return obj;
@@ -3177,15 +3225,15 @@ export const PluginInfo: MessageFns<PluginInfo> = {
   },
   fromPartial(object: DeepPartial<PluginInfo>): PluginInfo {
     const message = createBasePluginInfo();
-    message.name = object.name ?? "";
-    message.kind = object.kind ?? "";
+    message.name = object.name ?? '';
+    message.kind = object.kind ?? '';
     return message;
   },
 };
 
 function bytesFromBase64(b64: string): Uint8Array {
   if ((globalThis as any).Buffer) {
-    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, 'base64'));
   } else {
     const bin = globalThis.atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -3198,23 +3246,27 @@ function bytesFromBase64(b64: string): Uint8Array {
 
 function base64FromBytes(arr: Uint8Array): string {
   if ((globalThis as any).Buffer) {
-    return (globalThis as any).Buffer.from(arr).toString("base64");
+    return (globalThis as any).Buffer.from(arr).toString('base64');
   } else {
     const bin: string[] = [];
     arr.forEach((byte) => {
       bin.push(globalThis.String.fromCharCode(byte));
     });
-    return globalThis.btoa(bin.join(""));
+    return globalThis.btoa(bin.join(''));
   }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 function toTimestamp(date: Date): Timestamp {
   const seconds = Math.trunc(date.getTime() / 1_000);
@@ -3231,7 +3283,7 @@ function fromTimestamp(t: Timestamp): Date {
 function fromJsonTimestamp(o: any): Date {
   if (o instanceof globalThis.Date) {
     return o;
-  } else if (typeof o === "string") {
+  } else if (typeof o === 'string') {
     return new globalThis.Date(o);
   } else {
     return fromTimestamp(Timestamp.fromJSON(o));
@@ -3241,10 +3293,10 @@ function fromJsonTimestamp(o: any): Date {
 function longToNumber(int64: { toString(): string }): number {
   const num = globalThis.Number(int64.toString());
   if (num > globalThis.Number.MAX_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
+    throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
   }
   if (num < globalThis.Number.MIN_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
+    throw new globalThis.Error('Value is smaller than Number.MIN_SAFE_INTEGER');
   }
   return num;
 }

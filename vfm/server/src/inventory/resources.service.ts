@@ -6,10 +6,17 @@ import type { Prisma, VeleroResource } from '@prisma/client';
 import { stringify } from 'yaml';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { WatchScopeService } from './watch-scope.service';
 import { RbacService, type TokenLimit } from '../rbac/rbac.service';
 import {
   backupSummary,
   coveredBy,
+  coveredByRow,
+  eventSummary,
+  namespaceSummary,
+  nodeSummary,
+  podSummary,
+  pvcSummary,
   locationSummary,
   repositorySummary,
   restoreSummary,
@@ -38,10 +45,17 @@ export type ListKind =
   | 'SCHEDULE'
   | 'BACKUP_STORAGE_LOCATION'
   | 'VOLUME_SNAPSHOT_LOCATION'
-  | 'BACKUP_REPOSITORY';
+  | 'BACKUP_REPOSITORY'
+  | 'NODE'
+  | 'NAMESPACE'
+  | 'POD'
+  | 'PERSISTENT_VOLUME_CLAIM'
+  | 'EVENT';
 
 interface KindConfig {
   permission: Permission;
+  /** The permission whose namespace scope decides what a scoped user sees; defaults to `permission`. */
+  visibilityPermission?: Permission;
   /** Whether visibility depends on the namespaces an object covers. */
   namespaced: boolean;
   sorts: readonly string[];
@@ -91,6 +105,50 @@ const CONFIG: Record<ListKind, KindConfig> = {
     defaultOrder: 'asc',
     summarize: (r, k) => locationSummary(r, k),
   },
+  NODE: {
+    permission: 'cluster:read',
+    namespaced: false,
+    sorts: ['name', 'phase'],
+    defaultSort: 'name',
+    defaultOrder: 'asc',
+    summarize: (r) => nodeSummary(r),
+  },
+  NAMESPACE: {
+    permission: 'cluster:read',
+    visibilityPermission: 'backup:read',
+    namespaced: true,
+    sorts: ['name', 'phase'],
+    defaultSort: 'name',
+    defaultOrder: 'asc',
+    summarize: (r) => namespaceSummary(r),
+  },
+  POD: {
+    permission: 'cluster:read',
+    visibilityPermission: 'backup:read',
+    namespaced: true,
+    sorts: ['name', 'phase', 'startedAt'],
+    defaultSort: 'name',
+    defaultOrder: 'asc',
+    summarize: (r) => podSummary(r),
+  },
+  PERSISTENT_VOLUME_CLAIM: {
+    permission: 'cluster:read',
+    visibilityPermission: 'backup:read',
+    namespaced: true,
+    sorts: ['name', 'phase'],
+    defaultSort: 'name',
+    defaultOrder: 'asc',
+    summarize: (r) => pvcSummary(r),
+  },
+  EVENT: {
+    permission: 'cluster:read',
+    visibilityPermission: 'backup:read',
+    namespaced: true,
+    sorts: ['startedAt', 'name'],
+    defaultSort: 'startedAt',
+    defaultOrder: 'desc',
+    summarize: (r) => eventSummary(r),
+  },
   BACKUP_REPOSITORY: {
     permission: 'storage:read',
     namespaced: false,
@@ -115,6 +173,8 @@ export interface ListQuery {
   backup?: string;
   paused?: boolean;
   createdByVfm?: boolean;
+  /** The live view's namespace filter. */
+  namespace?: string;
 }
 
 export interface Page<T> {
@@ -131,6 +191,11 @@ const SUPPORTED_FILTERS: Record<ListKind, readonly (keyof ListQuery)[]> = {
   BACKUP_STORAGE_LOCATION: ['phase', 'q'],
   VOLUME_SNAPSHOT_LOCATION: ['phase', 'q'],
   BACKUP_REPOSITORY: ['phase', 'q'],
+  NODE: ['phase', 'q'],
+  NAMESPACE: ['phase', 'q'],
+  POD: ['phase', 'q', 'namespace'],
+  PERSISTENT_VOLUME_CLAIM: ['phase', 'q', 'namespace'],
+  EVENT: ['phase', 'q', 'namespace'],
 };
 
 const FILTER_KEYS: (keyof ListQuery)[] = [
@@ -141,6 +206,7 @@ const FILTER_KEYS: (keyof ListQuery)[] = [
   'backup',
   'paused',
   'createdByVfm',
+  'namespace',
 ];
 
 /**
@@ -153,6 +219,7 @@ export class ResourcesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rbac: RbacService,
+    private readonly watch: WatchScopeService,
   ) {}
 
   async list(
@@ -193,6 +260,10 @@ export class ResourcesService {
       ...(query.phase === undefined ? {} : { phase: { in: query.phase } }),
       ...(query.q === undefined ? {} : { name: { contains: query.q, mode: 'insensitive' } }),
       ...(query.createdByVfm === undefined ? {} : { createdByVfm: query.createdByVfm }),
+      ...(query.namespace === undefined ? {} : { namespace: query.namespace }),
+      // Events are interesting for an hour (PLAN.md §7.1); the agent retires older ones, this
+      // covers the gap until it does.
+      ...(kind === 'EVENT' ? { startedAt: { gte: new Date(Date.now() - 3_600_000) } } : {}),
       ...(query.schedule === undefined
         ? {}
         : kind === 'RESTORE'
@@ -214,8 +285,24 @@ export class ResourcesService {
     ];
 
     const visibility = config.namespaced
-      ? await this.rbac.visibility(orgId, userId, clusterId, config.permission, token)
+      ? await this.rbac.visibility(
+          orgId,
+          userId,
+          clusterId,
+          config.visibilityPermission ?? config.permission,
+          token,
+        )
       : undefined;
+    // Looking at a namespace's pods asks the agent of a large cluster to report them.
+    if (
+      kind === 'POD' &&
+      query.namespace !== undefined &&
+      (visibility === undefined ||
+        visibility.all ||
+        visibility.sees({ namespaces: [query.namespace], includesClusterScoped: false }))
+    ) {
+      await this.watch.touch(clusterId, query.namespace).catch(() => undefined);
+    }
     // An unpaused schedule usually omits `paused`, and in SQL a missing JSON key is NULL,
     // which no `NOT` can match. "Not paused" is therefore decided here, in the scan.
     const notPaused = query.paused === false;
@@ -254,7 +341,7 @@ export class ResourcesService {
         scanned += 1;
         cursorId = row.id;
         const visible =
-          visibility === undefined || visibility.all || visibility.sees(coveredBy(kind, row.spec));
+          visibility === undefined || visibility.all || visibility.sees(coveredByRow(kind, row));
         if (visible && !(notPaused && isPaused(row.spec))) {
           items.push(config.summarize(row, kind));
           if (items.length === limit) {

@@ -79,6 +79,7 @@ export function coveredBy(kind: string, spec: unknown): Covered {
 
 interface RowLike {
   name: string;
+  namespace?: string;
   phase: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
@@ -225,4 +226,140 @@ export function timeline(row: RowLike): { at: Date; event: string }[] {
   add(row.completedAt, row.phase === null ? 'Finished' : `Finished: ${row.phase}`);
   add(row.expiresAt, 'Expires');
   return out.sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
+// ---------------------------------------------------------------------------
+// The live view (PLAN.md §7.1). The agent already reduced these to summaries; what is
+// read back here is bounded again, because the agent is semi-trusted.
+
+const list = (value: unknown, max: number): unknown[] =>
+  Array.isArray(value) ? value.slice(0, max) : [];
+
+export function nodeSummary(row: RowLike) {
+  const spec = isRecord(row.spec) ? row.spec : {};
+  const status = isRecord(row.status) ? row.status : {};
+  const alloc = isRecord(status.allocatable) ? status.allocatable : {};
+  const labels = isRecord(row.labels) ? row.labels : {};
+  const roles = Object.keys(labels)
+    .filter((k) => k.startsWith('node-role.kubernetes.io/'))
+    .map((k) => k.slice('node-role.kubernetes.io/'.length))
+    .filter((r) => r !== '')
+    .slice(0, 8);
+  const conditions = list(status.conditions, 16).filter(isRecord);
+  return {
+    name: row.name,
+    phase: row.phase,
+    roles,
+    kubeletVersion: text(isRecord(status.nodeInfo) ? status.nodeInfo.kubeletVersion : null, 64),
+    allocatable: {
+      cpu: text(alloc.cpu, 32),
+      memory: text(alloc.memory, 32),
+      pods: text(alloc.pods, 16),
+    },
+    pressure: conditions
+      .filter(
+        (c) => typeof c.type === 'string' && c.type.endsWith('Pressure') && c.status === 'True',
+      )
+      .map((c) => text(c.type, 64)),
+    schedulable: spec.unschedulable !== true,
+    taints: list(spec.taints, 16)
+      .filter(isRecord)
+      .map((t) => ({
+        key: text(t.key, 253),
+        value: text(t.value, 63),
+        effect: text(t.effect, 32),
+      })),
+  };
+}
+
+export function namespaceSummary(row: RowLike) {
+  return {
+    name: row.name,
+    phase: row.phase,
+    labels: isRecord(row.labels) ? row.labels : {},
+    createdAt: row.creationTimestamp,
+  };
+}
+
+export function podSummary(row: RowLike) {
+  const spec = isRecord(row.spec) ? row.spec : {};
+  const status = isRecord(row.status) ? row.status : {};
+  const owner = isRecord(spec.owner) ? spec.owner : null;
+  return {
+    namespace: row.namespace ?? '',
+    name: row.name,
+    phase: row.phase,
+    reason: text(status.reason, 64),
+    ready: `${String(num(status.readyCount) ?? 0)}/${String(num(status.containerCount) ?? 0)}`,
+    restarts: num(status.restartCount) ?? 0,
+    node: text(spec.nodeName, 253),
+    owner: owner === null ? null : { kind: text(owner.kind, 63), name: text(owner.name, 253) },
+    startedAt: row.startedAt,
+    containers: list(status.containerStatuses, 64)
+      .filter(isRecord)
+      .map((c) => ({
+        name: text(c.name, 63),
+        image: text(c.image, 253),
+        ready: c.ready === true,
+        init: c.init === true,
+        state: text(c.state, 16),
+        reason: text(c.reason, 64),
+        restarts: num(c.restartCount) ?? 0,
+        lastTerminationReason: text(c.lastTerminationReason, 64),
+      })),
+  };
+}
+
+export function pvcSummary(row: RowLike) {
+  const spec = isRecord(row.spec) ? row.spec : {};
+  const status = isRecord(row.status) ? row.status : {};
+  const capacity = isRecord(status.capacity) ? status.capacity : {};
+  return {
+    namespace: row.namespace ?? '',
+    name: row.name,
+    phase: row.phase,
+    capacity: text(capacity.storage, 32),
+    storageClass: text(spec.storageClassName, 253),
+    volume: text(spec.volumeName, 253),
+  };
+}
+
+export function eventSummary(row: RowLike) {
+  const status = isRecord(row.status) ? row.status : {};
+  const object = isRecord(status.involvedObject) ? status.involvedObject : {};
+  return {
+    namespace: row.namespace ?? '',
+    name: row.name,
+    type: row.phase,
+    reason: text(status.reason, 64),
+    message: text(status.message, 512),
+    count: num(status.count) ?? 1,
+    lastSeen: row.startedAt,
+    object: {
+      kind: text(object.kind, 63),
+      name: text(object.name, 253),
+      namespace: text(object.namespace, 63),
+    },
+  };
+}
+
+/**
+ * What a row covers for the visibility rule. Live-view objects are visible with the
+ * namespace they live in (or are): workload data follows the same namespace scope as
+ * the backups of that namespace, since the plan has no separate permission for it.
+ */
+export function coveredByRow(
+  kind: string,
+  row: { name: string; namespace: string; spec: unknown },
+): Covered {
+  switch (kind) {
+    case 'POD':
+    case 'PERSISTENT_VOLUME_CLAIM':
+    case 'EVENT':
+      return { namespaces: [row.namespace], includesClusterScoped: false };
+    case 'NAMESPACE':
+      return { namespaces: [row.name], includesClusterScoped: false };
+    default:
+      return coveredBy(kind, row.spec);
+  }
 }

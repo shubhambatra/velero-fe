@@ -47,6 +47,8 @@ const (
 	EnvPolicyConfigMap         = EnvPrefix + "POLICY_CONFIGMAP"
 	EnvChartVersion            = EnvPrefix + "CHART_VERSION"
 	EnvResyncInterval          = EnvPrefix + "RESYNC_INTERVAL"
+	EnvCoreInventory           = EnvPrefix + "CORE_INVENTORY"
+	EnvPodScopeThreshold       = EnvPrefix + "POD_SCOPE_THRESHOLD"
 	EnvImageTag                = EnvPrefix + "IMAGE_TAG"
 	EnvStateConfigMap          = EnvPrefix + "STATE_CONFIGMAP"
 	EnvVeleroNamespace         = EnvPrefix + "VELERO_NAMESPACE"
@@ -89,6 +91,8 @@ var (
 	settingStateConfigMap          = setting{EnvStateConfigMap, "state-configmap"}
 	settingVeleroNamespace         = setting{EnvVeleroNamespace, "velero-namespace"}
 	settingResyncInterval          = setting{EnvResyncInterval, "resync-interval"}
+	settingCoreInventory           = setting{EnvCoreInventory, "core-inventory"}
+	settingPodScopeThreshold       = setting{EnvPodScopeThreshold, "pod-scope-threshold"}
 	settingEnrollmentToken         = setting{env: EnvEnrollmentToken}
 	settingClusterID               = setting{EnvClusterID, "cluster-id"}
 	settingClusterName             = setting{EnvClusterName, "cluster-name"}
@@ -168,6 +172,12 @@ type Config struct {
 	// ResyncInterval is how often a full inventory snapshot is sent, which heals
 	// any delta the control plane missed (PLAN.md §5.3: every 10 minutes).
 	ResyncInterval time.Duration
+	// CoreInventory turns the live view on: nodes, namespaces, pod summaries, PVCs and
+	// events are reported alongside Velero's objects (PLAN.md §7.1).
+	CoreInventory bool
+	// PodScopeThreshold is the pod count above which pods are reported only for the
+	// namespaces the control plane asks about (PLAN.md §7.1).
+	PodScopeThreshold int
 
 	// EnrollmentToken is the one-time bootstrap token. Environment only, and
 	// never logged; unused once the agent holds a certificate.
@@ -237,6 +247,8 @@ func Default() *Config {
 		StateConfigMap:     DefaultStateConfigMap,
 		VeleroNamespace:    DefaultVeleroNamespace,
 		ResyncInterval:     10 * time.Minute,
+		CoreInventory:      true,
+		PodScopeThreshold:  20000,
 		HealthAddr:         ":8081",
 		MetricsAddr:        ":9090",
 		LogLevel:           slog.LevelInfo,
@@ -303,6 +315,8 @@ func (c *Config) applyEnv(getenv func(string) (string, bool), probs *problems) {
 	env.str(settingStateConfigMap, &c.StateConfigMap)
 	env.str(settingVeleroNamespace, &c.VeleroNamespace)
 	env.duration(settingResyncInterval, &c.ResyncInterval)
+	env.boolean(settingCoreInventory, &c.CoreInventory)
+	env.integer(settingPodScopeThreshold, &c.PodScopeThreshold)
 	env.str(settingEnrollmentToken, &c.EnrollmentToken)
 	env.str(settingClusterID, &c.ClusterID)
 	env.str(settingClusterName, &c.ClusterName)
@@ -361,6 +375,10 @@ func (c *Config) applyFlags(args []string, probs *problems) error {
 		"namespace Velero runs in")
 	fs.DurationVar(&c.ResyncInterval, settingResyncInterval.flag, c.ResyncInterval,
 		"interval between full inventory snapshots")
+	fs.BoolVar(&c.CoreInventory, settingCoreInventory.flag, c.CoreInventory,
+		"report nodes, namespaces, pod summaries, PVCs and events (the live view)")
+	fs.IntVar(&c.PodScopeThreshold, settingPodScopeThreshold.flag, c.PodScopeThreshold,
+		"pod count above which pods are reported only for namespaces the control plane asks about")
 	fs.StringVar(&c.ClusterID, settingClusterID.flag, c.ClusterID,
 		"cluster ID issued by the control plane at enrollment")
 	fs.StringVar(&c.ClusterName, settingClusterName.flag, c.ClusterName,
@@ -515,6 +533,9 @@ func (c *Config) validate(probs *problems) {
 	if c.ResyncInterval < 10*time.Second {
 		probs.add(settingResyncInterval, "must be at least 10s")
 	}
+	if c.PodScopeThreshold < 100 {
+		probs.add(settingPodScopeThreshold, "must be at least 100")
+	}
 	if c.ShutdownTimeout < time.Second {
 		probs.add(settingShutdownTimeout, "must be at least 1s")
 	}
@@ -626,6 +647,8 @@ func (c *Config) LogValue() slog.Value {
 		slog.String("state_configmap", c.StateConfigMap),
 		slog.String("velero_namespace", c.VeleroNamespace),
 		slog.String("resync_interval", c.ResyncInterval.String()),
+		slog.Bool("core_inventory", c.CoreInventory),
+		slog.Int("pod_scope_threshold", c.PodScopeThreshold),
 		// Presence only: the token is a credential.
 		slog.Bool("enrollment_token_set", c.EnrollmentToken != ""),
 		slog.String("cluster_id", c.ClusterID),

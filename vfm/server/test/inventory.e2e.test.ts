@@ -450,7 +450,7 @@ describe('inventory ingest (e2e)', () => {
         [
           resource('good'),
           forged,
-          resource('a-pod', { kind: ResourceKind.RESOURCE_KIND_POD }),
+          resource('a-pod', { kind: ResourceKind.RESOURCE_KIND_UNSPECIFIED }),
           { ...resource('bad name'), name: '../../etc' },
           { ...resource('big'), objectJson: Buffer.alloc(300 * 1024, 0x20) },
           resource('also-good', { kind: SCHEDULE, phase: 'Enabled' }),

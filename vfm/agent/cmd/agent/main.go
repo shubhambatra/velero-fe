@@ -229,14 +229,16 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 		}).Handle)
 
 		syncer := inventory.New(inventory.Options{
-			Dynamic:     kubeClient.Dynamic(),
-			Discovery:   kubeClient.Clientset().Discovery(),
-			Namespace:   cfg.VeleroNamespace,
-			SendWait:    func(ctx context.Context, m *pb.AgentMessage) error { return manager.SendWait(ctx, m) },
-			TrySend:     func(m *pb.AgentMessage) bool { return manager.Send(m) },
-			NewID:       gateway.NewMessageID,
-			Logger:      logger,
-			ResyncEvery: cfg.ResyncInterval,
+			Dynamic:           kubeClient.Dynamic(),
+			Discovery:         kubeClient.Clientset().Discovery(),
+			Namespace:         cfg.VeleroNamespace,
+			SendWait:          func(ctx context.Context, m *pb.AgentMessage) error { return manager.SendWait(ctx, m) },
+			TrySend:           func(m *pb.AgentMessage) bool { return manager.Send(m) },
+			NewID:             gateway.NewMessageID,
+			Logger:            logger,
+			ResyncEvery:       cfg.ResyncInterval,
+			Core:              cfg.CoreInventory,
+			PodScopeThreshold: cfg.PodScopeThreshold,
 		})
 
 		var err error

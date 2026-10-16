@@ -5,9 +5,9 @@
 // source: vfm/agent/v1/common.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
 
-export const protobufPackage = "vfm.agent.v1";
+export const protobufPackage = 'vfm.agent.v1';
 
 /** PLAN.md §5.4. */
 export enum ErrorCode {
@@ -26,34 +26,34 @@ export enum ErrorCode {
 export function errorCodeFromJSON(object: any): ErrorCode {
   switch (object) {
     case 0:
-    case "ERROR_CODE_UNSPECIFIED":
+    case 'ERROR_CODE_UNSPECIFIED':
       return ErrorCode.ERROR_CODE_UNSPECIFIED;
     case 1:
-    case "ERROR_CODE_INVALID_ARGUMENT":
+    case 'ERROR_CODE_INVALID_ARGUMENT':
       return ErrorCode.ERROR_CODE_INVALID_ARGUMENT;
     case 2:
-    case "ERROR_CODE_NOT_FOUND":
+    case 'ERROR_CODE_NOT_FOUND':
       return ErrorCode.ERROR_CODE_NOT_FOUND;
     case 3:
-    case "ERROR_CODE_ALREADY_EXISTS":
+    case 'ERROR_CODE_ALREADY_EXISTS':
       return ErrorCode.ERROR_CODE_ALREADY_EXISTS;
     case 4:
-    case "ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY":
+    case 'ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY':
       return ErrorCode.ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY;
     case 5:
-    case "ERROR_CODE_UNSUPPORTED_BY_VELERO_VERSION":
+    case 'ERROR_CODE_UNSUPPORTED_BY_VELERO_VERSION':
       return ErrorCode.ERROR_CODE_UNSUPPORTED_BY_VELERO_VERSION;
     case 6:
-    case "ERROR_CODE_KUBE_API_ERROR":
+    case 'ERROR_CODE_KUBE_API_ERROR':
       return ErrorCode.ERROR_CODE_KUBE_API_ERROR;
     case 7:
-    case "ERROR_CODE_TIMEOUT":
+    case 'ERROR_CODE_TIMEOUT':
       return ErrorCode.ERROR_CODE_TIMEOUT;
     case 8:
-    case "ERROR_CODE_INTERNAL":
+    case 'ERROR_CODE_INTERNAL':
       return ErrorCode.ERROR_CODE_INTERNAL;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return ErrorCode.UNRECOGNIZED;
   }
@@ -62,26 +62,26 @@ export function errorCodeFromJSON(object: any): ErrorCode {
 export function errorCodeToJSON(object: ErrorCode): string {
   switch (object) {
     case ErrorCode.ERROR_CODE_UNSPECIFIED:
-      return "ERROR_CODE_UNSPECIFIED";
+      return 'ERROR_CODE_UNSPECIFIED';
     case ErrorCode.ERROR_CODE_INVALID_ARGUMENT:
-      return "ERROR_CODE_INVALID_ARGUMENT";
+      return 'ERROR_CODE_INVALID_ARGUMENT';
     case ErrorCode.ERROR_CODE_NOT_FOUND:
-      return "ERROR_CODE_NOT_FOUND";
+      return 'ERROR_CODE_NOT_FOUND';
     case ErrorCode.ERROR_CODE_ALREADY_EXISTS:
-      return "ERROR_CODE_ALREADY_EXISTS";
+      return 'ERROR_CODE_ALREADY_EXISTS';
     case ErrorCode.ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY:
-      return "ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY";
+      return 'ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY';
     case ErrorCode.ERROR_CODE_UNSUPPORTED_BY_VELERO_VERSION:
-      return "ERROR_CODE_UNSUPPORTED_BY_VELERO_VERSION";
+      return 'ERROR_CODE_UNSUPPORTED_BY_VELERO_VERSION';
     case ErrorCode.ERROR_CODE_KUBE_API_ERROR:
-      return "ERROR_CODE_KUBE_API_ERROR";
+      return 'ERROR_CODE_KUBE_API_ERROR';
     case ErrorCode.ERROR_CODE_TIMEOUT:
-      return "ERROR_CODE_TIMEOUT";
+      return 'ERROR_CODE_TIMEOUT';
     case ErrorCode.ERROR_CODE_INTERNAL:
-      return "ERROR_CODE_INTERNAL";
+      return 'ERROR_CODE_INTERNAL';
     case ErrorCode.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -134,7 +134,10 @@ function createBaseLabelSelector(): LabelSelector {
 export const LabelSelector: MessageFns<LabelSelector> = {
   encode(message: LabelSelector, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     globalThis.Object.entries(message.matchLabels).forEach(([key, value]: [string, string]) => {
-      LabelSelector_MatchLabelsEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+      LabelSelector_MatchLabelsEntry.encode(
+        { key: key as any, value },
+        writer.uint32(10).fork(),
+      ).join();
     });
     for (const v of message.matchExpressions) {
       LabelSelectorRequirement.encode(v!, writer.uint32(18).fork()).join();
@@ -146,7 +149,7 @@ export const LabelSelector: MessageFns<LabelSelector> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -190,36 +193,36 @@ export const LabelSelector: MessageFns<LabelSelector> = {
     return {
       matchLabels: isObject(object.matchLabels)
         ? (globalThis.Object.entries(object.matchLabels) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
+            (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+              globalThis.Object.defineProperty(acc, key, {
+                value: globalThis.String(value),
+                enumerable: true,
+                configurable: true,
+                writable: true,
+              });
+              return acc;
+            },
+            {},
+          )
         : isObject(object.match_labels)
-        ? (globalThis.Object.entries(object.match_labels) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : {},
+          ? (globalThis.Object.entries(object.match_labels) as [string, any][]).reduce(
+              (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+                globalThis.Object.defineProperty(acc, key, {
+                  value: globalThis.String(value),
+                  enumerable: true,
+                  configurable: true,
+                  writable: true,
+                });
+                return acc;
+              },
+              {},
+            )
+          : {},
       matchExpressions: globalThis.Array.isArray(object?.matchExpressions)
         ? object.matchExpressions.map((e: any) => LabelSelectorRequirement.fromJSON(e))
         : globalThis.Array.isArray(object?.match_expressions)
-        ? object.match_expressions.map((e: any) => LabelSelectorRequirement.fromJSON(e))
-        : [],
+          ? object.match_expressions.map((e: any) => LabelSelectorRequirement.fromJSON(e))
+          : [],
     };
   },
 
@@ -235,7 +238,9 @@ export const LabelSelector: MessageFns<LabelSelector> = {
       }
     }
     if (message.matchExpressions?.length) {
-      obj.matchExpressions = message.matchExpressions.map((e) => LabelSelectorRequirement.toJSON(e));
+      obj.matchExpressions = message.matchExpressions.map((e) =>
+        LabelSelectorRequirement.toJSON(e),
+      );
     }
     return obj;
   },
@@ -245,30 +250,33 @@ export const LabelSelector: MessageFns<LabelSelector> = {
   },
   fromPartial(object: DeepPartial<LabelSelector>): LabelSelector {
     const message = createBaseLabelSelector();
-    message.matchLabels = (globalThis.Object.entries(object.matchLabels ?? {}) as [string, string][]).reduce(
-      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
-    message.matchExpressions = object.matchExpressions?.map((e) => LabelSelectorRequirement.fromPartial(e)) || [];
+    message.matchLabels = (
+      globalThis.Object.entries(object.matchLabels ?? {}) as [string, string][]
+    ).reduce((acc: { [key: string]: string }, [key, value]: [string, string]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
+    message.matchExpressions =
+      object.matchExpressions?.map((e) => LabelSelectorRequirement.fromPartial(e)) || [];
     return message;
   },
 };
 
 function createBaseLabelSelector_MatchLabelsEntry(): LabelSelector_MatchLabelsEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const LabelSelector_MatchLabelsEntry: MessageFns<LabelSelector_MatchLabelsEntry> = {
-  encode(message: LabelSelector_MatchLabelsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: LabelSelector_MatchLabelsEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -278,7 +286,7 @@ export const LabelSelector_MatchLabelsEntry: MessageFns<LabelSelector_MatchLabel
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -317,17 +325,17 @@ export const LabelSelector_MatchLabelsEntry: MessageFns<LabelSelector_MatchLabel
 
   fromJSON(object: any): LabelSelector_MatchLabelsEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: LabelSelector_MatchLabelsEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
@@ -338,22 +346,25 @@ export const LabelSelector_MatchLabelsEntry: MessageFns<LabelSelector_MatchLabel
   },
   fromPartial(object: DeepPartial<LabelSelector_MatchLabelsEntry>): LabelSelector_MatchLabelsEntry {
     const message = createBaseLabelSelector_MatchLabelsEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
 
 function createBaseLabelSelectorRequirement(): LabelSelectorRequirement {
-  return { key: "", operator: "", values: [] };
+  return { key: '', operator: '', values: [] };
 }
 
 export const LabelSelectorRequirement: MessageFns<LabelSelectorRequirement> = {
-  encode(message: LabelSelectorRequirement, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: LabelSelectorRequirement,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.operator !== "") {
+    if (message.operator !== '') {
       writer.uint32(18).string(message.operator);
     }
     for (const v of message.values) {
@@ -366,7 +377,7 @@ export const LabelSelectorRequirement: MessageFns<LabelSelectorRequirement> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -413,18 +424,20 @@ export const LabelSelectorRequirement: MessageFns<LabelSelectorRequirement> = {
 
   fromJSON(object: any): LabelSelectorRequirement {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      operator: isSet(object.operator) ? globalThis.String(object.operator) : "",
-      values: globalThis.Array.isArray(object?.values) ? object.values.map((e: any) => globalThis.String(e)) : [],
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      operator: isSet(object.operator) ? globalThis.String(object.operator) : '',
+      values: globalThis.Array.isArray(object?.values)
+        ? object.values.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
   toJSON(message: LabelSelectorRequirement): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.operator !== "") {
+    if (message.operator !== '') {
       obj.operator = message.operator;
     }
     if (message.values?.length) {
@@ -438,26 +451,29 @@ export const LabelSelectorRequirement: MessageFns<LabelSelectorRequirement> = {
   },
   fromPartial(object: DeepPartial<LabelSelectorRequirement>): LabelSelectorRequirement {
     const message = createBaseLabelSelectorRequirement();
-    message.key = object.key ?? "";
-    message.operator = object.operator ?? "";
+    message.key = object.key ?? '';
+    message.operator = object.operator ?? '';
     message.values = object.values?.map((e) => e) || [];
     return message;
   },
 };
 
 function createBaseTypedLocalObjectReference(): TypedLocalObjectReference {
-  return { apiGroup: "", kind: "", name: "" };
+  return { apiGroup: '', kind: '', name: '' };
 }
 
 export const TypedLocalObjectReference: MessageFns<TypedLocalObjectReference> = {
-  encode(message: TypedLocalObjectReference, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.apiGroup !== "") {
+  encode(
+    message: TypedLocalObjectReference,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.apiGroup !== '') {
       writer.uint32(10).string(message.apiGroup);
     }
-    if (message.kind !== "") {
+    if (message.kind !== '') {
       writer.uint32(18).string(message.kind);
     }
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(26).string(message.name);
     }
     return writer;
@@ -467,7 +483,7 @@ export const TypedLocalObjectReference: MessageFns<TypedLocalObjectReference> = 
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -517,22 +533,22 @@ export const TypedLocalObjectReference: MessageFns<TypedLocalObjectReference> = 
       apiGroup: isSet(object.apiGroup)
         ? globalThis.String(object.apiGroup)
         : isSet(object.api_group)
-        ? globalThis.String(object.api_group)
-        : "",
-      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+          ? globalThis.String(object.api_group)
+          : '',
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : '',
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
     };
   },
 
   toJSON(message: TypedLocalObjectReference): unknown {
     const obj: any = {};
-    if (message.apiGroup !== "") {
+    if (message.apiGroup !== '') {
       obj.apiGroup = message.apiGroup;
     }
-    if (message.kind !== "") {
+    if (message.kind !== '') {
       obj.kind = message.kind;
     }
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     return obj;
@@ -543,23 +559,23 @@ export const TypedLocalObjectReference: MessageFns<TypedLocalObjectReference> = 
   },
   fromPartial(object: DeepPartial<TypedLocalObjectReference>): TypedLocalObjectReference {
     const message = createBaseTypedLocalObjectReference();
-    message.apiGroup = object.apiGroup ?? "";
-    message.kind = object.kind ?? "";
-    message.name = object.name ?? "";
+    message.apiGroup = object.apiGroup ?? '';
+    message.kind = object.kind ?? '';
+    message.name = object.name ?? '';
     return message;
   },
 };
 
 function createBaseSecretKeyRef(): SecretKeyRef {
-  return { name: "", key: "" };
+  return { name: '', key: '' };
 }
 
 export const SecretKeyRef: MessageFns<SecretKeyRef> = {
   encode(message: SecretKeyRef, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
-    if (message.key !== "") {
+    if (message.key !== '') {
       writer.uint32(18).string(message.key);
     }
     return writer;
@@ -569,7 +585,7 @@ export const SecretKeyRef: MessageFns<SecretKeyRef> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -608,17 +624,17 @@ export const SecretKeyRef: MessageFns<SecretKeyRef> = {
 
   fromJSON(object: any): SecretKeyRef {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
     };
   },
 
   toJSON(message: SecretKeyRef): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
     return obj;
@@ -629,8 +645,8 @@ export const SecretKeyRef: MessageFns<SecretKeyRef> = {
   },
   fromPartial(object: DeepPartial<SecretKeyRef>): SecretKeyRef {
     const message = createBaseSecretKeyRef();
-    message.name = object.name ?? "";
-    message.key = object.key ?? "";
+    message.name = object.name ?? '';
+    message.key = object.key ?? '';
     return message;
   },
 };
@@ -654,7 +670,7 @@ export const CredentialSecret: MessageFns<CredentialSecret> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -714,7 +730,10 @@ export const CredentialSecret: MessageFns<CredentialSecret> = {
   },
   fromPartial(object: DeepPartial<CredentialSecret>): CredentialSecret {
     const message = createBaseCredentialSecret();
-    message.ref = (object.ref !== undefined && object.ref !== null) ? SecretKeyRef.fromPartial(object.ref) : undefined;
+    message.ref =
+      object.ref !== undefined && object.ref !== null
+        ? SecretKeyRef.fromPartial(object.ref)
+        : undefined;
     message.content = object.content ?? new Uint8Array(0);
     return message;
   },
@@ -722,7 +741,7 @@ export const CredentialSecret: MessageFns<CredentialSecret> = {
 
 function bytesFromBase64(b64: string): Uint8Array {
   if ((globalThis as any).Buffer) {
-    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, 'base64'));
   } else {
     const bin = globalThis.atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -735,26 +754,30 @@ function bytesFromBase64(b64: string): Uint8Array {
 
 function base64FromBytes(arr: Uint8Array): string {
   if ((globalThis as any).Buffer) {
-    return (globalThis as any).Buffer.from(arr).toString("base64");
+    return (globalThis as any).Buffer.from(arr).toString('base64');
   } else {
     const bin: string[] = [];
     arr.forEach((byte) => {
       bin.push(globalThis.String.fromCharCode(byte));
     });
-    return globalThis.btoa(bin.join(""));
+    return globalThis.btoa(bin.join(''));
   }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 function isObject(value: any): boolean {
-  return typeof value === "object" && value !== null;
+  return typeof value === 'object' && value !== null;
 }
 
 function isSet(value: any): boolean {

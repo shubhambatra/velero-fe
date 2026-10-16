@@ -8,6 +8,7 @@ import { FleetController } from './fleet.controller';
 import { FleetService } from './fleet.service';
 import { ResourcesController } from './resources.controller';
 import { ResourcesService } from './resources.service';
+import { WatchScopeService } from './watch-scope.service';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 
@@ -15,7 +16,7 @@ import { InventoryService } from './inventory.service';
 @Module({
   imports: [ClustersModule, OrgsModule, RbacModule, StreamsModule],
   controllers: [InventoryController, FleetController, ResourcesController],
-  providers: [InventoryService, FleetService, ResourcesService],
+  providers: [InventoryService, FleetService, ResourcesService, WatchScopeService],
   exports: [InventoryService],
 })
 export class InventoryModule {}

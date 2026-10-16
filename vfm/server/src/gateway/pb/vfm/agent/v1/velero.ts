@@ -5,11 +5,11 @@
 // source: vfm/agent/v1/velero.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { Duration } from "../../../google/protobuf/duration";
-import { LabelSelector, SecretKeyRef, TypedLocalObjectReference } from "./common";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
+import { Duration } from '../../../google/protobuf/duration';
+import { LabelSelector, SecretKeyRef, TypedLocalObjectReference } from './common';
 
-export const protobufPackage = "vfm.agent.v1";
+export const protobufPackage = 'vfm.agent.v1';
 
 export enum HookErrorMode {
   HOOK_ERROR_MODE_UNSPECIFIED = 0,
@@ -21,16 +21,16 @@ export enum HookErrorMode {
 export function hookErrorModeFromJSON(object: any): HookErrorMode {
   switch (object) {
     case 0:
-    case "HOOK_ERROR_MODE_UNSPECIFIED":
+    case 'HOOK_ERROR_MODE_UNSPECIFIED':
       return HookErrorMode.HOOK_ERROR_MODE_UNSPECIFIED;
     case 1:
-    case "HOOK_ERROR_MODE_CONTINUE":
+    case 'HOOK_ERROR_MODE_CONTINUE':
       return HookErrorMode.HOOK_ERROR_MODE_CONTINUE;
     case 2:
-    case "HOOK_ERROR_MODE_FAIL":
+    case 'HOOK_ERROR_MODE_FAIL':
       return HookErrorMode.HOOK_ERROR_MODE_FAIL;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return HookErrorMode.UNRECOGNIZED;
   }
@@ -39,14 +39,14 @@ export function hookErrorModeFromJSON(object: any): HookErrorMode {
 export function hookErrorModeToJSON(object: HookErrorMode): string {
   switch (object) {
     case HookErrorMode.HOOK_ERROR_MODE_UNSPECIFIED:
-      return "HOOK_ERROR_MODE_UNSPECIFIED";
+      return 'HOOK_ERROR_MODE_UNSPECIFIED';
     case HookErrorMode.HOOK_ERROR_MODE_CONTINUE:
-      return "HOOK_ERROR_MODE_CONTINUE";
+      return 'HOOK_ERROR_MODE_CONTINUE';
     case HookErrorMode.HOOK_ERROR_MODE_FAIL:
-      return "HOOK_ERROR_MODE_FAIL";
+      return 'HOOK_ERROR_MODE_FAIL';
     case HookErrorMode.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -61,16 +61,16 @@ export enum ExistingResourcePolicy {
 export function existingResourcePolicyFromJSON(object: any): ExistingResourcePolicy {
   switch (object) {
     case 0:
-    case "EXISTING_RESOURCE_POLICY_UNSPECIFIED":
+    case 'EXISTING_RESOURCE_POLICY_UNSPECIFIED':
       return ExistingResourcePolicy.EXISTING_RESOURCE_POLICY_UNSPECIFIED;
     case 1:
-    case "EXISTING_RESOURCE_POLICY_NONE":
+    case 'EXISTING_RESOURCE_POLICY_NONE':
       return ExistingResourcePolicy.EXISTING_RESOURCE_POLICY_NONE;
     case 2:
-    case "EXISTING_RESOURCE_POLICY_UPDATE":
+    case 'EXISTING_RESOURCE_POLICY_UPDATE':
       return ExistingResourcePolicy.EXISTING_RESOURCE_POLICY_UPDATE;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return ExistingResourcePolicy.UNRECOGNIZED;
   }
@@ -79,14 +79,14 @@ export function existingResourcePolicyFromJSON(object: any): ExistingResourcePol
 export function existingResourcePolicyToJSON(object: ExistingResourcePolicy): string {
   switch (object) {
     case ExistingResourcePolicy.EXISTING_RESOURCE_POLICY_UNSPECIFIED:
-      return "EXISTING_RESOURCE_POLICY_UNSPECIFIED";
+      return 'EXISTING_RESOURCE_POLICY_UNSPECIFIED';
     case ExistingResourcePolicy.EXISTING_RESOURCE_POLICY_NONE:
-      return "EXISTING_RESOURCE_POLICY_NONE";
+      return 'EXISTING_RESOURCE_POLICY_NONE';
     case ExistingResourcePolicy.EXISTING_RESOURCE_POLICY_UPDATE:
-      return "EXISTING_RESOURCE_POLICY_UPDATE";
+      return 'EXISTING_RESOURCE_POLICY_UPDATE';
     case ExistingResourcePolicy.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -97,35 +97,39 @@ export enum BackupStorageLocationAccessMode {
   UNRECOGNIZED = -1,
 }
 
-export function backupStorageLocationAccessModeFromJSON(object: any): BackupStorageLocationAccessMode {
+export function backupStorageLocationAccessModeFromJSON(
+  object: any,
+): BackupStorageLocationAccessMode {
   switch (object) {
     case 0:
-    case "BSL_ACCESS_MODE_UNSPECIFIED":
+    case 'BSL_ACCESS_MODE_UNSPECIFIED':
       return BackupStorageLocationAccessMode.BSL_ACCESS_MODE_UNSPECIFIED;
     case 1:
-    case "BSL_ACCESS_MODE_READ_ONLY":
+    case 'BSL_ACCESS_MODE_READ_ONLY':
       return BackupStorageLocationAccessMode.BSL_ACCESS_MODE_READ_ONLY;
     case 2:
-    case "BSL_ACCESS_MODE_READ_WRITE":
+    case 'BSL_ACCESS_MODE_READ_WRITE':
       return BackupStorageLocationAccessMode.BSL_ACCESS_MODE_READ_WRITE;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return BackupStorageLocationAccessMode.UNRECOGNIZED;
   }
 }
 
-export function backupStorageLocationAccessModeToJSON(object: BackupStorageLocationAccessMode): string {
+export function backupStorageLocationAccessModeToJSON(
+  object: BackupStorageLocationAccessMode,
+): string {
   switch (object) {
     case BackupStorageLocationAccessMode.BSL_ACCESS_MODE_UNSPECIFIED:
-      return "BSL_ACCESS_MODE_UNSPECIFIED";
+      return 'BSL_ACCESS_MODE_UNSPECIFIED';
     case BackupStorageLocationAccessMode.BSL_ACCESS_MODE_READ_ONLY:
-      return "BSL_ACCESS_MODE_READ_ONLY";
+      return 'BSL_ACCESS_MODE_READ_ONLY';
     case BackupStorageLocationAccessMode.BSL_ACCESS_MODE_READ_WRITE:
-      return "BSL_ACCESS_MODE_READ_WRITE";
+      return 'BSL_ACCESS_MODE_READ_WRITE';
     case BackupStorageLocationAccessMode.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -152,52 +156,52 @@ export enum DownloadTargetKind {
 export function downloadTargetKindFromJSON(object: any): DownloadTargetKind {
   switch (object) {
     case 0:
-    case "DOWNLOAD_TARGET_KIND_UNSPECIFIED":
+    case 'DOWNLOAD_TARGET_KIND_UNSPECIFIED':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_UNSPECIFIED;
     case 1:
-    case "DOWNLOAD_TARGET_KIND_BACKUP_LOG":
+    case 'DOWNLOAD_TARGET_KIND_BACKUP_LOG':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_LOG;
     case 2:
-    case "DOWNLOAD_TARGET_KIND_BACKUP_CONTENTS":
+    case 'DOWNLOAD_TARGET_KIND_BACKUP_CONTENTS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_CONTENTS;
     case 3:
-    case "DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_SNAPSHOTS":
+    case 'DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_SNAPSHOTS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_SNAPSHOTS;
     case 4:
-    case "DOWNLOAD_TARGET_KIND_BACKUP_ITEM_OPERATIONS":
+    case 'DOWNLOAD_TARGET_KIND_BACKUP_ITEM_OPERATIONS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_ITEM_OPERATIONS;
     case 5:
-    case "DOWNLOAD_TARGET_KIND_BACKUP_RESOURCE_LIST":
+    case 'DOWNLOAD_TARGET_KIND_BACKUP_RESOURCE_LIST':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_RESOURCE_LIST;
     case 6:
-    case "DOWNLOAD_TARGET_KIND_BACKUP_RESULTS":
+    case 'DOWNLOAD_TARGET_KIND_BACKUP_RESULTS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_RESULTS;
     case 7:
-    case "DOWNLOAD_TARGET_KIND_RESTORE_LOG":
+    case 'DOWNLOAD_TARGET_KIND_RESTORE_LOG':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_LOG;
     case 8:
-    case "DOWNLOAD_TARGET_KIND_RESTORE_RESULTS":
+    case 'DOWNLOAD_TARGET_KIND_RESTORE_RESULTS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_RESULTS;
     case 9:
-    case "DOWNLOAD_TARGET_KIND_RESTORE_RESOURCE_LIST":
+    case 'DOWNLOAD_TARGET_KIND_RESTORE_RESOURCE_LIST':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_RESOURCE_LIST;
     case 10:
-    case "DOWNLOAD_TARGET_KIND_RESTORE_ITEM_OPERATIONS":
+    case 'DOWNLOAD_TARGET_KIND_RESTORE_ITEM_OPERATIONS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_ITEM_OPERATIONS;
     case 11:
-    case "DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOTS":
+    case 'DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOTS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOTS;
     case 12:
-    case "DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOT_CONTENTS":
+    case 'DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOT_CONTENTS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOT_CONTENTS;
     case 13:
-    case "DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_INFOS":
+    case 'DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_INFOS':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_INFOS;
     case 14:
-    case "DOWNLOAD_TARGET_KIND_RESTORE_VOLUME_INFO":
+    case 'DOWNLOAD_TARGET_KIND_RESTORE_VOLUME_INFO':
       return DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_VOLUME_INFO;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return DownloadTargetKind.UNRECOGNIZED;
   }
@@ -206,38 +210,38 @@ export function downloadTargetKindFromJSON(object: any): DownloadTargetKind {
 export function downloadTargetKindToJSON(object: DownloadTargetKind): string {
   switch (object) {
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_UNSPECIFIED:
-      return "DOWNLOAD_TARGET_KIND_UNSPECIFIED";
+      return 'DOWNLOAD_TARGET_KIND_UNSPECIFIED';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_LOG:
-      return "DOWNLOAD_TARGET_KIND_BACKUP_LOG";
+      return 'DOWNLOAD_TARGET_KIND_BACKUP_LOG';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_CONTENTS:
-      return "DOWNLOAD_TARGET_KIND_BACKUP_CONTENTS";
+      return 'DOWNLOAD_TARGET_KIND_BACKUP_CONTENTS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_SNAPSHOTS:
-      return "DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_SNAPSHOTS";
+      return 'DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_SNAPSHOTS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_ITEM_OPERATIONS:
-      return "DOWNLOAD_TARGET_KIND_BACKUP_ITEM_OPERATIONS";
+      return 'DOWNLOAD_TARGET_KIND_BACKUP_ITEM_OPERATIONS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_RESOURCE_LIST:
-      return "DOWNLOAD_TARGET_KIND_BACKUP_RESOURCE_LIST";
+      return 'DOWNLOAD_TARGET_KIND_BACKUP_RESOURCE_LIST';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_RESULTS:
-      return "DOWNLOAD_TARGET_KIND_BACKUP_RESULTS";
+      return 'DOWNLOAD_TARGET_KIND_BACKUP_RESULTS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_LOG:
-      return "DOWNLOAD_TARGET_KIND_RESTORE_LOG";
+      return 'DOWNLOAD_TARGET_KIND_RESTORE_LOG';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_RESULTS:
-      return "DOWNLOAD_TARGET_KIND_RESTORE_RESULTS";
+      return 'DOWNLOAD_TARGET_KIND_RESTORE_RESULTS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_RESOURCE_LIST:
-      return "DOWNLOAD_TARGET_KIND_RESTORE_RESOURCE_LIST";
+      return 'DOWNLOAD_TARGET_KIND_RESTORE_RESOURCE_LIST';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_ITEM_OPERATIONS:
-      return "DOWNLOAD_TARGET_KIND_RESTORE_ITEM_OPERATIONS";
+      return 'DOWNLOAD_TARGET_KIND_RESTORE_ITEM_OPERATIONS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOTS:
-      return "DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOTS";
+      return 'DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOTS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOT_CONTENTS:
-      return "DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOT_CONTENTS";
+      return 'DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOT_CONTENTS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_INFOS:
-      return "DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_INFOS";
+      return 'DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_INFOS';
     case DownloadTargetKind.DOWNLOAD_TARGET_KIND_RESTORE_VOLUME_INFO:
-      return "DOWNLOAD_TARGET_KIND_RESTORE_VOLUME_INFO";
+      return 'DOWNLOAD_TARGET_KIND_RESTORE_VOLUME_INFO';
     case DownloadTargetKind.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -384,9 +388,7 @@ export interface InitRestoreHook {
 }
 
 export interface ScheduleSpec {
-  template:
-    | BackupSpec
-    | undefined;
+  template: BackupSpec | undefined;
   /** Cron expression. */
   schedule: string;
   useOwnerReferencesInBackup?: boolean | undefined;
@@ -451,10 +453,10 @@ function createBaseBackupSpec(): BackupSpec {
     orLabelSelectors: [],
     snapshotVolumes: undefined,
     ttl: undefined,
-    volumeGroupSnapshotLabelKey: "",
+    volumeGroupSnapshotLabelKey: '',
     includeClusterResources: undefined,
     hooks: undefined,
-    storageLocation: "",
+    storageLocation: '',
     volumeSnapshotLocations: [],
     defaultVolumesToFsBackup: undefined,
     orderedResources: {},
@@ -462,7 +464,7 @@ function createBaseBackupSpec(): BackupSpec {
     itemOperationTimeout: undefined,
     resourcePolicy: undefined,
     snapshotMoveData: undefined,
-    dataMover: "",
+    dataMover: '',
     uploaderConfig: undefined,
   };
 }
@@ -470,7 +472,10 @@ function createBaseBackupSpec(): BackupSpec {
 export const BackupSpec: MessageFns<BackupSpec> = {
   encode(message: BackupSpec, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     globalThis.Object.entries(message.metadataLabels).forEach(([key, value]: [string, string]) => {
-      BackupSpec_MetadataLabelsEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+      BackupSpec_MetadataLabelsEntry.encode(
+        { key: key as any, value },
+        writer.uint32(10).fork(),
+      ).join();
     });
     for (const v of message.includedNamespaces) {
       writer.uint32(18).string(v!);
@@ -508,7 +513,7 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     if (message.ttl !== undefined) {
       Duration.encode(message.ttl, writer.uint32(106).fork()).join();
     }
-    if (message.volumeGroupSnapshotLabelKey !== "") {
+    if (message.volumeGroupSnapshotLabelKey !== '') {
       writer.uint32(114).string(message.volumeGroupSnapshotLabelKey);
     }
     if (message.includeClusterResources !== undefined) {
@@ -517,7 +522,7 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     if (message.hooks !== undefined) {
       BackupHooks.encode(message.hooks, writer.uint32(130).fork()).join();
     }
-    if (message.storageLocation !== "") {
+    if (message.storageLocation !== '') {
       writer.uint32(138).string(message.storageLocation);
     }
     for (const v of message.volumeSnapshotLocations) {
@@ -526,9 +531,14 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     if (message.defaultVolumesToFsBackup !== undefined) {
       writer.uint32(152).bool(message.defaultVolumesToFsBackup);
     }
-    globalThis.Object.entries(message.orderedResources).forEach(([key, value]: [string, string]) => {
-      BackupSpec_OrderedResourcesEntry.encode({ key: key as any, value }, writer.uint32(162).fork()).join();
-    });
+    globalThis.Object.entries(message.orderedResources).forEach(
+      ([key, value]: [string, string]) => {
+        BackupSpec_OrderedResourcesEntry.encode(
+          { key: key as any, value },
+          writer.uint32(162).fork(),
+        ).join();
+      },
+    );
     if (message.csiSnapshotTimeout !== undefined) {
       Duration.encode(message.csiSnapshotTimeout, writer.uint32(170).fork()).join();
     }
@@ -541,7 +551,7 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     if (message.snapshotMoveData !== undefined) {
       writer.uint32(192).bool(message.snapshotMoveData);
     }
-    if (message.dataMover !== "") {
+    if (message.dataMover !== '') {
       writer.uint32(202).string(message.dataMover);
     }
     if (message.uploaderConfig !== undefined) {
@@ -554,7 +564,7 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -793,170 +803,178 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     return {
       metadataLabels: isObject(object.metadataLabels)
         ? (globalThis.Object.entries(object.metadataLabels) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
+            (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+              globalThis.Object.defineProperty(acc, key, {
+                value: globalThis.String(value),
+                enumerable: true,
+                configurable: true,
+                writable: true,
+              });
+              return acc;
+            },
+            {},
+          )
         : isObject(object.metadata_labels)
-        ? (globalThis.Object.entries(object.metadata_labels) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : {},
+          ? (globalThis.Object.entries(object.metadata_labels) as [string, any][]).reduce(
+              (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+                globalThis.Object.defineProperty(acc, key, {
+                  value: globalThis.String(value),
+                  enumerable: true,
+                  configurable: true,
+                  writable: true,
+                });
+                return acc;
+              },
+              {},
+            )
+          : {},
       includedNamespaces: globalThis.Array.isArray(object?.includedNamespaces)
         ? object.includedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_namespaces)
-        ? object.included_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       excludedNamespaces: globalThis.Array.isArray(object?.excludedNamespaces)
         ? object.excludedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_namespaces)
-        ? object.excluded_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       includedResources: globalThis.Array.isArray(object?.includedResources)
         ? object.includedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_resources)
-        ? object.included_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_resources.map((e: any) => globalThis.String(e))
+          : [],
       excludedResources: globalThis.Array.isArray(object?.excludedResources)
         ? object.excludedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_resources)
-        ? object.excluded_resources.map((e: any) => globalThis.String(e))
-        : [],
-      includedClusterScopedResources: globalThis.Array.isArray(object?.includedClusterScopedResources)
+          ? object.excluded_resources.map((e: any) => globalThis.String(e))
+          : [],
+      includedClusterScopedResources: globalThis.Array.isArray(
+        object?.includedClusterScopedResources,
+      )
         ? object.includedClusterScopedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_cluster_scoped_resources)
-        ? object.included_cluster_scoped_resources.map((e: any) => globalThis.String(e))
-        : [],
-      excludedClusterScopedResources: globalThis.Array.isArray(object?.excludedClusterScopedResources)
+          ? object.included_cluster_scoped_resources.map((e: any) => globalThis.String(e))
+          : [],
+      excludedClusterScopedResources: globalThis.Array.isArray(
+        object?.excludedClusterScopedResources,
+      )
         ? object.excludedClusterScopedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_cluster_scoped_resources)
-        ? object.excluded_cluster_scoped_resources.map((e: any) => globalThis.String(e))
-        : [],
-      includedNamespaceScopedResources: globalThis.Array.isArray(object?.includedNamespaceScopedResources)
+          ? object.excluded_cluster_scoped_resources.map((e: any) => globalThis.String(e))
+          : [],
+      includedNamespaceScopedResources: globalThis.Array.isArray(
+        object?.includedNamespaceScopedResources,
+      )
         ? object.includedNamespaceScopedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_namespace_scoped_resources)
-        ? object.included_namespace_scoped_resources.map((e: any) => globalThis.String(e))
-        : [],
-      excludedNamespaceScopedResources: globalThis.Array.isArray(object?.excludedNamespaceScopedResources)
+          ? object.included_namespace_scoped_resources.map((e: any) => globalThis.String(e))
+          : [],
+      excludedNamespaceScopedResources: globalThis.Array.isArray(
+        object?.excludedNamespaceScopedResources,
+      )
         ? object.excludedNamespaceScopedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_namespace_scoped_resources)
-        ? object.excluded_namespace_scoped_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_namespace_scoped_resources.map((e: any) => globalThis.String(e))
+          : [],
       labelSelector: isSet(object.labelSelector)
         ? LabelSelector.fromJSON(object.labelSelector)
         : isSet(object.label_selector)
-        ? LabelSelector.fromJSON(object.label_selector)
-        : undefined,
+          ? LabelSelector.fromJSON(object.label_selector)
+          : undefined,
       orLabelSelectors: globalThis.Array.isArray(object?.orLabelSelectors)
         ? object.orLabelSelectors.map((e: any) => LabelSelector.fromJSON(e))
         : globalThis.Array.isArray(object?.or_label_selectors)
-        ? object.or_label_selectors.map((e: any) => LabelSelector.fromJSON(e))
-        : [],
+          ? object.or_label_selectors.map((e: any) => LabelSelector.fromJSON(e))
+          : [],
       snapshotVolumes: isSet(object.snapshotVolumes)
         ? globalThis.Boolean(object.snapshotVolumes)
         : isSet(object.snapshot_volumes)
-        ? globalThis.Boolean(object.snapshot_volumes)
-        : undefined,
+          ? globalThis.Boolean(object.snapshot_volumes)
+          : undefined,
       ttl: isSet(object.ttl) ? Duration.fromJSON(object.ttl) : undefined,
       volumeGroupSnapshotLabelKey: isSet(object.volumeGroupSnapshotLabelKey)
         ? globalThis.String(object.volumeGroupSnapshotLabelKey)
         : isSet(object.volume_group_snapshot_label_key)
-        ? globalThis.String(object.volume_group_snapshot_label_key)
-        : "",
+          ? globalThis.String(object.volume_group_snapshot_label_key)
+          : '',
       includeClusterResources: isSet(object.includeClusterResources)
         ? globalThis.Boolean(object.includeClusterResources)
         : isSet(object.include_cluster_resources)
-        ? globalThis.Boolean(object.include_cluster_resources)
-        : undefined,
+          ? globalThis.Boolean(object.include_cluster_resources)
+          : undefined,
       hooks: isSet(object.hooks) ? BackupHooks.fromJSON(object.hooks) : undefined,
       storageLocation: isSet(object.storageLocation)
         ? globalThis.String(object.storageLocation)
         : isSet(object.storage_location)
-        ? globalThis.String(object.storage_location)
-        : "",
+          ? globalThis.String(object.storage_location)
+          : '',
       volumeSnapshotLocations: globalThis.Array.isArray(object?.volumeSnapshotLocations)
         ? object.volumeSnapshotLocations.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.volume_snapshot_locations)
-        ? object.volume_snapshot_locations.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.volume_snapshot_locations.map((e: any) => globalThis.String(e))
+          : [],
       defaultVolumesToFsBackup: isSet(object.defaultVolumesToFsBackup)
         ? globalThis.Boolean(object.defaultVolumesToFsBackup)
         : isSet(object.default_volumes_to_fs_backup)
-        ? globalThis.Boolean(object.default_volumes_to_fs_backup)
-        : undefined,
+          ? globalThis.Boolean(object.default_volumes_to_fs_backup)
+          : undefined,
       orderedResources: isObject(object.orderedResources)
         ? (globalThis.Object.entries(object.orderedResources) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
+            (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+              globalThis.Object.defineProperty(acc, key, {
+                value: globalThis.String(value),
+                enumerable: true,
+                configurable: true,
+                writable: true,
+              });
+              return acc;
+            },
+            {},
+          )
         : isObject(object.ordered_resources)
-        ? (globalThis.Object.entries(object.ordered_resources) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : {},
+          ? (globalThis.Object.entries(object.ordered_resources) as [string, any][]).reduce(
+              (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+                globalThis.Object.defineProperty(acc, key, {
+                  value: globalThis.String(value),
+                  enumerable: true,
+                  configurable: true,
+                  writable: true,
+                });
+                return acc;
+              },
+              {},
+            )
+          : {},
       csiSnapshotTimeout: isSet(object.csiSnapshotTimeout)
         ? Duration.fromJSON(object.csiSnapshotTimeout)
         : isSet(object.csi_snapshot_timeout)
-        ? Duration.fromJSON(object.csi_snapshot_timeout)
-        : undefined,
+          ? Duration.fromJSON(object.csi_snapshot_timeout)
+          : undefined,
       itemOperationTimeout: isSet(object.itemOperationTimeout)
         ? Duration.fromJSON(object.itemOperationTimeout)
         : isSet(object.item_operation_timeout)
-        ? Duration.fromJSON(object.item_operation_timeout)
-        : undefined,
+          ? Duration.fromJSON(object.item_operation_timeout)
+          : undefined,
       resourcePolicy: isSet(object.resourcePolicy)
         ? TypedLocalObjectReference.fromJSON(object.resourcePolicy)
         : isSet(object.resource_policy)
-        ? TypedLocalObjectReference.fromJSON(object.resource_policy)
-        : undefined,
+          ? TypedLocalObjectReference.fromJSON(object.resource_policy)
+          : undefined,
       snapshotMoveData: isSet(object.snapshotMoveData)
         ? globalThis.Boolean(object.snapshotMoveData)
         : isSet(object.snapshot_move_data)
-        ? globalThis.Boolean(object.snapshot_move_data)
-        : undefined,
+          ? globalThis.Boolean(object.snapshot_move_data)
+          : undefined,
       dataMover: isSet(object.dataMover)
         ? globalThis.String(object.dataMover)
         : isSet(object.data_mover)
-        ? globalThis.String(object.data_mover)
-        : "",
+          ? globalThis.String(object.data_mover)
+          : '',
       uploaderConfig: isSet(object.uploaderConfig)
         ? UploaderConfigForBackup.fromJSON(object.uploaderConfig)
         : isSet(object.uploader_config)
-        ? UploaderConfigForBackup.fromJSON(object.uploader_config)
-        : undefined,
+          ? UploaderConfigForBackup.fromJSON(object.uploader_config)
+          : undefined,
     };
   },
 
@@ -1007,7 +1025,7 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     if (message.ttl !== undefined) {
       obj.ttl = Duration.toJSON(message.ttl);
     }
-    if (message.volumeGroupSnapshotLabelKey !== "") {
+    if (message.volumeGroupSnapshotLabelKey !== '') {
       obj.volumeGroupSnapshotLabelKey = message.volumeGroupSnapshotLabelKey;
     }
     if (message.includeClusterResources !== undefined) {
@@ -1016,7 +1034,7 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     if (message.hooks !== undefined) {
       obj.hooks = BackupHooks.toJSON(message.hooks);
     }
-    if (message.storageLocation !== "") {
+    if (message.storageLocation !== '') {
       obj.storageLocation = message.storageLocation;
     }
     if (message.volumeSnapshotLocations?.length) {
@@ -1046,7 +1064,7 @@ export const BackupSpec: MessageFns<BackupSpec> = {
     if (message.snapshotMoveData !== undefined) {
       obj.snapshotMoveData = message.snapshotMoveData;
     }
-    if (message.dataMover !== "") {
+    if (message.dataMover !== '') {
       obj.dataMover = message.dataMover;
     }
     if (message.uploaderConfig !== undefined) {
@@ -1060,74 +1078,89 @@ export const BackupSpec: MessageFns<BackupSpec> = {
   },
   fromPartial(object: DeepPartial<BackupSpec>): BackupSpec {
     const message = createBaseBackupSpec();
-    message.metadataLabels = (globalThis.Object.entries(object.metadataLabels ?? {}) as [string, string][]).reduce(
-      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
+    message.metadataLabels = (
+      globalThis.Object.entries(object.metadataLabels ?? {}) as [string, string][]
+    ).reduce((acc: { [key: string]: string }, [key, value]: [string, string]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
     message.includedNamespaces = object.includedNamespaces?.map((e) => e) || [];
     message.excludedNamespaces = object.excludedNamespaces?.map((e) => e) || [];
     message.includedResources = object.includedResources?.map((e) => e) || [];
     message.excludedResources = object.excludedResources?.map((e) => e) || [];
-    message.includedClusterScopedResources = object.includedClusterScopedResources?.map((e) => e) || [];
-    message.excludedClusterScopedResources = object.excludedClusterScopedResources?.map((e) => e) || [];
-    message.includedNamespaceScopedResources = object.includedNamespaceScopedResources?.map((e) => e) || [];
-    message.excludedNamespaceScopedResources = object.excludedNamespaceScopedResources?.map((e) => e) || [];
-    message.labelSelector = (object.labelSelector !== undefined && object.labelSelector !== null)
-      ? LabelSelector.fromPartial(object.labelSelector)
-      : undefined;
-    message.orLabelSelectors = object.orLabelSelectors?.map((e) => LabelSelector.fromPartial(e)) || [];
+    message.includedClusterScopedResources =
+      object.includedClusterScopedResources?.map((e) => e) || [];
+    message.excludedClusterScopedResources =
+      object.excludedClusterScopedResources?.map((e) => e) || [];
+    message.includedNamespaceScopedResources =
+      object.includedNamespaceScopedResources?.map((e) => e) || [];
+    message.excludedNamespaceScopedResources =
+      object.excludedNamespaceScopedResources?.map((e) => e) || [];
+    message.labelSelector =
+      object.labelSelector !== undefined && object.labelSelector !== null
+        ? LabelSelector.fromPartial(object.labelSelector)
+        : undefined;
+    message.orLabelSelectors =
+      object.orLabelSelectors?.map((e) => LabelSelector.fromPartial(e)) || [];
     message.snapshotVolumes = object.snapshotVolumes ?? undefined;
-    message.ttl = (object.ttl !== undefined && object.ttl !== null) ? Duration.fromPartial(object.ttl) : undefined;
-    message.volumeGroupSnapshotLabelKey = object.volumeGroupSnapshotLabelKey ?? "";
+    message.ttl =
+      object.ttl !== undefined && object.ttl !== null
+        ? Duration.fromPartial(object.ttl)
+        : undefined;
+    message.volumeGroupSnapshotLabelKey = object.volumeGroupSnapshotLabelKey ?? '';
     message.includeClusterResources = object.includeClusterResources ?? undefined;
-    message.hooks = (object.hooks !== undefined && object.hooks !== null)
-      ? BackupHooks.fromPartial(object.hooks)
-      : undefined;
-    message.storageLocation = object.storageLocation ?? "";
+    message.hooks =
+      object.hooks !== undefined && object.hooks !== null
+        ? BackupHooks.fromPartial(object.hooks)
+        : undefined;
+    message.storageLocation = object.storageLocation ?? '';
     message.volumeSnapshotLocations = object.volumeSnapshotLocations?.map((e) => e) || [];
     message.defaultVolumesToFsBackup = object.defaultVolumesToFsBackup ?? undefined;
-    message.orderedResources = (globalThis.Object.entries(object.orderedResources ?? {}) as [string, string][]).reduce(
-      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
-    message.csiSnapshotTimeout = (object.csiSnapshotTimeout !== undefined && object.csiSnapshotTimeout !== null)
-      ? Duration.fromPartial(object.csiSnapshotTimeout)
-      : undefined;
-    message.itemOperationTimeout = (object.itemOperationTimeout !== undefined && object.itemOperationTimeout !== null)
-      ? Duration.fromPartial(object.itemOperationTimeout)
-      : undefined;
-    message.resourcePolicy = (object.resourcePolicy !== undefined && object.resourcePolicy !== null)
-      ? TypedLocalObjectReference.fromPartial(object.resourcePolicy)
-      : undefined;
+    message.orderedResources = (
+      globalThis.Object.entries(object.orderedResources ?? {}) as [string, string][]
+    ).reduce((acc: { [key: string]: string }, [key, value]: [string, string]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
+    message.csiSnapshotTimeout =
+      object.csiSnapshotTimeout !== undefined && object.csiSnapshotTimeout !== null
+        ? Duration.fromPartial(object.csiSnapshotTimeout)
+        : undefined;
+    message.itemOperationTimeout =
+      object.itemOperationTimeout !== undefined && object.itemOperationTimeout !== null
+        ? Duration.fromPartial(object.itemOperationTimeout)
+        : undefined;
+    message.resourcePolicy =
+      object.resourcePolicy !== undefined && object.resourcePolicy !== null
+        ? TypedLocalObjectReference.fromPartial(object.resourcePolicy)
+        : undefined;
     message.snapshotMoveData = object.snapshotMoveData ?? undefined;
-    message.dataMover = object.dataMover ?? "";
-    message.uploaderConfig = (object.uploaderConfig !== undefined && object.uploaderConfig !== null)
-      ? UploaderConfigForBackup.fromPartial(object.uploaderConfig)
-      : undefined;
+    message.dataMover = object.dataMover ?? '';
+    message.uploaderConfig =
+      object.uploaderConfig !== undefined && object.uploaderConfig !== null
+        ? UploaderConfigForBackup.fromPartial(object.uploaderConfig)
+        : undefined;
     return message;
   },
 };
 
 function createBaseBackupSpec_MetadataLabelsEntry(): BackupSpec_MetadataLabelsEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const BackupSpec_MetadataLabelsEntry: MessageFns<BackupSpec_MetadataLabelsEntry> = {
-  encode(message: BackupSpec_MetadataLabelsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: BackupSpec_MetadataLabelsEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -1137,7 +1170,7 @@ export const BackupSpec_MetadataLabelsEntry: MessageFns<BackupSpec_MetadataLabel
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1176,17 +1209,17 @@ export const BackupSpec_MetadataLabelsEntry: MessageFns<BackupSpec_MetadataLabel
 
   fromJSON(object: any): BackupSpec_MetadataLabelsEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: BackupSpec_MetadataLabelsEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
@@ -1197,22 +1230,25 @@ export const BackupSpec_MetadataLabelsEntry: MessageFns<BackupSpec_MetadataLabel
   },
   fromPartial(object: DeepPartial<BackupSpec_MetadataLabelsEntry>): BackupSpec_MetadataLabelsEntry {
     const message = createBaseBackupSpec_MetadataLabelsEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
 
 function createBaseBackupSpec_OrderedResourcesEntry(): BackupSpec_OrderedResourcesEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const BackupSpec_OrderedResourcesEntry: MessageFns<BackupSpec_OrderedResourcesEntry> = {
-  encode(message: BackupSpec_OrderedResourcesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: BackupSpec_OrderedResourcesEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -1222,7 +1258,7 @@ export const BackupSpec_OrderedResourcesEntry: MessageFns<BackupSpec_OrderedReso
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1261,17 +1297,17 @@ export const BackupSpec_OrderedResourcesEntry: MessageFns<BackupSpec_OrderedReso
 
   fromJSON(object: any): BackupSpec_OrderedResourcesEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: BackupSpec_OrderedResourcesEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
@@ -1280,10 +1316,12 @@ export const BackupSpec_OrderedResourcesEntry: MessageFns<BackupSpec_OrderedReso
   create(base?: DeepPartial<BackupSpec_OrderedResourcesEntry>): BackupSpec_OrderedResourcesEntry {
     return BackupSpec_OrderedResourcesEntry.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<BackupSpec_OrderedResourcesEntry>): BackupSpec_OrderedResourcesEntry {
+  fromPartial(
+    object: DeepPartial<BackupSpec_OrderedResourcesEntry>,
+  ): BackupSpec_OrderedResourcesEntry {
     const message = createBaseBackupSpec_OrderedResourcesEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
@@ -1293,7 +1331,10 @@ function createBaseUploaderConfigForBackup(): UploaderConfigForBackup {
 }
 
 export const UploaderConfigForBackup: MessageFns<UploaderConfigForBackup> = {
-  encode(message: UploaderConfigForBackup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: UploaderConfigForBackup,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.parallelFilesUpload !== 0) {
       writer.uint32(8).int32(message.parallelFilesUpload);
     }
@@ -1304,7 +1345,7 @@ export const UploaderConfigForBackup: MessageFns<UploaderConfigForBackup> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1338,8 +1379,8 @@ export const UploaderConfigForBackup: MessageFns<UploaderConfigForBackup> = {
       parallelFilesUpload: isSet(object.parallelFilesUpload)
         ? globalThis.Number(object.parallelFilesUpload)
         : isSet(object.parallel_files_upload)
-        ? globalThis.Number(object.parallel_files_upload)
-        : 0,
+          ? globalThis.Number(object.parallel_files_upload)
+          : 0,
     };
   },
 
@@ -1377,7 +1418,7 @@ export const BackupHooks: MessageFns<BackupHooks> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1434,7 +1475,7 @@ export const BackupHooks: MessageFns<BackupHooks> = {
 
 function createBaseBackupResourceHookSpec(): BackupResourceHookSpec {
   return {
-    name: "",
+    name: '',
     includedNamespaces: [],
     excludedNamespaces: [],
     includedResources: [],
@@ -1447,7 +1488,7 @@ function createBaseBackupResourceHookSpec(): BackupResourceHookSpec {
 
 export const BackupResourceHookSpec: MessageFns<BackupResourceHookSpec> = {
   encode(message: BackupResourceHookSpec, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     for (const v of message.includedNamespaces) {
@@ -1478,7 +1519,7 @@ export const BackupResourceHookSpec: MessageFns<BackupResourceHookSpec> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1565,32 +1606,32 @@ export const BackupResourceHookSpec: MessageFns<BackupResourceHookSpec> = {
 
   fromJSON(object: any): BackupResourceHookSpec {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       includedNamespaces: globalThis.Array.isArray(object?.includedNamespaces)
         ? object.includedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_namespaces)
-        ? object.included_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       excludedNamespaces: globalThis.Array.isArray(object?.excludedNamespaces)
         ? object.excludedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_namespaces)
-        ? object.excluded_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       includedResources: globalThis.Array.isArray(object?.includedResources)
         ? object.includedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_resources)
-        ? object.included_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_resources.map((e: any) => globalThis.String(e))
+          : [],
       excludedResources: globalThis.Array.isArray(object?.excludedResources)
         ? object.excludedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_resources)
-        ? object.excluded_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_resources.map((e: any) => globalThis.String(e))
+          : [],
       labelSelector: isSet(object.labelSelector)
         ? LabelSelector.fromJSON(object.labelSelector)
         : isSet(object.label_selector)
-        ? LabelSelector.fromJSON(object.label_selector)
-        : undefined,
+          ? LabelSelector.fromJSON(object.label_selector)
+          : undefined,
       pre: globalThis.Array.isArray(object?.pre)
         ? object.pre.map((e: any) => ExecHook.fromJSON(e))
         : [],
@@ -1602,7 +1643,7 @@ export const BackupResourceHookSpec: MessageFns<BackupResourceHookSpec> = {
 
   toJSON(message: BackupResourceHookSpec): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.includedNamespaces?.length) {
@@ -1634,14 +1675,15 @@ export const BackupResourceHookSpec: MessageFns<BackupResourceHookSpec> = {
   },
   fromPartial(object: DeepPartial<BackupResourceHookSpec>): BackupResourceHookSpec {
     const message = createBaseBackupResourceHookSpec();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     message.includedNamespaces = object.includedNamespaces?.map((e) => e) || [];
     message.excludedNamespaces = object.excludedNamespaces?.map((e) => e) || [];
     message.includedResources = object.includedResources?.map((e) => e) || [];
     message.excludedResources = object.excludedResources?.map((e) => e) || [];
-    message.labelSelector = (object.labelSelector !== undefined && object.labelSelector !== null)
-      ? LabelSelector.fromPartial(object.labelSelector)
-      : undefined;
+    message.labelSelector =
+      object.labelSelector !== undefined && object.labelSelector !== null
+        ? LabelSelector.fromPartial(object.labelSelector)
+        : undefined;
     message.pre = object.pre?.map((e) => ExecHook.fromPartial(e)) || [];
     message.post = object.post?.map((e) => ExecHook.fromPartial(e)) || [];
     return message;
@@ -1649,12 +1691,12 @@ export const BackupResourceHookSpec: MessageFns<BackupResourceHookSpec> = {
 };
 
 function createBaseExecHook(): ExecHook {
-  return { container: "", command: [], onError: 0, timeout: undefined };
+  return { container: '', command: [], onError: 0, timeout: undefined };
 }
 
 export const ExecHook: MessageFns<ExecHook> = {
   encode(message: ExecHook, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.container !== "") {
+    if (message.container !== '') {
       writer.uint32(10).string(message.container);
     }
     for (const v of message.command) {
@@ -1673,7 +1715,7 @@ export const ExecHook: MessageFns<ExecHook> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1728,20 +1770,22 @@ export const ExecHook: MessageFns<ExecHook> = {
 
   fromJSON(object: any): ExecHook {
     return {
-      container: isSet(object.container) ? globalThis.String(object.container) : "",
-      command: globalThis.Array.isArray(object?.command) ? object.command.map((e: any) => globalThis.String(e)) : [],
+      container: isSet(object.container) ? globalThis.String(object.container) : '',
+      command: globalThis.Array.isArray(object?.command)
+        ? object.command.map((e: any) => globalThis.String(e))
+        : [],
       onError: isSet(object.onError)
         ? hookErrorModeFromJSON(object.onError)
         : isSet(object.on_error)
-        ? hookErrorModeFromJSON(object.on_error)
-        : 0,
+          ? hookErrorModeFromJSON(object.on_error)
+          : 0,
       timeout: isSet(object.timeout) ? Duration.fromJSON(object.timeout) : undefined,
     };
   },
 
   toJSON(message: ExecHook): unknown {
     const obj: any = {};
-    if (message.container !== "") {
+    if (message.container !== '') {
       obj.container = message.container;
     }
     if (message.command?.length) {
@@ -1761,20 +1805,21 @@ export const ExecHook: MessageFns<ExecHook> = {
   },
   fromPartial(object: DeepPartial<ExecHook>): ExecHook {
     const message = createBaseExecHook();
-    message.container = object.container ?? "";
+    message.container = object.container ?? '';
     message.command = object.command?.map((e) => e) || [];
     message.onError = object.onError ?? 0;
-    message.timeout = (object.timeout !== undefined && object.timeout !== null)
-      ? Duration.fromPartial(object.timeout)
-      : undefined;
+    message.timeout =
+      object.timeout !== undefined && object.timeout !== null
+        ? Duration.fromPartial(object.timeout)
+        : undefined;
     return message;
   },
 };
 
 function createBaseRestoreSpec(): RestoreSpec {
   return {
-    backupName: "",
-    scheduleName: "",
+    backupName: '',
+    scheduleName: '',
     includedNamespaces: [],
     excludedNamespaces: [],
     includedResources: [],
@@ -1797,10 +1842,10 @@ function createBaseRestoreSpec(): RestoreSpec {
 
 export const RestoreSpec: MessageFns<RestoreSpec> = {
   encode(message: RestoreSpec, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.backupName !== "") {
+    if (message.backupName !== '') {
       writer.uint32(10).string(message.backupName);
     }
-    if (message.scheduleName !== "") {
+    if (message.scheduleName !== '') {
       writer.uint32(18).string(message.scheduleName);
     }
     for (const v of message.includedNamespaces) {
@@ -1815,9 +1860,14 @@ export const RestoreSpec: MessageFns<RestoreSpec> = {
     for (const v of message.excludedResources) {
       writer.uint32(50).string(v!);
     }
-    globalThis.Object.entries(message.namespaceMapping).forEach(([key, value]: [string, string]) => {
-      RestoreSpec_NamespaceMappingEntry.encode({ key: key as any, value }, writer.uint32(58).fork()).join();
-    });
+    globalThis.Object.entries(message.namespaceMapping).forEach(
+      ([key, value]: [string, string]) => {
+        RestoreSpec_NamespaceMappingEntry.encode(
+          { key: key as any, value },
+          writer.uint32(58).fork(),
+        ).join();
+      },
+    );
     if (message.labelSelector !== undefined) {
       LabelSelector.encode(message.labelSelector, writer.uint32(66).fork()).join();
     }
@@ -1861,7 +1911,7 @@ export const RestoreSpec: MessageFns<RestoreSpec> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2042,125 +2092,125 @@ export const RestoreSpec: MessageFns<RestoreSpec> = {
       backupName: isSet(object.backupName)
         ? globalThis.String(object.backupName)
         : isSet(object.backup_name)
-        ? globalThis.String(object.backup_name)
-        : "",
+          ? globalThis.String(object.backup_name)
+          : '',
       scheduleName: isSet(object.scheduleName)
         ? globalThis.String(object.scheduleName)
         : isSet(object.schedule_name)
-        ? globalThis.String(object.schedule_name)
-        : "",
+          ? globalThis.String(object.schedule_name)
+          : '',
       includedNamespaces: globalThis.Array.isArray(object?.includedNamespaces)
         ? object.includedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_namespaces)
-        ? object.included_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       excludedNamespaces: globalThis.Array.isArray(object?.excludedNamespaces)
         ? object.excludedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_namespaces)
-        ? object.excluded_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       includedResources: globalThis.Array.isArray(object?.includedResources)
         ? object.includedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_resources)
-        ? object.included_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_resources.map((e: any) => globalThis.String(e))
+          : [],
       excludedResources: globalThis.Array.isArray(object?.excludedResources)
         ? object.excludedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_resources)
-        ? object.excluded_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_resources.map((e: any) => globalThis.String(e))
+          : [],
       namespaceMapping: isObject(object.namespaceMapping)
         ? (globalThis.Object.entries(object.namespaceMapping) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
+            (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+              globalThis.Object.defineProperty(acc, key, {
+                value: globalThis.String(value),
+                enumerable: true,
+                configurable: true,
+                writable: true,
+              });
+              return acc;
+            },
+            {},
+          )
         : isObject(object.namespace_mapping)
-        ? (globalThis.Object.entries(object.namespace_mapping) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
-        : {},
+          ? (globalThis.Object.entries(object.namespace_mapping) as [string, any][]).reduce(
+              (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+                globalThis.Object.defineProperty(acc, key, {
+                  value: globalThis.String(value),
+                  enumerable: true,
+                  configurable: true,
+                  writable: true,
+                });
+                return acc;
+              },
+              {},
+            )
+          : {},
       labelSelector: isSet(object.labelSelector)
         ? LabelSelector.fromJSON(object.labelSelector)
         : isSet(object.label_selector)
-        ? LabelSelector.fromJSON(object.label_selector)
-        : undefined,
+          ? LabelSelector.fromJSON(object.label_selector)
+          : undefined,
       orLabelSelectors: globalThis.Array.isArray(object?.orLabelSelectors)
         ? object.orLabelSelectors.map((e: any) => LabelSelector.fromJSON(e))
         : globalThis.Array.isArray(object?.or_label_selectors)
-        ? object.or_label_selectors.map((e: any) => LabelSelector.fromJSON(e))
-        : [],
+          ? object.or_label_selectors.map((e: any) => LabelSelector.fromJSON(e))
+          : [],
       restorePvs: isSet(object.restorePvs)
         ? globalThis.Boolean(object.restorePvs)
         : isSet(object.restore_pvs)
-        ? globalThis.Boolean(object.restore_pvs)
-        : undefined,
+          ? globalThis.Boolean(object.restore_pvs)
+          : undefined,
       restoreStatus: isSet(object.restoreStatus)
         ? RestoreStatusSpec.fromJSON(object.restoreStatus)
         : isSet(object.restore_status)
-        ? RestoreStatusSpec.fromJSON(object.restore_status)
-        : undefined,
+          ? RestoreStatusSpec.fromJSON(object.restore_status)
+          : undefined,
       preserveNodePorts: isSet(object.preserveNodePorts)
         ? globalThis.Boolean(object.preserveNodePorts)
         : isSet(object.preserve_node_ports)
-        ? globalThis.Boolean(object.preserve_node_ports)
-        : undefined,
+          ? globalThis.Boolean(object.preserve_node_ports)
+          : undefined,
       includeClusterResources: isSet(object.includeClusterResources)
         ? globalThis.Boolean(object.includeClusterResources)
         : isSet(object.include_cluster_resources)
-        ? globalThis.Boolean(object.include_cluster_resources)
-        : undefined,
+          ? globalThis.Boolean(object.include_cluster_resources)
+          : undefined,
       hooks: isSet(object.hooks) ? RestoreHooks.fromJSON(object.hooks) : undefined,
       existingResourcePolicy: isSet(object.existingResourcePolicy)
         ? existingResourcePolicyFromJSON(object.existingResourcePolicy)
         : isSet(object.existing_resource_policy)
-        ? existingResourcePolicyFromJSON(object.existing_resource_policy)
-        : 0,
+          ? existingResourcePolicyFromJSON(object.existing_resource_policy)
+          : 0,
       itemOperationTimeout: isSet(object.itemOperationTimeout)
         ? Duration.fromJSON(object.itemOperationTimeout)
         : isSet(object.item_operation_timeout)
-        ? Duration.fromJSON(object.item_operation_timeout)
-        : undefined,
+          ? Duration.fromJSON(object.item_operation_timeout)
+          : undefined,
       resourceModifier: isSet(object.resourceModifier)
         ? TypedLocalObjectReference.fromJSON(object.resourceModifier)
         : isSet(object.resource_modifier)
-        ? TypedLocalObjectReference.fromJSON(object.resource_modifier)
-        : undefined,
+          ? TypedLocalObjectReference.fromJSON(object.resource_modifier)
+          : undefined,
       resourcePolicy: isSet(object.resourcePolicy)
         ? TypedLocalObjectReference.fromJSON(object.resourcePolicy)
         : isSet(object.resource_policy)
-        ? TypedLocalObjectReference.fromJSON(object.resource_policy)
-        : undefined,
+          ? TypedLocalObjectReference.fromJSON(object.resource_policy)
+          : undefined,
       uploaderConfig: isSet(object.uploaderConfig)
         ? UploaderConfigForRestore.fromJSON(object.uploaderConfig)
         : isSet(object.uploader_config)
-        ? UploaderConfigForRestore.fromJSON(object.uploader_config)
-        : undefined,
+          ? UploaderConfigForRestore.fromJSON(object.uploader_config)
+          : undefined,
     };
   },
 
   toJSON(message: RestoreSpec): unknown {
     const obj: any = {};
-    if (message.backupName !== "") {
+    if (message.backupName !== '') {
       obj.backupName = message.backupName;
     }
-    if (message.scheduleName !== "") {
+    if (message.scheduleName !== '') {
       obj.scheduleName = message.scheduleName;
     }
     if (message.includedNamespaces?.length) {
@@ -2228,61 +2278,71 @@ export const RestoreSpec: MessageFns<RestoreSpec> = {
   },
   fromPartial(object: DeepPartial<RestoreSpec>): RestoreSpec {
     const message = createBaseRestoreSpec();
-    message.backupName = object.backupName ?? "";
-    message.scheduleName = object.scheduleName ?? "";
+    message.backupName = object.backupName ?? '';
+    message.scheduleName = object.scheduleName ?? '';
     message.includedNamespaces = object.includedNamespaces?.map((e) => e) || [];
     message.excludedNamespaces = object.excludedNamespaces?.map((e) => e) || [];
     message.includedResources = object.includedResources?.map((e) => e) || [];
     message.excludedResources = object.excludedResources?.map((e) => e) || [];
-    message.namespaceMapping = (globalThis.Object.entries(object.namespaceMapping ?? {}) as [string, string][]).reduce(
-      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
-        if (value !== undefined) {
-          acc[key] = globalThis.String(value);
-        }
-        return acc;
-      },
-      {},
-    );
-    message.labelSelector = (object.labelSelector !== undefined && object.labelSelector !== null)
-      ? LabelSelector.fromPartial(object.labelSelector)
-      : undefined;
-    message.orLabelSelectors = object.orLabelSelectors?.map((e) => LabelSelector.fromPartial(e)) || [];
+    message.namespaceMapping = (
+      globalThis.Object.entries(object.namespaceMapping ?? {}) as [string, string][]
+    ).reduce((acc: { [key: string]: string }, [key, value]: [string, string]) => {
+      if (value !== undefined) {
+        acc[key] = globalThis.String(value);
+      }
+      return acc;
+    }, {});
+    message.labelSelector =
+      object.labelSelector !== undefined && object.labelSelector !== null
+        ? LabelSelector.fromPartial(object.labelSelector)
+        : undefined;
+    message.orLabelSelectors =
+      object.orLabelSelectors?.map((e) => LabelSelector.fromPartial(e)) || [];
     message.restorePvs = object.restorePvs ?? undefined;
-    message.restoreStatus = (object.restoreStatus !== undefined && object.restoreStatus !== null)
-      ? RestoreStatusSpec.fromPartial(object.restoreStatus)
-      : undefined;
+    message.restoreStatus =
+      object.restoreStatus !== undefined && object.restoreStatus !== null
+        ? RestoreStatusSpec.fromPartial(object.restoreStatus)
+        : undefined;
     message.preserveNodePorts = object.preserveNodePorts ?? undefined;
     message.includeClusterResources = object.includeClusterResources ?? undefined;
-    message.hooks = (object.hooks !== undefined && object.hooks !== null)
-      ? RestoreHooks.fromPartial(object.hooks)
-      : undefined;
+    message.hooks =
+      object.hooks !== undefined && object.hooks !== null
+        ? RestoreHooks.fromPartial(object.hooks)
+        : undefined;
     message.existingResourcePolicy = object.existingResourcePolicy ?? 0;
-    message.itemOperationTimeout = (object.itemOperationTimeout !== undefined && object.itemOperationTimeout !== null)
-      ? Duration.fromPartial(object.itemOperationTimeout)
-      : undefined;
-    message.resourceModifier = (object.resourceModifier !== undefined && object.resourceModifier !== null)
-      ? TypedLocalObjectReference.fromPartial(object.resourceModifier)
-      : undefined;
-    message.resourcePolicy = (object.resourcePolicy !== undefined && object.resourcePolicy !== null)
-      ? TypedLocalObjectReference.fromPartial(object.resourcePolicy)
-      : undefined;
-    message.uploaderConfig = (object.uploaderConfig !== undefined && object.uploaderConfig !== null)
-      ? UploaderConfigForRestore.fromPartial(object.uploaderConfig)
-      : undefined;
+    message.itemOperationTimeout =
+      object.itemOperationTimeout !== undefined && object.itemOperationTimeout !== null
+        ? Duration.fromPartial(object.itemOperationTimeout)
+        : undefined;
+    message.resourceModifier =
+      object.resourceModifier !== undefined && object.resourceModifier !== null
+        ? TypedLocalObjectReference.fromPartial(object.resourceModifier)
+        : undefined;
+    message.resourcePolicy =
+      object.resourcePolicy !== undefined && object.resourcePolicy !== null
+        ? TypedLocalObjectReference.fromPartial(object.resourcePolicy)
+        : undefined;
+    message.uploaderConfig =
+      object.uploaderConfig !== undefined && object.uploaderConfig !== null
+        ? UploaderConfigForRestore.fromPartial(object.uploaderConfig)
+        : undefined;
     return message;
   },
 };
 
 function createBaseRestoreSpec_NamespaceMappingEntry(): RestoreSpec_NamespaceMappingEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
 export const RestoreSpec_NamespaceMappingEntry: MessageFns<RestoreSpec_NamespaceMappingEntry> = {
-  encode(message: RestoreSpec_NamespaceMappingEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
+  encode(
+    message: RestoreSpec_NamespaceMappingEntry,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.key !== '') {
       writer.uint32(10).string(message.key);
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       writer.uint32(18).string(message.value);
     }
     return writer;
@@ -2292,7 +2352,7 @@ export const RestoreSpec_NamespaceMappingEntry: MessageFns<RestoreSpec_Namespace
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2331,17 +2391,17 @@ export const RestoreSpec_NamespaceMappingEntry: MessageFns<RestoreSpec_Namespace
 
   fromJSON(object: any): RestoreSpec_NamespaceMappingEntry {
     return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
+      key: isSet(object.key) ? globalThis.String(object.key) : '',
+      value: isSet(object.value) ? globalThis.String(object.value) : '',
     };
   },
 
   toJSON(message: RestoreSpec_NamespaceMappingEntry): unknown {
     const obj: any = {};
-    if (message.key !== "") {
+    if (message.key !== '') {
       obj.key = message.key;
     }
-    if (message.value !== "") {
+    if (message.value !== '') {
       obj.value = message.value;
     }
     return obj;
@@ -2350,10 +2410,12 @@ export const RestoreSpec_NamespaceMappingEntry: MessageFns<RestoreSpec_Namespace
   create(base?: DeepPartial<RestoreSpec_NamespaceMappingEntry>): RestoreSpec_NamespaceMappingEntry {
     return RestoreSpec_NamespaceMappingEntry.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<RestoreSpec_NamespaceMappingEntry>): RestoreSpec_NamespaceMappingEntry {
+  fromPartial(
+    object: DeepPartial<RestoreSpec_NamespaceMappingEntry>,
+  ): RestoreSpec_NamespaceMappingEntry {
     const message = createBaseRestoreSpec_NamespaceMappingEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
+    message.key = object.key ?? '';
+    message.value = object.value ?? '';
     return message;
   },
 };
@@ -2377,7 +2439,7 @@ export const RestoreStatusSpec: MessageFns<RestoreStatusSpec> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2419,13 +2481,13 @@ export const RestoreStatusSpec: MessageFns<RestoreStatusSpec> = {
       includedResources: globalThis.Array.isArray(object?.includedResources)
         ? object.includedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_resources)
-        ? object.included_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_resources.map((e: any) => globalThis.String(e))
+          : [],
       excludedResources: globalThis.Array.isArray(object?.excludedResources)
         ? object.excludedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_resources)
-        ? object.excluded_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_resources.map((e: any) => globalThis.String(e))
+          : [],
     };
   },
 
@@ -2456,7 +2518,10 @@ function createBaseUploaderConfigForRestore(): UploaderConfigForRestore {
 }
 
 export const UploaderConfigForRestore: MessageFns<UploaderConfigForRestore> = {
-  encode(message: UploaderConfigForRestore, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: UploaderConfigForRestore,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.writeSparseFiles !== undefined) {
       writer.uint32(8).bool(message.writeSparseFiles);
     }
@@ -2470,7 +2535,7 @@ export const UploaderConfigForRestore: MessageFns<UploaderConfigForRestore> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2512,13 +2577,13 @@ export const UploaderConfigForRestore: MessageFns<UploaderConfigForRestore> = {
       writeSparseFiles: isSet(object.writeSparseFiles)
         ? globalThis.Boolean(object.writeSparseFiles)
         : isSet(object.write_sparse_files)
-        ? globalThis.Boolean(object.write_sparse_files)
-        : undefined,
+          ? globalThis.Boolean(object.write_sparse_files)
+          : undefined,
       parallelFilesDownload: isSet(object.parallelFilesDownload)
         ? globalThis.Number(object.parallelFilesDownload)
         : isSet(object.parallel_files_download)
-        ? globalThis.Number(object.parallel_files_download)
-        : 0,
+          ? globalThis.Number(object.parallel_files_download)
+          : 0,
     };
   },
 
@@ -2560,7 +2625,7 @@ export const RestoreHooks: MessageFns<RestoreHooks> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2617,7 +2682,7 @@ export const RestoreHooks: MessageFns<RestoreHooks> = {
 
 function createBaseRestoreResourceHookSpec(): RestoreResourceHookSpec {
   return {
-    name: "",
+    name: '',
     includedNamespaces: [],
     excludedNamespaces: [],
     includedResources: [],
@@ -2628,8 +2693,11 @@ function createBaseRestoreResourceHookSpec(): RestoreResourceHookSpec {
 }
 
 export const RestoreResourceHookSpec: MessageFns<RestoreResourceHookSpec> = {
-  encode(message: RestoreResourceHookSpec, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.name !== "") {
+  encode(
+    message: RestoreResourceHookSpec,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.name !== '') {
       writer.uint32(10).string(message.name);
     }
     for (const v of message.includedNamespaces) {
@@ -2657,7 +2725,7 @@ export const RestoreResourceHookSpec: MessageFns<RestoreResourceHookSpec> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2736,43 +2804,43 @@ export const RestoreResourceHookSpec: MessageFns<RestoreResourceHookSpec> = {
 
   fromJSON(object: any): RestoreResourceHookSpec {
     return {
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
       includedNamespaces: globalThis.Array.isArray(object?.includedNamespaces)
         ? object.includedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_namespaces)
-        ? object.included_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       excludedNamespaces: globalThis.Array.isArray(object?.excludedNamespaces)
         ? object.excludedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_namespaces)
-        ? object.excluded_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       includedResources: globalThis.Array.isArray(object?.includedResources)
         ? object.includedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.included_resources)
-        ? object.included_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.included_resources.map((e: any) => globalThis.String(e))
+          : [],
       excludedResources: globalThis.Array.isArray(object?.excludedResources)
         ? object.excludedResources.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.excluded_resources)
-        ? object.excluded_resources.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.excluded_resources.map((e: any) => globalThis.String(e))
+          : [],
       labelSelector: isSet(object.labelSelector)
         ? LabelSelector.fromJSON(object.labelSelector)
         : isSet(object.label_selector)
-        ? LabelSelector.fromJSON(object.label_selector)
-        : undefined,
+          ? LabelSelector.fromJSON(object.label_selector)
+          : undefined,
       postHooks: globalThis.Array.isArray(object?.postHooks)
         ? object.postHooks.map((e: any) => RestoreResourceHook.fromJSON(e))
         : globalThis.Array.isArray(object?.post_hooks)
-        ? object.post_hooks.map((e: any) => RestoreResourceHook.fromJSON(e))
-        : [],
+          ? object.post_hooks.map((e: any) => RestoreResourceHook.fromJSON(e))
+          : [],
     };
   },
 
   toJSON(message: RestoreResourceHookSpec): unknown {
     const obj: any = {};
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
     if (message.includedNamespaces?.length) {
@@ -2801,14 +2869,15 @@ export const RestoreResourceHookSpec: MessageFns<RestoreResourceHookSpec> = {
   },
   fromPartial(object: DeepPartial<RestoreResourceHookSpec>): RestoreResourceHookSpec {
     const message = createBaseRestoreResourceHookSpec();
-    message.name = object.name ?? "";
+    message.name = object.name ?? '';
     message.includedNamespaces = object.includedNamespaces?.map((e) => e) || [];
     message.excludedNamespaces = object.excludedNamespaces?.map((e) => e) || [];
     message.includedResources = object.includedResources?.map((e) => e) || [];
     message.excludedResources = object.excludedResources?.map((e) => e) || [];
-    message.labelSelector = (object.labelSelector !== undefined && object.labelSelector !== null)
-      ? LabelSelector.fromPartial(object.labelSelector)
-      : undefined;
+    message.labelSelector =
+      object.labelSelector !== undefined && object.labelSelector !== null
+        ? LabelSelector.fromPartial(object.labelSelector)
+        : undefined;
     message.postHooks = object.postHooks?.map((e) => RestoreResourceHook.fromPartial(e)) || [];
     return message;
   },
@@ -2833,7 +2902,7 @@ export const RestoreResourceHook: MessageFns<RestoreResourceHook> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -2893,19 +2962,21 @@ export const RestoreResourceHook: MessageFns<RestoreResourceHook> = {
   },
   fromPartial(object: DeepPartial<RestoreResourceHook>): RestoreResourceHook {
     const message = createBaseRestoreResourceHook();
-    message.exec = (object.exec !== undefined && object.exec !== null)
-      ? ExecRestoreHook.fromPartial(object.exec)
-      : undefined;
-    message.init = (object.init !== undefined && object.init !== null)
-      ? InitRestoreHook.fromPartial(object.init)
-      : undefined;
+    message.exec =
+      object.exec !== undefined && object.exec !== null
+        ? ExecRestoreHook.fromPartial(object.exec)
+        : undefined;
+    message.init =
+      object.init !== undefined && object.init !== null
+        ? InitRestoreHook.fromPartial(object.init)
+        : undefined;
     return message;
   },
 };
 
 function createBaseExecRestoreHook(): ExecRestoreHook {
   return {
-    container: "",
+    container: '',
     command: [],
     onError: 0,
     execTimeout: undefined,
@@ -2916,7 +2987,7 @@ function createBaseExecRestoreHook(): ExecRestoreHook {
 
 export const ExecRestoreHook: MessageFns<ExecRestoreHook> = {
   encode(message: ExecRestoreHook, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.container !== "") {
+    if (message.container !== '') {
       writer.uint32(10).string(message.container);
     }
     for (const v of message.command) {
@@ -2941,7 +3012,7 @@ export const ExecRestoreHook: MessageFns<ExecRestoreHook> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -3012,34 +3083,36 @@ export const ExecRestoreHook: MessageFns<ExecRestoreHook> = {
 
   fromJSON(object: any): ExecRestoreHook {
     return {
-      container: isSet(object.container) ? globalThis.String(object.container) : "",
-      command: globalThis.Array.isArray(object?.command) ? object.command.map((e: any) => globalThis.String(e)) : [],
+      container: isSet(object.container) ? globalThis.String(object.container) : '',
+      command: globalThis.Array.isArray(object?.command)
+        ? object.command.map((e: any) => globalThis.String(e))
+        : [],
       onError: isSet(object.onError)
         ? hookErrorModeFromJSON(object.onError)
         : isSet(object.on_error)
-        ? hookErrorModeFromJSON(object.on_error)
-        : 0,
+          ? hookErrorModeFromJSON(object.on_error)
+          : 0,
       execTimeout: isSet(object.execTimeout)
         ? Duration.fromJSON(object.execTimeout)
         : isSet(object.exec_timeout)
-        ? Duration.fromJSON(object.exec_timeout)
-        : undefined,
+          ? Duration.fromJSON(object.exec_timeout)
+          : undefined,
       waitTimeout: isSet(object.waitTimeout)
         ? Duration.fromJSON(object.waitTimeout)
         : isSet(object.wait_timeout)
-        ? Duration.fromJSON(object.wait_timeout)
-        : undefined,
+          ? Duration.fromJSON(object.wait_timeout)
+          : undefined,
       waitForReady: isSet(object.waitForReady)
         ? globalThis.Boolean(object.waitForReady)
         : isSet(object.wait_for_ready)
-        ? globalThis.Boolean(object.wait_for_ready)
-        : undefined,
+          ? globalThis.Boolean(object.wait_for_ready)
+          : undefined,
     };
   },
 
   toJSON(message: ExecRestoreHook): unknown {
     const obj: any = {};
-    if (message.container !== "") {
+    if (message.container !== '') {
       obj.container = message.container;
     }
     if (message.command?.length) {
@@ -3065,15 +3138,17 @@ export const ExecRestoreHook: MessageFns<ExecRestoreHook> = {
   },
   fromPartial(object: DeepPartial<ExecRestoreHook>): ExecRestoreHook {
     const message = createBaseExecRestoreHook();
-    message.container = object.container ?? "";
+    message.container = object.container ?? '';
     message.command = object.command?.map((e) => e) || [];
     message.onError = object.onError ?? 0;
-    message.execTimeout = (object.execTimeout !== undefined && object.execTimeout !== null)
-      ? Duration.fromPartial(object.execTimeout)
-      : undefined;
-    message.waitTimeout = (object.waitTimeout !== undefined && object.waitTimeout !== null)
-      ? Duration.fromPartial(object.waitTimeout)
-      : undefined;
+    message.execTimeout =
+      object.execTimeout !== undefined && object.execTimeout !== null
+        ? Duration.fromPartial(object.execTimeout)
+        : undefined;
+    message.waitTimeout =
+      object.waitTimeout !== undefined && object.waitTimeout !== null
+        ? Duration.fromPartial(object.waitTimeout)
+        : undefined;
     message.waitForReady = object.waitForReady ?? undefined;
     return message;
   },
@@ -3098,7 +3173,7 @@ export const InitRestoreHook: MessageFns<InitRestoreHook> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -3140,8 +3215,8 @@ export const InitRestoreHook: MessageFns<InitRestoreHook> = {
       initContainersJson: globalThis.Array.isArray(object?.initContainersJson)
         ? object.initContainersJson.map((e: any) => bytesFromBase64(e))
         : globalThis.Array.isArray(object?.init_containers_json)
-        ? object.init_containers_json.map((e: any) => bytesFromBase64(e))
-        : [],
+          ? object.init_containers_json.map((e: any) => bytesFromBase64(e))
+          : [],
       timeout: isSet(object.timeout) ? Duration.fromJSON(object.timeout) : undefined,
     };
   },
@@ -3163,9 +3238,10 @@ export const InitRestoreHook: MessageFns<InitRestoreHook> = {
   fromPartial(object: DeepPartial<InitRestoreHook>): InitRestoreHook {
     const message = createBaseInitRestoreHook();
     message.initContainersJson = object.initContainersJson?.map((e) => e) || [];
-    message.timeout = (object.timeout !== undefined && object.timeout !== null)
-      ? Duration.fromPartial(object.timeout)
-      : undefined;
+    message.timeout =
+      object.timeout !== undefined && object.timeout !== null
+        ? Duration.fromPartial(object.timeout)
+        : undefined;
     return message;
   },
 };
@@ -3173,7 +3249,7 @@ export const InitRestoreHook: MessageFns<InitRestoreHook> = {
 function createBaseScheduleSpec(): ScheduleSpec {
   return {
     template: undefined,
-    schedule: "",
+    schedule: '',
     useOwnerReferencesInBackup: undefined,
     paused: false,
     skipImmediately: undefined,
@@ -3185,7 +3261,7 @@ export const ScheduleSpec: MessageFns<ScheduleSpec> = {
     if (message.template !== undefined) {
       BackupSpec.encode(message.template, writer.uint32(10).fork()).join();
     }
-    if (message.schedule !== "") {
+    if (message.schedule !== '') {
       writer.uint32(18).string(message.schedule);
     }
     if (message.useOwnerReferencesInBackup !== undefined) {
@@ -3204,7 +3280,7 @@ export const ScheduleSpec: MessageFns<ScheduleSpec> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -3268,18 +3344,18 @@ export const ScheduleSpec: MessageFns<ScheduleSpec> = {
   fromJSON(object: any): ScheduleSpec {
     return {
       template: isSet(object.template) ? BackupSpec.fromJSON(object.template) : undefined,
-      schedule: isSet(object.schedule) ? globalThis.String(object.schedule) : "",
+      schedule: isSet(object.schedule) ? globalThis.String(object.schedule) : '',
       useOwnerReferencesInBackup: isSet(object.useOwnerReferencesInBackup)
         ? globalThis.Boolean(object.useOwnerReferencesInBackup)
         : isSet(object.use_owner_references_in_backup)
-        ? globalThis.Boolean(object.use_owner_references_in_backup)
-        : undefined,
+          ? globalThis.Boolean(object.use_owner_references_in_backup)
+          : undefined,
       paused: isSet(object.paused) ? globalThis.Boolean(object.paused) : false,
       skipImmediately: isSet(object.skipImmediately)
         ? globalThis.Boolean(object.skipImmediately)
         : isSet(object.skip_immediately)
-        ? globalThis.Boolean(object.skip_immediately)
-        : undefined,
+          ? globalThis.Boolean(object.skip_immediately)
+          : undefined,
     };
   },
 
@@ -3288,7 +3364,7 @@ export const ScheduleSpec: MessageFns<ScheduleSpec> = {
     if (message.template !== undefined) {
       obj.template = BackupSpec.toJSON(message.template);
     }
-    if (message.schedule !== "") {
+    if (message.schedule !== '') {
       obj.schedule = message.schedule;
     }
     if (message.useOwnerReferencesInBackup !== undefined) {
@@ -3308,10 +3384,11 @@ export const ScheduleSpec: MessageFns<ScheduleSpec> = {
   },
   fromPartial(object: DeepPartial<ScheduleSpec>): ScheduleSpec {
     const message = createBaseScheduleSpec();
-    message.template = (object.template !== undefined && object.template !== null)
-      ? BackupSpec.fromPartial(object.template)
-      : undefined;
-    message.schedule = object.schedule ?? "";
+    message.template =
+      object.template !== undefined && object.template !== null
+        ? BackupSpec.fromPartial(object.template)
+        : undefined;
+    message.schedule = object.schedule ?? '';
     message.useOwnerReferencesInBackup = object.useOwnerReferencesInBackup ?? undefined;
     message.paused = object.paused ?? false;
     message.skipImmediately = object.skipImmediately ?? undefined;
@@ -3320,15 +3397,15 @@ export const ScheduleSpec: MessageFns<ScheduleSpec> = {
 };
 
 function createBaseObjectStorageLocation(): ObjectStorageLocation {
-  return { bucket: "", prefix: "", caCert: new Uint8Array(0), caCertRef: undefined };
+  return { bucket: '', prefix: '', caCert: new Uint8Array(0), caCertRef: undefined };
 }
 
 export const ObjectStorageLocation: MessageFns<ObjectStorageLocation> = {
   encode(message: ObjectStorageLocation, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.bucket !== "") {
+    if (message.bucket !== '') {
       writer.uint32(10).string(message.bucket);
     }
-    if (message.prefix !== "") {
+    if (message.prefix !== '') {
       writer.uint32(18).string(message.prefix);
     }
     if (message.caCert.length !== 0) {
@@ -3344,7 +3421,7 @@ export const ObjectStorageLocation: MessageFns<ObjectStorageLocation> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -3399,27 +3476,27 @@ export const ObjectStorageLocation: MessageFns<ObjectStorageLocation> = {
 
   fromJSON(object: any): ObjectStorageLocation {
     return {
-      bucket: isSet(object.bucket) ? globalThis.String(object.bucket) : "",
-      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      bucket: isSet(object.bucket) ? globalThis.String(object.bucket) : '',
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : '',
       caCert: isSet(object.caCert)
         ? bytesFromBase64(object.caCert)
         : isSet(object.ca_cert)
-        ? bytesFromBase64(object.ca_cert)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.ca_cert)
+          : new Uint8Array(0),
       caCertRef: isSet(object.caCertRef)
         ? SecretKeyRef.fromJSON(object.caCertRef)
         : isSet(object.ca_cert_ref)
-        ? SecretKeyRef.fromJSON(object.ca_cert_ref)
-        : undefined,
+          ? SecretKeyRef.fromJSON(object.ca_cert_ref)
+          : undefined,
     };
   },
 
   toJSON(message: ObjectStorageLocation): unknown {
     const obj: any = {};
-    if (message.bucket !== "") {
+    if (message.bucket !== '') {
       obj.bucket = message.bucket;
     }
-    if (message.prefix !== "") {
+    if (message.prefix !== '') {
       obj.prefix = message.prefix;
     }
     if (message.caCert.length !== 0) {
@@ -3436,19 +3513,20 @@ export const ObjectStorageLocation: MessageFns<ObjectStorageLocation> = {
   },
   fromPartial(object: DeepPartial<ObjectStorageLocation>): ObjectStorageLocation {
     const message = createBaseObjectStorageLocation();
-    message.bucket = object.bucket ?? "";
-    message.prefix = object.prefix ?? "";
+    message.bucket = object.bucket ?? '';
+    message.prefix = object.prefix ?? '';
     message.caCert = object.caCert ?? new Uint8Array(0);
-    message.caCertRef = (object.caCertRef !== undefined && object.caCertRef !== null)
-      ? SecretKeyRef.fromPartial(object.caCertRef)
-      : undefined;
+    message.caCertRef =
+      object.caCertRef !== undefined && object.caCertRef !== null
+        ? SecretKeyRef.fromPartial(object.caCertRef)
+        : undefined;
     return message;
   },
 };
 
 function createBaseBackupStorageLocationSpec(): BackupStorageLocationSpec {
   return {
-    provider: "",
+    provider: '',
     config: {},
     credential: undefined,
     objectStorage: undefined,
@@ -3460,12 +3538,18 @@ function createBaseBackupStorageLocationSpec(): BackupStorageLocationSpec {
 }
 
 export const BackupStorageLocationSpec: MessageFns<BackupStorageLocationSpec> = {
-  encode(message: BackupStorageLocationSpec, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.provider !== "") {
+  encode(
+    message: BackupStorageLocationSpec,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.provider !== '') {
       writer.uint32(10).string(message.provider);
     }
     globalThis.Object.entries(message.config).forEach(([key, value]: [string, string]) => {
-      BackupStorageLocationSpec_ConfigEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+      BackupStorageLocationSpec_ConfigEntry.encode(
+        { key: key as any, value },
+        writer.uint32(18).fork(),
+      ).join();
     });
     if (message.credential !== undefined) {
       SecretKeyRef.encode(message.credential, writer.uint32(26).fork()).join();
@@ -3492,7 +3576,7 @@ export const BackupStorageLocationSpec: MessageFns<BackupStorageLocationSpec> = 
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -3582,49 +3666,49 @@ export const BackupStorageLocationSpec: MessageFns<BackupStorageLocationSpec> = 
 
   fromJSON(object: any): BackupStorageLocationSpec {
     return {
-      provider: isSet(object.provider) ? globalThis.String(object.provider) : "",
+      provider: isSet(object.provider) ? globalThis.String(object.provider) : '',
       config: isObject(object.config)
         ? (globalThis.Object.entries(object.config) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
+            (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+              globalThis.Object.defineProperty(acc, key, {
+                value: globalThis.String(value),
+                enumerable: true,
+                configurable: true,
+                writable: true,
+              });
+              return acc;
+            },
+            {},
+          )
         : {},
       credential: isSet(object.credential) ? SecretKeyRef.fromJSON(object.credential) : undefined,
       objectStorage: isSet(object.objectStorage)
         ? ObjectStorageLocation.fromJSON(object.objectStorage)
         : isSet(object.object_storage)
-        ? ObjectStorageLocation.fromJSON(object.object_storage)
-        : undefined,
+          ? ObjectStorageLocation.fromJSON(object.object_storage)
+          : undefined,
       default: isSet(object.default) ? globalThis.Boolean(object.default) : false,
       accessMode: isSet(object.accessMode)
         ? backupStorageLocationAccessModeFromJSON(object.accessMode)
         : isSet(object.access_mode)
-        ? backupStorageLocationAccessModeFromJSON(object.access_mode)
-        : 0,
+          ? backupStorageLocationAccessModeFromJSON(object.access_mode)
+          : 0,
       backupSyncPeriod: isSet(object.backupSyncPeriod)
         ? Duration.fromJSON(object.backupSyncPeriod)
         : isSet(object.backup_sync_period)
-        ? Duration.fromJSON(object.backup_sync_period)
-        : undefined,
+          ? Duration.fromJSON(object.backup_sync_period)
+          : undefined,
       validationFrequency: isSet(object.validationFrequency)
         ? Duration.fromJSON(object.validationFrequency)
         : isSet(object.validation_frequency)
-        ? Duration.fromJSON(object.validation_frequency)
-        : undefined,
+          ? Duration.fromJSON(object.validation_frequency)
+          : undefined,
     };
   },
 
   toJSON(message: BackupStorageLocationSpec): unknown {
     const obj: any = {};
-    if (message.provider !== "") {
+    if (message.provider !== '') {
       obj.provider = message.provider;
     }
     if (message.config) {
@@ -3662,7 +3746,7 @@ export const BackupStorageLocationSpec: MessageFns<BackupStorageLocationSpec> = 
   },
   fromPartial(object: DeepPartial<BackupStorageLocationSpec>): BackupStorageLocationSpec {
     const message = createBaseBackupStorageLocationSpec();
-    message.provider = object.provider ?? "";
+    message.provider = object.provider ?? '';
     message.config = (globalThis.Object.entries(object.config ?? {}) as [string, string][]).reduce(
       (acc: { [key: string]: string }, [key, value]: [string, string]) => {
         if (value !== undefined) {
@@ -3672,120 +3756,141 @@ export const BackupStorageLocationSpec: MessageFns<BackupStorageLocationSpec> = 
       },
       {},
     );
-    message.credential = (object.credential !== undefined && object.credential !== null)
-      ? SecretKeyRef.fromPartial(object.credential)
-      : undefined;
-    message.objectStorage = (object.objectStorage !== undefined && object.objectStorage !== null)
-      ? ObjectStorageLocation.fromPartial(object.objectStorage)
-      : undefined;
+    message.credential =
+      object.credential !== undefined && object.credential !== null
+        ? SecretKeyRef.fromPartial(object.credential)
+        : undefined;
+    message.objectStorage =
+      object.objectStorage !== undefined && object.objectStorage !== null
+        ? ObjectStorageLocation.fromPartial(object.objectStorage)
+        : undefined;
     message.default = object.default ?? false;
     message.accessMode = object.accessMode ?? 0;
-    message.backupSyncPeriod = (object.backupSyncPeriod !== undefined && object.backupSyncPeriod !== null)
-      ? Duration.fromPartial(object.backupSyncPeriod)
-      : undefined;
-    message.validationFrequency = (object.validationFrequency !== undefined && object.validationFrequency !== null)
-      ? Duration.fromPartial(object.validationFrequency)
-      : undefined;
+    message.backupSyncPeriod =
+      object.backupSyncPeriod !== undefined && object.backupSyncPeriod !== null
+        ? Duration.fromPartial(object.backupSyncPeriod)
+        : undefined;
+    message.validationFrequency =
+      object.validationFrequency !== undefined && object.validationFrequency !== null
+        ? Duration.fromPartial(object.validationFrequency)
+        : undefined;
     return message;
   },
 };
 
 function createBaseBackupStorageLocationSpec_ConfigEntry(): BackupStorageLocationSpec_ConfigEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
-export const BackupStorageLocationSpec_ConfigEntry: MessageFns<BackupStorageLocationSpec_ConfigEntry> = {
-  encode(message: BackupStorageLocationSpec_ConfigEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
-      writer.uint32(10).string(message.key);
-    }
-    if (message.value !== "") {
-      writer.uint32(18).string(message.value);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): BackupStorageLocationSpec_ConfigEntry {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
-    if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
-    }
-    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
-    try {
-      const end = length === undefined ? reader.len : reader.pos + length;
-      const message = createBaseBackupStorageLocationSpec_ConfigEntry();
-      while (reader.pos < end) {
-        const tag = reader.uint32();
-        switch (tag >>> 3) {
-          case 1: {
-            if (tag !== 10) {
-              break;
-            }
-
-            message.key = reader.string();
-            continue;
-          }
-          case 2: {
-            if (tag !== 18) {
-              break;
-            }
-
-            message.value = reader.string();
-            continue;
-          }
-        }
-        if ((tag & 7) === 4 || tag === 0) {
-          break;
-        }
-        reader.skip(tag & 7);
+export const BackupStorageLocationSpec_ConfigEntry: MessageFns<BackupStorageLocationSpec_ConfigEntry> =
+  {
+    encode(
+      message: BackupStorageLocationSpec_ConfigEntry,
+      writer: BinaryWriter = new BinaryWriter(),
+    ): BinaryWriter {
+      if (message.key !== '') {
+        writer.uint32(10).string(message.key);
       }
+      if (message.value !== '') {
+        writer.uint32(18).string(message.value);
+      }
+      return writer;
+    },
+
+    decode(
+      input: BinaryReader | Uint8Array,
+      length?: number,
+    ): BackupStorageLocationSpec_ConfigEntry {
+      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+      const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+      if (previousRecursionDepth >= 100) {
+        throw new globalThis.Error('protobuf decode recursion limit exceeded');
+      }
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+      try {
+        const end = length === undefined ? reader.len : reader.pos + length;
+        const message = createBaseBackupStorageLocationSpec_ConfigEntry();
+        while (reader.pos < end) {
+          const tag = reader.uint32();
+          switch (tag >>> 3) {
+            case 1: {
+              if (tag !== 10) {
+                break;
+              }
+
+              message.key = reader.string();
+              continue;
+            }
+            case 2: {
+              if (tag !== 18) {
+                break;
+              }
+
+              message.value = reader.string();
+              continue;
+            }
+          }
+          if ((tag & 7) === 4 || tag === 0) {
+            break;
+          }
+          reader.skip(tag & 7);
+        }
+        return message;
+      } finally {
+        (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+      }
+    },
+
+    fromJSON(object: any): BackupStorageLocationSpec_ConfigEntry {
+      return {
+        key: isSet(object.key) ? globalThis.String(object.key) : '',
+        value: isSet(object.value) ? globalThis.String(object.value) : '',
+      };
+    },
+
+    toJSON(message: BackupStorageLocationSpec_ConfigEntry): unknown {
+      const obj: any = {};
+      if (message.key !== '') {
+        obj.key = message.key;
+      }
+      if (message.value !== '') {
+        obj.value = message.value;
+      }
+      return obj;
+    },
+
+    create(
+      base?: DeepPartial<BackupStorageLocationSpec_ConfigEntry>,
+    ): BackupStorageLocationSpec_ConfigEntry {
+      return BackupStorageLocationSpec_ConfigEntry.fromPartial(base ?? {});
+    },
+    fromPartial(
+      object: DeepPartial<BackupStorageLocationSpec_ConfigEntry>,
+    ): BackupStorageLocationSpec_ConfigEntry {
+      const message = createBaseBackupStorageLocationSpec_ConfigEntry();
+      message.key = object.key ?? '';
+      message.value = object.value ?? '';
       return message;
-    } finally {
-      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
-    }
-  },
-
-  fromJSON(object: any): BackupStorageLocationSpec_ConfigEntry {
-    return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
-    };
-  },
-
-  toJSON(message: BackupStorageLocationSpec_ConfigEntry): unknown {
-    const obj: any = {};
-    if (message.key !== "") {
-      obj.key = message.key;
-    }
-    if (message.value !== "") {
-      obj.value = message.value;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<BackupStorageLocationSpec_ConfigEntry>): BackupStorageLocationSpec_ConfigEntry {
-    return BackupStorageLocationSpec_ConfigEntry.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<BackupStorageLocationSpec_ConfigEntry>): BackupStorageLocationSpec_ConfigEntry {
-    const message = createBaseBackupStorageLocationSpec_ConfigEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
-    return message;
-  },
-};
+    },
+  };
 
 function createBaseVolumeSnapshotLocationSpec(): VolumeSnapshotLocationSpec {
-  return { provider: "", config: {}, credential: undefined };
+  return { provider: '', config: {}, credential: undefined };
 }
 
 export const VolumeSnapshotLocationSpec: MessageFns<VolumeSnapshotLocationSpec> = {
-  encode(message: VolumeSnapshotLocationSpec, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.provider !== "") {
+  encode(
+    message: VolumeSnapshotLocationSpec,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
+    if (message.provider !== '') {
       writer.uint32(10).string(message.provider);
     }
     globalThis.Object.entries(message.config).forEach(([key, value]: [string, string]) => {
-      VolumeSnapshotLocationSpec_ConfigEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+      VolumeSnapshotLocationSpec_ConfigEntry.encode(
+        { key: key as any, value },
+        writer.uint32(18).fork(),
+      ).join();
     });
     if (message.credential !== undefined) {
       SecretKeyRef.encode(message.credential, writer.uint32(26).fork()).join();
@@ -3797,7 +3902,7 @@ export const VolumeSnapshotLocationSpec: MessageFns<VolumeSnapshotLocationSpec> 
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -3847,20 +3952,20 @@ export const VolumeSnapshotLocationSpec: MessageFns<VolumeSnapshotLocationSpec> 
 
   fromJSON(object: any): VolumeSnapshotLocationSpec {
     return {
-      provider: isSet(object.provider) ? globalThis.String(object.provider) : "",
+      provider: isSet(object.provider) ? globalThis.String(object.provider) : '',
       config: isObject(object.config)
         ? (globalThis.Object.entries(object.config) as [string, any][]).reduce(
-          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
-            globalThis.Object.defineProperty(acc, key, {
-              value: globalThis.String(value),
-              enumerable: true,
-              configurable: true,
-              writable: true,
-            });
-            return acc;
-          },
-          {},
-        )
+            (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+              globalThis.Object.defineProperty(acc, key, {
+                value: globalThis.String(value),
+                enumerable: true,
+                configurable: true,
+                writable: true,
+              });
+              return acc;
+            },
+            {},
+          )
         : {},
       credential: isSet(object.credential) ? SecretKeyRef.fromJSON(object.credential) : undefined,
     };
@@ -3868,7 +3973,7 @@ export const VolumeSnapshotLocationSpec: MessageFns<VolumeSnapshotLocationSpec> 
 
   toJSON(message: VolumeSnapshotLocationSpec): unknown {
     const obj: any = {};
-    if (message.provider !== "") {
+    if (message.provider !== '') {
       obj.provider = message.provider;
     }
     if (message.config) {
@@ -3891,7 +3996,7 @@ export const VolumeSnapshotLocationSpec: MessageFns<VolumeSnapshotLocationSpec> 
   },
   fromPartial(object: DeepPartial<VolumeSnapshotLocationSpec>): VolumeSnapshotLocationSpec {
     const message = createBaseVolumeSnapshotLocationSpec();
-    message.provider = object.provider ?? "";
+    message.provider = object.provider ?? '';
     message.config = (globalThis.Object.entries(object.config ?? {}) as [string, string][]).reduce(
       (acc: { [key: string]: string }, [key, value]: [string, string]) => {
         if (value !== undefined) {
@@ -3901,101 +4006,113 @@ export const VolumeSnapshotLocationSpec: MessageFns<VolumeSnapshotLocationSpec> 
       },
       {},
     );
-    message.credential = (object.credential !== undefined && object.credential !== null)
-      ? SecretKeyRef.fromPartial(object.credential)
-      : undefined;
+    message.credential =
+      object.credential !== undefined && object.credential !== null
+        ? SecretKeyRef.fromPartial(object.credential)
+        : undefined;
     return message;
   },
 };
 
 function createBaseVolumeSnapshotLocationSpec_ConfigEntry(): VolumeSnapshotLocationSpec_ConfigEntry {
-  return { key: "", value: "" };
+  return { key: '', value: '' };
 }
 
-export const VolumeSnapshotLocationSpec_ConfigEntry: MessageFns<VolumeSnapshotLocationSpec_ConfigEntry> = {
-  encode(message: VolumeSnapshotLocationSpec_ConfigEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
-      writer.uint32(10).string(message.key);
-    }
-    if (message.value !== "") {
-      writer.uint32(18).string(message.value);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): VolumeSnapshotLocationSpec_ConfigEntry {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
-    if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
-    }
-    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
-    try {
-      const end = length === undefined ? reader.len : reader.pos + length;
-      const message = createBaseVolumeSnapshotLocationSpec_ConfigEntry();
-      while (reader.pos < end) {
-        const tag = reader.uint32();
-        switch (tag >>> 3) {
-          case 1: {
-            if (tag !== 10) {
-              break;
-            }
-
-            message.key = reader.string();
-            continue;
-          }
-          case 2: {
-            if (tag !== 18) {
-              break;
-            }
-
-            message.value = reader.string();
-            continue;
-          }
-        }
-        if ((tag & 7) === 4 || tag === 0) {
-          break;
-        }
-        reader.skip(tag & 7);
+export const VolumeSnapshotLocationSpec_ConfigEntry: MessageFns<VolumeSnapshotLocationSpec_ConfigEntry> =
+  {
+    encode(
+      message: VolumeSnapshotLocationSpec_ConfigEntry,
+      writer: BinaryWriter = new BinaryWriter(),
+    ): BinaryWriter {
+      if (message.key !== '') {
+        writer.uint32(10).string(message.key);
       }
+      if (message.value !== '') {
+        writer.uint32(18).string(message.value);
+      }
+      return writer;
+    },
+
+    decode(
+      input: BinaryReader | Uint8Array,
+      length?: number,
+    ): VolumeSnapshotLocationSpec_ConfigEntry {
+      const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+      const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+      if (previousRecursionDepth >= 100) {
+        throw new globalThis.Error('protobuf decode recursion limit exceeded');
+      }
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+      try {
+        const end = length === undefined ? reader.len : reader.pos + length;
+        const message = createBaseVolumeSnapshotLocationSpec_ConfigEntry();
+        while (reader.pos < end) {
+          const tag = reader.uint32();
+          switch (tag >>> 3) {
+            case 1: {
+              if (tag !== 10) {
+                break;
+              }
+
+              message.key = reader.string();
+              continue;
+            }
+            case 2: {
+              if (tag !== 18) {
+                break;
+              }
+
+              message.value = reader.string();
+              continue;
+            }
+          }
+          if ((tag & 7) === 4 || tag === 0) {
+            break;
+          }
+          reader.skip(tag & 7);
+        }
+        return message;
+      } finally {
+        (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+      }
+    },
+
+    fromJSON(object: any): VolumeSnapshotLocationSpec_ConfigEntry {
+      return {
+        key: isSet(object.key) ? globalThis.String(object.key) : '',
+        value: isSet(object.value) ? globalThis.String(object.value) : '',
+      };
+    },
+
+    toJSON(message: VolumeSnapshotLocationSpec_ConfigEntry): unknown {
+      const obj: any = {};
+      if (message.key !== '') {
+        obj.key = message.key;
+      }
+      if (message.value !== '') {
+        obj.value = message.value;
+      }
+      return obj;
+    },
+
+    create(
+      base?: DeepPartial<VolumeSnapshotLocationSpec_ConfigEntry>,
+    ): VolumeSnapshotLocationSpec_ConfigEntry {
+      return VolumeSnapshotLocationSpec_ConfigEntry.fromPartial(base ?? {});
+    },
+    fromPartial(
+      object: DeepPartial<VolumeSnapshotLocationSpec_ConfigEntry>,
+    ): VolumeSnapshotLocationSpec_ConfigEntry {
+      const message = createBaseVolumeSnapshotLocationSpec_ConfigEntry();
+      message.key = object.key ?? '';
+      message.value = object.value ?? '';
       return message;
-    } finally {
-      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
-    }
-  },
-
-  fromJSON(object: any): VolumeSnapshotLocationSpec_ConfigEntry {
-    return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
-    };
-  },
-
-  toJSON(message: VolumeSnapshotLocationSpec_ConfigEntry): unknown {
-    const obj: any = {};
-    if (message.key !== "") {
-      obj.key = message.key;
-    }
-    if (message.value !== "") {
-      obj.value = message.value;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<VolumeSnapshotLocationSpec_ConfigEntry>): VolumeSnapshotLocationSpec_ConfigEntry {
-    return VolumeSnapshotLocationSpec_ConfigEntry.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<VolumeSnapshotLocationSpec_ConfigEntry>): VolumeSnapshotLocationSpec_ConfigEntry {
-    const message = createBaseVolumeSnapshotLocationSpec_ConfigEntry();
-    message.key = object.key ?? "";
-    message.value = object.value ?? "";
-    return message;
-  },
-};
+    },
+  };
 
 function bytesFromBase64(b64: string): Uint8Array {
   if ((globalThis as any).Buffer) {
-    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, 'base64'));
   } else {
     const bin = globalThis.atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -4008,26 +4125,30 @@ function bytesFromBase64(b64: string): Uint8Array {
 
 function base64FromBytes(arr: Uint8Array): string {
   if ((globalThis as any).Buffer) {
-    return (globalThis as any).Buffer.from(arr).toString("base64");
+    return (globalThis as any).Buffer.from(arr).toString('base64');
   } else {
     const bin: string[] = [];
     arr.forEach((byte) => {
       bin.push(globalThis.String.fromCharCode(byte));
     });
-    return globalThis.btoa(bin.join(""));
+    return globalThis.btoa(bin.join(''));
   }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 function isObject(value: any): boolean {
-  return typeof value === "object" && value !== null;
+  return typeof value === 'object' && value !== null;
 }
 
 function isSet(value: any): boolean {

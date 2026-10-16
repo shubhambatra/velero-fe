@@ -5,10 +5,10 @@
 // source: vfm/agent/v1/enrollment.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { Timestamp } from "../../../google/protobuf/timestamp";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
+import { Timestamp } from '../../../google/protobuf/timestamp';
 
-export const protobufPackage = "vfm.agent.v1";
+export const protobufPackage = 'vfm.agent.v1';
 
 /**
  * PLAN.md §5.1. Enroll is authenticated by the one-time bootstrap token and is
@@ -54,26 +54,26 @@ export interface RenewCertificateResponse {
 
 function createBaseEnrollRequest(): EnrollRequest {
   return {
-    bootstrapToken: "",
+    bootstrapToken: '',
     csrPem: new Uint8Array(0),
-    clusterFingerprint: "",
-    agentVersion: "",
+    clusterFingerprint: '',
+    agentVersion: '',
     protocolVersion: 0,
   };
 }
 
 export const EnrollRequest: MessageFns<EnrollRequest> = {
   encode(message: EnrollRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.bootstrapToken !== "") {
+    if (message.bootstrapToken !== '') {
       writer.uint32(10).string(message.bootstrapToken);
     }
     if (message.csrPem.length !== 0) {
       writer.uint32(18).bytes(message.csrPem);
     }
-    if (message.clusterFingerprint !== "") {
+    if (message.clusterFingerprint !== '') {
       writer.uint32(26).string(message.clusterFingerprint);
     }
-    if (message.agentVersion !== "") {
+    if (message.agentVersion !== '') {
       writer.uint32(34).string(message.agentVersion);
     }
     if (message.protocolVersion !== 0) {
@@ -86,7 +86,7 @@ export const EnrollRequest: MessageFns<EnrollRequest> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -152,43 +152,43 @@ export const EnrollRequest: MessageFns<EnrollRequest> = {
       bootstrapToken: isSet(object.bootstrapToken)
         ? globalThis.String(object.bootstrapToken)
         : isSet(object.bootstrap_token)
-        ? globalThis.String(object.bootstrap_token)
-        : "",
+          ? globalThis.String(object.bootstrap_token)
+          : '',
       csrPem: isSet(object.csrPem)
         ? bytesFromBase64(object.csrPem)
         : isSet(object.csr_pem)
-        ? bytesFromBase64(object.csr_pem)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.csr_pem)
+          : new Uint8Array(0),
       clusterFingerprint: isSet(object.clusterFingerprint)
         ? globalThis.String(object.clusterFingerprint)
         : isSet(object.cluster_fingerprint)
-        ? globalThis.String(object.cluster_fingerprint)
-        : "",
+          ? globalThis.String(object.cluster_fingerprint)
+          : '',
       agentVersion: isSet(object.agentVersion)
         ? globalThis.String(object.agentVersion)
         : isSet(object.agent_version)
-        ? globalThis.String(object.agent_version)
-        : "",
+          ? globalThis.String(object.agent_version)
+          : '',
       protocolVersion: isSet(object.protocolVersion)
         ? globalThis.Number(object.protocolVersion)
         : isSet(object.protocol_version)
-        ? globalThis.Number(object.protocol_version)
-        : 0,
+          ? globalThis.Number(object.protocol_version)
+          : 0,
     };
   },
 
   toJSON(message: EnrollRequest): unknown {
     const obj: any = {};
-    if (message.bootstrapToken !== "") {
+    if (message.bootstrapToken !== '') {
       obj.bootstrapToken = message.bootstrapToken;
     }
     if (message.csrPem.length !== 0) {
       obj.csrPem = base64FromBytes(message.csrPem);
     }
-    if (message.clusterFingerprint !== "") {
+    if (message.clusterFingerprint !== '') {
       obj.clusterFingerprint = message.clusterFingerprint;
     }
-    if (message.agentVersion !== "") {
+    if (message.agentVersion !== '') {
       obj.agentVersion = message.agentVersion;
     }
     if (message.protocolVersion !== 0) {
@@ -202,22 +202,27 @@ export const EnrollRequest: MessageFns<EnrollRequest> = {
   },
   fromPartial(object: DeepPartial<EnrollRequest>): EnrollRequest {
     const message = createBaseEnrollRequest();
-    message.bootstrapToken = object.bootstrapToken ?? "";
+    message.bootstrapToken = object.bootstrapToken ?? '';
     message.csrPem = object.csrPem ?? new Uint8Array(0);
-    message.clusterFingerprint = object.clusterFingerprint ?? "";
-    message.agentVersion = object.agentVersion ?? "";
+    message.clusterFingerprint = object.clusterFingerprint ?? '';
+    message.agentVersion = object.agentVersion ?? '';
     message.protocolVersion = object.protocolVersion ?? 0;
     return message;
   },
 };
 
 function createBaseEnrollResponse(): EnrollResponse {
-  return { clusterId: "", certificatePem: new Uint8Array(0), caBundlePem: new Uint8Array(0), notAfter: undefined };
+  return {
+    clusterId: '',
+    certificatePem: new Uint8Array(0),
+    caBundlePem: new Uint8Array(0),
+    notAfter: undefined,
+  };
 }
 
 export const EnrollResponse: MessageFns<EnrollResponse> = {
   encode(message: EnrollResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.clusterId !== "") {
+    if (message.clusterId !== '') {
       writer.uint32(10).string(message.clusterId);
     }
     if (message.certificatePem.length !== 0) {
@@ -236,7 +241,7 @@ export const EnrollResponse: MessageFns<EnrollResponse> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -294,29 +299,29 @@ export const EnrollResponse: MessageFns<EnrollResponse> = {
       clusterId: isSet(object.clusterId)
         ? globalThis.String(object.clusterId)
         : isSet(object.cluster_id)
-        ? globalThis.String(object.cluster_id)
-        : "",
+          ? globalThis.String(object.cluster_id)
+          : '',
       certificatePem: isSet(object.certificatePem)
         ? bytesFromBase64(object.certificatePem)
         : isSet(object.certificate_pem)
-        ? bytesFromBase64(object.certificate_pem)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.certificate_pem)
+          : new Uint8Array(0),
       caBundlePem: isSet(object.caBundlePem)
         ? bytesFromBase64(object.caBundlePem)
         : isSet(object.ca_bundle_pem)
-        ? bytesFromBase64(object.ca_bundle_pem)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.ca_bundle_pem)
+          : new Uint8Array(0),
       notAfter: isSet(object.notAfter)
         ? fromJsonTimestamp(object.notAfter)
         : isSet(object.not_after)
-        ? fromJsonTimestamp(object.not_after)
-        : undefined,
+          ? fromJsonTimestamp(object.not_after)
+          : undefined,
     };
   },
 
   toJSON(message: EnrollResponse): unknown {
     const obj: any = {};
-    if (message.clusterId !== "") {
+    if (message.clusterId !== '') {
       obj.clusterId = message.clusterId;
     }
     if (message.certificatePem.length !== 0) {
@@ -336,7 +341,7 @@ export const EnrollResponse: MessageFns<EnrollResponse> = {
   },
   fromPartial(object: DeepPartial<EnrollResponse>): EnrollResponse {
     const message = createBaseEnrollResponse();
-    message.clusterId = object.clusterId ?? "";
+    message.clusterId = object.clusterId ?? '';
     message.certificatePem = object.certificatePem ?? new Uint8Array(0);
     message.caBundlePem = object.caBundlePem ?? new Uint8Array(0);
     message.notAfter = object.notAfter ?? undefined;
@@ -349,7 +354,10 @@ function createBaseRenewCertificateRequest(): RenewCertificateRequest {
 }
 
 export const RenewCertificateRequest: MessageFns<RenewCertificateRequest> = {
-  encode(message: RenewCertificateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: RenewCertificateRequest,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.csrPem.length !== 0) {
       writer.uint32(10).bytes(message.csrPem);
     }
@@ -360,7 +368,7 @@ export const RenewCertificateRequest: MessageFns<RenewCertificateRequest> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -394,8 +402,8 @@ export const RenewCertificateRequest: MessageFns<RenewCertificateRequest> = {
       csrPem: isSet(object.csrPem)
         ? bytesFromBase64(object.csrPem)
         : isSet(object.csr_pem)
-        ? bytesFromBase64(object.csr_pem)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.csr_pem)
+          : new Uint8Array(0),
     };
   },
 
@@ -422,7 +430,10 @@ function createBaseRenewCertificateResponse(): RenewCertificateResponse {
 }
 
 export const RenewCertificateResponse: MessageFns<RenewCertificateResponse> = {
-  encode(message: RenewCertificateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(
+    message: RenewCertificateResponse,
+    writer: BinaryWriter = new BinaryWriter(),
+  ): BinaryWriter {
     if (message.certificatePem.length !== 0) {
       writer.uint32(10).bytes(message.certificatePem);
     }
@@ -439,7 +450,7 @@ export const RenewCertificateResponse: MessageFns<RenewCertificateResponse> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -489,18 +500,18 @@ export const RenewCertificateResponse: MessageFns<RenewCertificateResponse> = {
       certificatePem: isSet(object.certificatePem)
         ? bytesFromBase64(object.certificatePem)
         : isSet(object.certificate_pem)
-        ? bytesFromBase64(object.certificate_pem)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.certificate_pem)
+          : new Uint8Array(0),
       caBundlePem: isSet(object.caBundlePem)
         ? bytesFromBase64(object.caBundlePem)
         : isSet(object.ca_bundle_pem)
-        ? bytesFromBase64(object.ca_bundle_pem)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.ca_bundle_pem)
+          : new Uint8Array(0),
       notAfter: isSet(object.notAfter)
         ? fromJsonTimestamp(object.notAfter)
         : isSet(object.not_after)
-        ? fromJsonTimestamp(object.not_after)
-        : undefined,
+          ? fromJsonTimestamp(object.not_after)
+          : undefined,
     };
   },
 
@@ -532,7 +543,7 @@ export const RenewCertificateResponse: MessageFns<RenewCertificateResponse> = {
 
 function bytesFromBase64(b64: string): Uint8Array {
   if ((globalThis as any).Buffer) {
-    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, 'base64'));
   } else {
     const bin = globalThis.atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -545,23 +556,27 @@ function bytesFromBase64(b64: string): Uint8Array {
 
 function base64FromBytes(arr: Uint8Array): string {
   if ((globalThis as any).Buffer) {
-    return (globalThis as any).Buffer.from(arr).toString("base64");
+    return (globalThis as any).Buffer.from(arr).toString('base64');
   } else {
     const bin: string[] = [];
     arr.forEach((byte) => {
       bin.push(globalThis.String.fromCharCode(byte));
     });
-    return globalThis.btoa(bin.join(""));
+    return globalThis.btoa(bin.join(''));
   }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 function toTimestamp(date: Date): Timestamp {
   const seconds = Math.trunc(date.getTime() / 1_000);
@@ -578,7 +593,7 @@ function fromTimestamp(t: Timestamp): Date {
 function fromJsonTimestamp(o: any): Date {
   if (o instanceof globalThis.Date) {
     return o;
-  } else if (typeof o === "string") {
+  } else if (typeof o === 'string') {
     return new globalThis.Date(o);
   } else {
     return fromTimestamp(Timestamp.fromJSON(o));

@@ -5,10 +5,10 @@
 // source: vfm/agent/v1/inventory.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
-import { Timestamp } from "../../../google/protobuf/timestamp";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
+import { Timestamp } from '../../../google/protobuf/timestamp';
 
-export const protobufPackage = "vfm.agent.v1";
+export const protobufPackage = 'vfm.agent.v1';
 
 /**
  * PLAN.md §5.3. Secrets are never synced; the agent drops them before this
@@ -39,58 +39,58 @@ export enum ResourceKind {
 export function resourceKindFromJSON(object: any): ResourceKind {
   switch (object) {
     case 0:
-    case "RESOURCE_KIND_UNSPECIFIED":
+    case 'RESOURCE_KIND_UNSPECIFIED':
       return ResourceKind.RESOURCE_KIND_UNSPECIFIED;
     case 1:
-    case "RESOURCE_KIND_BACKUP":
+    case 'RESOURCE_KIND_BACKUP':
       return ResourceKind.RESOURCE_KIND_BACKUP;
     case 2:
-    case "RESOURCE_KIND_RESTORE":
+    case 'RESOURCE_KIND_RESTORE':
       return ResourceKind.RESOURCE_KIND_RESTORE;
     case 3:
-    case "RESOURCE_KIND_SCHEDULE":
+    case 'RESOURCE_KIND_SCHEDULE':
       return ResourceKind.RESOURCE_KIND_SCHEDULE;
     case 4:
-    case "RESOURCE_KIND_BACKUP_STORAGE_LOCATION":
+    case 'RESOURCE_KIND_BACKUP_STORAGE_LOCATION':
       return ResourceKind.RESOURCE_KIND_BACKUP_STORAGE_LOCATION;
     case 5:
-    case "RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION":
+    case 'RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION':
       return ResourceKind.RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION;
     case 6:
-    case "RESOURCE_KIND_BACKUP_REPOSITORY":
+    case 'RESOURCE_KIND_BACKUP_REPOSITORY':
       return ResourceKind.RESOURCE_KIND_BACKUP_REPOSITORY;
     case 7:
-    case "RESOURCE_KIND_POD_VOLUME_BACKUP":
+    case 'RESOURCE_KIND_POD_VOLUME_BACKUP':
       return ResourceKind.RESOURCE_KIND_POD_VOLUME_BACKUP;
     case 8:
-    case "RESOURCE_KIND_POD_VOLUME_RESTORE":
+    case 'RESOURCE_KIND_POD_VOLUME_RESTORE':
       return ResourceKind.RESOURCE_KIND_POD_VOLUME_RESTORE;
     case 9:
-    case "RESOURCE_KIND_DATA_UPLOAD":
+    case 'RESOURCE_KIND_DATA_UPLOAD':
       return ResourceKind.RESOURCE_KIND_DATA_UPLOAD;
     case 10:
-    case "RESOURCE_KIND_DATA_DOWNLOAD":
+    case 'RESOURCE_KIND_DATA_DOWNLOAD':
       return ResourceKind.RESOURCE_KIND_DATA_DOWNLOAD;
     case 11:
-    case "RESOURCE_KIND_DELETE_BACKUP_REQUEST":
+    case 'RESOURCE_KIND_DELETE_BACKUP_REQUEST':
       return ResourceKind.RESOURCE_KIND_DELETE_BACKUP_REQUEST;
     case 12:
-    case "RESOURCE_KIND_NODE":
+    case 'RESOURCE_KIND_NODE':
       return ResourceKind.RESOURCE_KIND_NODE;
     case 13:
-    case "RESOURCE_KIND_NAMESPACE":
+    case 'RESOURCE_KIND_NAMESPACE':
       return ResourceKind.RESOURCE_KIND_NAMESPACE;
     case 14:
-    case "RESOURCE_KIND_POD":
+    case 'RESOURCE_KIND_POD':
       return ResourceKind.RESOURCE_KIND_POD;
     case 15:
-    case "RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM":
+    case 'RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM':
       return ResourceKind.RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM;
     case 16:
-    case "RESOURCE_KIND_EVENT":
+    case 'RESOURCE_KIND_EVENT':
       return ResourceKind.RESOURCE_KIND_EVENT;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return ResourceKind.UNRECOGNIZED;
   }
@@ -99,42 +99,42 @@ export function resourceKindFromJSON(object: any): ResourceKind {
 export function resourceKindToJSON(object: ResourceKind): string {
   switch (object) {
     case ResourceKind.RESOURCE_KIND_UNSPECIFIED:
-      return "RESOURCE_KIND_UNSPECIFIED";
+      return 'RESOURCE_KIND_UNSPECIFIED';
     case ResourceKind.RESOURCE_KIND_BACKUP:
-      return "RESOURCE_KIND_BACKUP";
+      return 'RESOURCE_KIND_BACKUP';
     case ResourceKind.RESOURCE_KIND_RESTORE:
-      return "RESOURCE_KIND_RESTORE";
+      return 'RESOURCE_KIND_RESTORE';
     case ResourceKind.RESOURCE_KIND_SCHEDULE:
-      return "RESOURCE_KIND_SCHEDULE";
+      return 'RESOURCE_KIND_SCHEDULE';
     case ResourceKind.RESOURCE_KIND_BACKUP_STORAGE_LOCATION:
-      return "RESOURCE_KIND_BACKUP_STORAGE_LOCATION";
+      return 'RESOURCE_KIND_BACKUP_STORAGE_LOCATION';
     case ResourceKind.RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION:
-      return "RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION";
+      return 'RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION';
     case ResourceKind.RESOURCE_KIND_BACKUP_REPOSITORY:
-      return "RESOURCE_KIND_BACKUP_REPOSITORY";
+      return 'RESOURCE_KIND_BACKUP_REPOSITORY';
     case ResourceKind.RESOURCE_KIND_POD_VOLUME_BACKUP:
-      return "RESOURCE_KIND_POD_VOLUME_BACKUP";
+      return 'RESOURCE_KIND_POD_VOLUME_BACKUP';
     case ResourceKind.RESOURCE_KIND_POD_VOLUME_RESTORE:
-      return "RESOURCE_KIND_POD_VOLUME_RESTORE";
+      return 'RESOURCE_KIND_POD_VOLUME_RESTORE';
     case ResourceKind.RESOURCE_KIND_DATA_UPLOAD:
-      return "RESOURCE_KIND_DATA_UPLOAD";
+      return 'RESOURCE_KIND_DATA_UPLOAD';
     case ResourceKind.RESOURCE_KIND_DATA_DOWNLOAD:
-      return "RESOURCE_KIND_DATA_DOWNLOAD";
+      return 'RESOURCE_KIND_DATA_DOWNLOAD';
     case ResourceKind.RESOURCE_KIND_DELETE_BACKUP_REQUEST:
-      return "RESOURCE_KIND_DELETE_BACKUP_REQUEST";
+      return 'RESOURCE_KIND_DELETE_BACKUP_REQUEST';
     case ResourceKind.RESOURCE_KIND_NODE:
-      return "RESOURCE_KIND_NODE";
+      return 'RESOURCE_KIND_NODE';
     case ResourceKind.RESOURCE_KIND_NAMESPACE:
-      return "RESOURCE_KIND_NAMESPACE";
+      return 'RESOURCE_KIND_NAMESPACE';
     case ResourceKind.RESOURCE_KIND_POD:
-      return "RESOURCE_KIND_POD";
+      return 'RESOURCE_KIND_POD';
     case ResourceKind.RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM:
-      return "RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM";
+      return 'RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM';
     case ResourceKind.RESOURCE_KIND_EVENT:
-      return "RESOURCE_KIND_EVENT";
+      return 'RESOURCE_KIND_EVENT';
     case ResourceKind.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -148,16 +148,16 @@ export enum ResourceEventType {
 export function resourceEventTypeFromJSON(object: any): ResourceEventType {
   switch (object) {
     case 0:
-    case "RESOURCE_EVENT_TYPE_UNSPECIFIED":
+    case 'RESOURCE_EVENT_TYPE_UNSPECIFIED':
       return ResourceEventType.RESOURCE_EVENT_TYPE_UNSPECIFIED;
     case 1:
-    case "RESOURCE_EVENT_TYPE_UPSERT":
+    case 'RESOURCE_EVENT_TYPE_UPSERT':
       return ResourceEventType.RESOURCE_EVENT_TYPE_UPSERT;
     case 2:
-    case "RESOURCE_EVENT_TYPE_DELETE":
+    case 'RESOURCE_EVENT_TYPE_DELETE':
       return ResourceEventType.RESOURCE_EVENT_TYPE_DELETE;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return ResourceEventType.UNRECOGNIZED;
   }
@@ -166,14 +166,14 @@ export function resourceEventTypeFromJSON(object: any): ResourceEventType {
 export function resourceEventTypeToJSON(object: ResourceEventType): string {
   switch (object) {
     case ResourceEventType.RESOURCE_EVENT_TYPE_UNSPECIFIED:
-      return "RESOURCE_EVENT_TYPE_UNSPECIFIED";
+      return 'RESOURCE_EVENT_TYPE_UNSPECIFIED';
     case ResourceEventType.RESOURCE_EVENT_TYPE_UPSERT:
-      return "RESOURCE_EVENT_TYPE_UPSERT";
+      return 'RESOURCE_EVENT_TYPE_UPSERT';
     case ResourceEventType.RESOURCE_EVENT_TYPE_DELETE:
-      return "RESOURCE_EVENT_TYPE_DELETE";
+      return 'RESOURCE_EVENT_TYPE_DELETE';
     case ResourceEventType.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -228,10 +228,10 @@ export interface ResourceEvents {
 function createBaseResourceItem(): ResourceItem {
   return {
     kind: 0,
-    namespace: "",
-    name: "",
-    uid: "",
-    resourceVersion: "",
+    namespace: '',
+    name: '',
+    uid: '',
+    resourceVersion: '',
     creationTimestamp: undefined,
     objectJson: new Uint8Array(0),
   };
@@ -242,16 +242,16 @@ export const ResourceItem: MessageFns<ResourceItem> = {
     if (message.kind !== 0) {
       writer.uint32(8).int32(message.kind);
     }
-    if (message.namespace !== "") {
+    if (message.namespace !== '') {
       writer.uint32(18).string(message.namespace);
     }
-    if (message.name !== "") {
+    if (message.name !== '') {
       writer.uint32(26).string(message.name);
     }
-    if (message.uid !== "") {
+    if (message.uid !== '') {
       writer.uint32(34).string(message.uid);
     }
-    if (message.resourceVersion !== "") {
+    if (message.resourceVersion !== '') {
       writer.uint32(42).string(message.resourceVersion);
     }
     if (message.creationTimestamp !== undefined) {
@@ -267,7 +267,7 @@ export const ResourceItem: MessageFns<ResourceItem> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -347,24 +347,24 @@ export const ResourceItem: MessageFns<ResourceItem> = {
   fromJSON(object: any): ResourceItem {
     return {
       kind: isSet(object.kind) ? resourceKindFromJSON(object.kind) : 0,
-      namespace: isSet(object.namespace) ? globalThis.String(object.namespace) : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      uid: isSet(object.uid) ? globalThis.String(object.uid) : "",
+      namespace: isSet(object.namespace) ? globalThis.String(object.namespace) : '',
+      name: isSet(object.name) ? globalThis.String(object.name) : '',
+      uid: isSet(object.uid) ? globalThis.String(object.uid) : '',
       resourceVersion: isSet(object.resourceVersion)
         ? globalThis.String(object.resourceVersion)
         : isSet(object.resource_version)
-        ? globalThis.String(object.resource_version)
-        : "",
+          ? globalThis.String(object.resource_version)
+          : '',
       creationTimestamp: isSet(object.creationTimestamp)
         ? fromJsonTimestamp(object.creationTimestamp)
         : isSet(object.creation_timestamp)
-        ? fromJsonTimestamp(object.creation_timestamp)
-        : undefined,
+          ? fromJsonTimestamp(object.creation_timestamp)
+          : undefined,
       objectJson: isSet(object.objectJson)
         ? bytesFromBase64(object.objectJson)
         : isSet(object.object_json)
-        ? bytesFromBase64(object.object_json)
-        : new Uint8Array(0),
+          ? bytesFromBase64(object.object_json)
+          : new Uint8Array(0),
     };
   },
 
@@ -373,16 +373,16 @@ export const ResourceItem: MessageFns<ResourceItem> = {
     if (message.kind !== 0) {
       obj.kind = resourceKindToJSON(message.kind);
     }
-    if (message.namespace !== "") {
+    if (message.namespace !== '') {
       obj.namespace = message.namespace;
     }
-    if (message.name !== "") {
+    if (message.name !== '') {
       obj.name = message.name;
     }
-    if (message.uid !== "") {
+    if (message.uid !== '') {
       obj.uid = message.uid;
     }
-    if (message.resourceVersion !== "") {
+    if (message.resourceVersion !== '') {
       obj.resourceVersion = message.resourceVersion;
     }
     if (message.creationTimestamp !== undefined) {
@@ -400,10 +400,10 @@ export const ResourceItem: MessageFns<ResourceItem> = {
   fromPartial(object: DeepPartial<ResourceItem>): ResourceItem {
     const message = createBaseResourceItem();
     message.kind = object.kind ?? 0;
-    message.namespace = object.namespace ?? "";
-    message.name = object.name ?? "";
-    message.uid = object.uid ?? "";
-    message.resourceVersion = object.resourceVersion ?? "";
+    message.namespace = object.namespace ?? '';
+    message.name = object.name ?? '';
+    message.uid = object.uid ?? '';
+    message.resourceVersion = object.resourceVersion ?? '';
     message.creationTimestamp = object.creationTimestamp ?? undefined;
     message.objectJson = object.objectJson ?? new Uint8Array(0);
     return message;
@@ -411,12 +411,12 @@ export const ResourceItem: MessageFns<ResourceItem> = {
 };
 
 function createBaseInventorySnapshot(): InventorySnapshot {
-  return { snapshotId: "", sequence: 0, last: false, items: [], takenAt: undefined };
+  return { snapshotId: '', sequence: 0, last: false, items: [], takenAt: undefined };
 }
 
 export const InventorySnapshot: MessageFns<InventorySnapshot> = {
   encode(message: InventorySnapshot, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.snapshotId !== "") {
+    if (message.snapshotId !== '') {
       writer.uint32(10).string(message.snapshotId);
     }
     if (message.sequence !== 0) {
@@ -438,7 +438,7 @@ export const InventorySnapshot: MessageFns<InventorySnapshot> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -504,22 +504,24 @@ export const InventorySnapshot: MessageFns<InventorySnapshot> = {
       snapshotId: isSet(object.snapshotId)
         ? globalThis.String(object.snapshotId)
         : isSet(object.snapshot_id)
-        ? globalThis.String(object.snapshot_id)
-        : "",
+          ? globalThis.String(object.snapshot_id)
+          : '',
       sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : 0,
       last: isSet(object.last) ? globalThis.Boolean(object.last) : false,
-      items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => ResourceItem.fromJSON(e)) : [],
+      items: globalThis.Array.isArray(object?.items)
+        ? object.items.map((e: any) => ResourceItem.fromJSON(e))
+        : [],
       takenAt: isSet(object.takenAt)
         ? fromJsonTimestamp(object.takenAt)
         : isSet(object.taken_at)
-        ? fromJsonTimestamp(object.taken_at)
-        : undefined,
+          ? fromJsonTimestamp(object.taken_at)
+          : undefined,
     };
   },
 
   toJSON(message: InventorySnapshot): unknown {
     const obj: any = {};
-    if (message.snapshotId !== "") {
+    if (message.snapshotId !== '') {
       obj.snapshotId = message.snapshotId;
     }
     if (message.sequence !== 0) {
@@ -542,7 +544,7 @@ export const InventorySnapshot: MessageFns<InventorySnapshot> = {
   },
   fromPartial(object: DeepPartial<InventorySnapshot>): InventorySnapshot {
     const message = createBaseInventorySnapshot();
-    message.snapshotId = object.snapshotId ?? "";
+    message.snapshotId = object.snapshotId ?? '';
     message.sequence = object.sequence ?? 0;
     message.last = object.last ?? false;
     message.items = object.items?.map((e) => ResourceItem.fromPartial(e)) || [];
@@ -570,7 +572,7 @@ export const ResourceEvent: MessageFns<ResourceEvent> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -631,20 +633,21 @@ export const ResourceEvent: MessageFns<ResourceEvent> = {
   fromPartial(object: DeepPartial<ResourceEvent>): ResourceEvent {
     const message = createBaseResourceEvent();
     message.type = object.type ?? 0;
-    message.item = (object.item !== undefined && object.item !== null)
-      ? ResourceItem.fromPartial(object.item)
-      : undefined;
+    message.item =
+      object.item !== undefined && object.item !== null
+        ? ResourceItem.fromPartial(object.item)
+        : undefined;
     return message;
   },
 };
 
 function createBaseResourceEvents(): ResourceEvents {
-  return { snapshotId: "", batchSequence: 0, events: [] };
+  return { snapshotId: '', batchSequence: 0, events: [] };
 }
 
 export const ResourceEvents: MessageFns<ResourceEvents> = {
   encode(message: ResourceEvents, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.snapshotId !== "") {
+    if (message.snapshotId !== '') {
       writer.uint32(10).string(message.snapshotId);
     }
     if (message.batchSequence !== 0) {
@@ -660,7 +663,7 @@ export const ResourceEvents: MessageFns<ResourceEvents> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -710,20 +713,22 @@ export const ResourceEvents: MessageFns<ResourceEvents> = {
       snapshotId: isSet(object.snapshotId)
         ? globalThis.String(object.snapshotId)
         : isSet(object.snapshot_id)
-        ? globalThis.String(object.snapshot_id)
-        : "",
+          ? globalThis.String(object.snapshot_id)
+          : '',
       batchSequence: isSet(object.batchSequence)
         ? globalThis.Number(object.batchSequence)
         : isSet(object.batch_sequence)
-        ? globalThis.Number(object.batch_sequence)
-        : 0,
-      events: globalThis.Array.isArray(object?.events) ? object.events.map((e: any) => ResourceEvent.fromJSON(e)) : [],
+          ? globalThis.Number(object.batch_sequence)
+          : 0,
+      events: globalThis.Array.isArray(object?.events)
+        ? object.events.map((e: any) => ResourceEvent.fromJSON(e))
+        : [],
     };
   },
 
   toJSON(message: ResourceEvents): unknown {
     const obj: any = {};
-    if (message.snapshotId !== "") {
+    if (message.snapshotId !== '') {
       obj.snapshotId = message.snapshotId;
     }
     if (message.batchSequence !== 0) {
@@ -740,7 +745,7 @@ export const ResourceEvents: MessageFns<ResourceEvents> = {
   },
   fromPartial(object: DeepPartial<ResourceEvents>): ResourceEvents {
     const message = createBaseResourceEvents();
-    message.snapshotId = object.snapshotId ?? "";
+    message.snapshotId = object.snapshotId ?? '';
     message.batchSequence = object.batchSequence ?? 0;
     message.events = object.events?.map((e) => ResourceEvent.fromPartial(e)) || [];
     return message;
@@ -749,7 +754,7 @@ export const ResourceEvents: MessageFns<ResourceEvents> = {
 
 function bytesFromBase64(b64: string): Uint8Array {
   if ((globalThis as any).Buffer) {
-    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, 'base64'));
   } else {
     const bin = globalThis.atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -762,23 +767,27 @@ function bytesFromBase64(b64: string): Uint8Array {
 
 function base64FromBytes(arr: Uint8Array): string {
   if ((globalThis as any).Buffer) {
-    return (globalThis as any).Buffer.from(arr).toString("base64");
+    return (globalThis as any).Buffer.from(arr).toString('base64');
   } else {
     const bin: string[] = [];
     arr.forEach((byte) => {
       bin.push(globalThis.String.fromCharCode(byte));
     });
-    return globalThis.btoa(bin.join(""));
+    return globalThis.btoa(bin.join(''));
   }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 function toTimestamp(date: Date): Timestamp {
   const seconds = Math.trunc(date.getTime() / 1_000);
@@ -795,7 +804,7 @@ function fromTimestamp(t: Timestamp): Date {
 function fromJsonTimestamp(o: any): Date {
   if (o instanceof globalThis.Date) {
     return o;
-  } else if (typeof o === "string") {
+  } else if (typeof o === 'string') {
     return new globalThis.Date(o);
   } else {
     return fromTimestamp(Timestamp.fromJSON(o));
@@ -805,10 +814,10 @@ function fromJsonTimestamp(o: any): Date {
 function longToNumber(int64: { toString(): string }): number {
   const num = globalThis.Number(int64.toString());
   if (num > globalThis.Number.MAX_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
+    throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
   }
   if (num < globalThis.Number.MIN_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
+    throw new globalThis.Error('Value is smaller than Number.MIN_SAFE_INTEGER');
   }
   return num;
 }

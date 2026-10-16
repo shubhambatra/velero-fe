@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   backupSummary,
   coveredBy,
+  coveredByRow,
   locationSummary,
+  nodeSummary,
+  podSummary,
   restoreSummary,
   scheduleSummary,
   timeline,
@@ -215,5 +218,84 @@ describe('timeline', () => {
     expect(
       timeline(row({ startedAt: null, completedAt: null, expiresAt: null })).map((t) => t.event),
     ).toEqual(['Created']);
+  });
+});
+
+describe('the live-view summaries', () => {
+  const live = (over: Record<string, unknown>) =>
+    ({
+      name: 'x',
+      namespace: 'shop',
+      phase: null,
+      startedAt: null,
+      completedAt: null,
+      expiresAt: null,
+      createdByVfm: false,
+      labels: {},
+      spec: {},
+      status: {},
+      creationTimestamp: null,
+      ...over,
+    }) as Parameters<typeof podSummary>[0];
+
+  it('bounds what an agent says about a pod and ignores anything else it sent', () => {
+    const out = podSummary(
+      live({
+        spec: { nodeName: 'n'.repeat(1000), env: [{ name: 'X', value: 'secret' }] },
+        status: {
+          readyCount: 1,
+          containerCount: 2,
+          containerStatuses: Array.from({ length: 200 }, (_, i) => ({
+            name: `c${i.toString()}`,
+            state: 'running',
+            env: 'secret',
+          })),
+        },
+      }),
+    );
+    expect(out.node?.length ?? 0).toBeLessThanOrEqual(253);
+    expect(out.containers).toHaveLength(64);
+    expect(JSON.stringify(out)).not.toContain('secret');
+    expect(out.ready).toBe('1/2');
+  });
+
+  it('reads roles from labels and pressure from conditions', () => {
+    const out = nodeSummary(
+      live({
+        labels: {
+          'node-role.kubernetes.io/worker': '',
+          'node-role.kubernetes.io/': '',
+          other: 'x',
+        },
+        spec: { unschedulable: true },
+        status: {
+          conditions: [
+            { type: 'DiskPressure', status: 'True' },
+            { type: 'PIDPressure', status: 'False' },
+          ],
+        },
+      }),
+    );
+    expect(out).toMatchObject({
+      roles: ['worker'],
+      pressure: ['DiskPressure'],
+      schedulable: false,
+    });
+  });
+
+  it('covers a pod by its namespace, a namespace by its name, and a node by nothing', () => {
+    expect(coveredByRow('POD', { name: 'p', namespace: 'shop', spec: {} }).namespaces).toEqual([
+      'shop',
+    ]);
+    expect(coveredByRow('NAMESPACE', { name: 'shop', namespace: '', spec: {} }).namespaces).toEqual(
+      ['shop'],
+    );
+    expect(
+      coveredByRow('BACKUP', {
+        name: 'b',
+        namespace: 'velero',
+        spec: { includedNamespaces: ['a'] },
+      }).namespaces,
+    ).toEqual(['a']);
   });
 });

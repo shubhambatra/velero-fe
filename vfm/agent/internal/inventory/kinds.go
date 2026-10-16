@@ -13,6 +13,7 @@ import (
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 
@@ -23,6 +24,11 @@ import (
 type Kind struct {
 	Proto pb.ResourceKind
 	GVR   schema.GroupVersionResource
+	// Cluster kinds are watched in every namespace; the others only in Velero's.
+	Cluster bool
+	// Project, when set, builds what is reported from the object: an allowlist, not a
+	// redaction. It returns nil for an object that is not to be reported.
+	Project func(*unstructured.Unstructured) *unstructured.Unstructured
 }
 
 func (k Kind) String() string { return k.GVR.Resource + "." + k.GVR.Group }
@@ -35,17 +41,17 @@ var (
 // VeleroKinds are the Velero kinds of PLAN.md §5.3. The data-mover kinds live in
 // v2alpha1 and exist only on Velero versions that ship them.
 var VeleroKinds = []Kind{
-	{pb.ResourceKind_RESOURCE_KIND_BACKUP, v1.WithResource("backups")},
-	{pb.ResourceKind_RESOURCE_KIND_RESTORE, v1.WithResource("restores")},
-	{pb.ResourceKind_RESOURCE_KIND_SCHEDULE, v1.WithResource("schedules")},
-	{pb.ResourceKind_RESOURCE_KIND_BACKUP_STORAGE_LOCATION, v1.WithResource("backupstoragelocations")},
-	{pb.ResourceKind_RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION, v1.WithResource("volumesnapshotlocations")},
-	{pb.ResourceKind_RESOURCE_KIND_BACKUP_REPOSITORY, v1.WithResource("backuprepositories")},
-	{pb.ResourceKind_RESOURCE_KIND_POD_VOLUME_BACKUP, v1.WithResource("podvolumebackups")},
-	{pb.ResourceKind_RESOURCE_KIND_POD_VOLUME_RESTORE, v1.WithResource("podvolumerestores")},
-	{pb.ResourceKind_RESOURCE_KIND_DATA_UPLOAD, v2alpha1.WithResource("datauploads")},
-	{pb.ResourceKind_RESOURCE_KIND_DATA_DOWNLOAD, v2alpha1.WithResource("datadownloads")},
-	{pb.ResourceKind_RESOURCE_KIND_DELETE_BACKUP_REQUEST, v1.WithResource("deletebackuprequests")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_BACKUP, GVR: v1.WithResource("backups")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_RESTORE, GVR: v1.WithResource("restores")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_SCHEDULE, GVR: v1.WithResource("schedules")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_BACKUP_STORAGE_LOCATION, GVR: v1.WithResource("backupstoragelocations")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION, GVR: v1.WithResource("volumesnapshotlocations")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_BACKUP_REPOSITORY, GVR: v1.WithResource("backuprepositories")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_POD_VOLUME_BACKUP, GVR: v1.WithResource("podvolumebackups")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_POD_VOLUME_RESTORE, GVR: v1.WithResource("podvolumerestores")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_DATA_UPLOAD, GVR: v2alpha1.WithResource("datauploads")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_DATA_DOWNLOAD, GVR: v2alpha1.WithResource("datadownloads")},
+	{Proto: pb.ResourceKind_RESOURCE_KIND_DELETE_BACKUP_REQUEST, GVR: v1.WithResource("deletebackuprequests")},
 }
 
 // Available returns the subset of kinds the cluster actually serves, so an older

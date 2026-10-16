@@ -147,6 +147,11 @@ const OBJECT_KIND: Partial<Record<ResourceKind, string>> = {
   [ResourceKind.RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION]: 'VolumeSnapshotLocation',
   [ResourceKind.RESOURCE_KIND_BACKUP_REPOSITORY]: 'BackupRepository',
   [ResourceKind.RESOURCE_KIND_DATA_UPLOAD]: 'DataUpload',
+  [ResourceKind.RESOURCE_KIND_NODE]: 'Node',
+  [ResourceKind.RESOURCE_KIND_NAMESPACE]: 'Namespace',
+  [ResourceKind.RESOURCE_KIND_POD]: 'Pod',
+  [ResourceKind.RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM]: 'PersistentVolumeClaim',
+  [ResourceKind.RESOURCE_KIND_EVENT]: 'Event',
 };
 
 /** A well-formed inventory item, the way a healthy agent reports it. */
@@ -162,13 +167,15 @@ export function resource(
     labels?: Record<string, string>;
     managed?: boolean;
     started?: string;
+    /** The namespace of a live-view object; `''` for a node or a namespace. Default `velero`. */
+    namespace?: string;
   } = {},
 ): ResourceItem {
   const kind = options.kind ?? ResourceKind.RESOURCE_KIND_BACKUP;
   const uid = options.uid ?? `uid-${name}`;
   return {
     kind,
-    namespace: 'velero',
+    namespace: options.namespace ?? 'velero',
     name,
     uid,
     resourceVersion: options.rv ?? '1',
@@ -178,7 +185,9 @@ export function resource(
       kind: OBJECT_KIND[kind] ?? 'Backup',
       metadata: {
         name,
-        namespace: 'velero',
+        ...((options.namespace ?? 'velero') === ''
+          ? {}
+          : { namespace: options.namespace ?? 'velero' }),
         uid,
         creationTimestamp: '2026-10-16T01:00:00Z',
         ...(options.labels === undefined ? {} : { labels: options.labels }),

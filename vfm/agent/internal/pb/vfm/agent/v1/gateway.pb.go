@@ -223,6 +223,7 @@ type ServerMessage struct {
 	//	*ServerMessage_StartLogs
 	//	*ServerMessage_StopLogs
 	//	*ServerMessage_Resync
+	//	*ServerMessage_WatchScope
 	Payload       isServerMessage_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -326,6 +327,15 @@ func (x *ServerMessage) GetResync() *RequestResync {
 	return nil
 }
 
+func (x *ServerMessage) GetWatchScope() *WatchScope {
+	if x != nil {
+		if x, ok := x.Payload.(*ServerMessage_WatchScope); ok {
+			return x.WatchScope
+		}
+	}
+	return nil
+}
+
 type isServerMessage_Payload interface {
 	isServerMessage_Payload()
 }
@@ -354,6 +364,10 @@ type ServerMessage_Resync struct {
 	Resync *RequestResync `protobuf:"bytes,15,opt,name=resync,proto3,oneof"`
 }
 
+type ServerMessage_WatchScope struct {
+	WatchScope *WatchScope `protobuf:"bytes,16,opt,name=watch_scope,json=watchScope,proto3,oneof"`
+}
+
 func (*ServerMessage_HelloAck) isServerMessage_Payload() {}
 
 func (*ServerMessage_Command) isServerMessage_Payload() {}
@@ -365,6 +379,8 @@ func (*ServerMessage_StartLogs) isServerMessage_Payload() {}
 func (*ServerMessage_StopLogs) isServerMessage_Payload() {}
 
 func (*ServerMessage_Resync) isServerMessage_Payload() {}
+
+func (*ServerMessage_WatchScope) isServerMessage_Payload() {}
 
 type Hello struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -841,6 +857,54 @@ func (x *RequestResync) GetReason() string {
 	return ""
 }
 
+// The namespaces whose pods the control plane wants right now (PLAN.md §7.1). Only
+// acted on when the cluster is large (more pods than the agent's threshold); a small
+// cluster always reports every pod. Sent on connect and whenever the set changes; the
+// list is the whole set, not a change.
+type WatchScope struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PodNamespaces []string               `protobuf:"bytes,1,rep,name=pod_namespaces,json=podNamespaces,proto3" json:"pod_namespaces,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchScope) Reset() {
+	*x = WatchScope{}
+	mi := &file_vfm_agent_v1_gateway_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchScope) ProtoMessage() {}
+
+func (x *WatchScope) ProtoReflect() protoreflect.Message {
+	mi := &file_vfm_agent_v1_gateway_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchScope.ProtoReflect.Descriptor instead.
+func (*WatchScope) Descriptor() ([]byte, []int) {
+	return file_vfm_agent_v1_gateway_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *WatchScope) GetPodNamespaces() []string {
+	if x != nil {
+		return x.PodNamespaces
+	}
+	return nil
+}
+
 var File_vfm_agent_v1_gateway_proto protoreflect.FileDescriptor
 
 const file_vfm_agent_v1_gateway_proto_rawDesc = "" +
@@ -858,7 +922,7 @@ const file_vfm_agent_v1_gateway_proto_rawDesc = "" +
 	"\x06events\x18\x0f \x01(\v2\x1c.vfm.agent.v1.ResourceEventsH\x00R\x06events\x125\n" +
 	"\tlog_chunk\x18\x10 \x01(\v2\x16.vfm.agent.v1.LogChunkH\x00R\blogChunk\x12<\n" +
 	"\tlog_ended\x18\x11 \x01(\v2\x1d.vfm.agent.v1.LogSessionEndedH\x00R\blogEndedB\t\n" +
-	"\apayload\"\x8e\x03\n" +
+	"\apayload\"\xcb\x03\n" +
 	"\rServerMessage\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x125\n" +
@@ -869,7 +933,9 @@ const file_vfm_agent_v1_gateway_proto_rawDesc = "" +
 	"\n" +
 	"start_logs\x18\r \x01(\v2\x1d.vfm.agent.v1.StartLogSessionH\x00R\tstartLogs\x12;\n" +
 	"\tstop_logs\x18\x0e \x01(\v2\x1c.vfm.agent.v1.StopLogSessionH\x00R\bstopLogs\x125\n" +
-	"\x06resync\x18\x0f \x01(\v2\x1b.vfm.agent.v1.RequestResyncH\x00R\x06resyncB\t\n" +
+	"\x06resync\x18\x0f \x01(\v2\x1b.vfm.agent.v1.RequestResyncH\x00R\x06resync\x12;\n" +
+	"\vwatch_scope\x18\x10 \x01(\v2\x18.vfm.agent.v1.WatchScopeH\x00R\n" +
+	"watchScopeB\t\n" +
 	"\apayload\"\x84\x03\n" +
 	"\x05Hello\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12#\n" +
@@ -908,7 +974,10 @@ const file_vfm_agent_v1_gateway_proto_rawDesc = "" +
 	"\x13active_log_sessions\x18\x03 \x01(\rR\x11activeLogSessions\x12'\n" +
 	"\x0fbuffered_events\x18\x04 \x01(\rR\x0ebufferedEvents\"'\n" +
 	"\rRequestResync\x12\x16\n" +
-	"\x06reason\x18\x01 \x01(\tR\x06reason2\xfe\x01\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\"3\n" +
+	"\n" +
+	"WatchScope\x12%\n" +
+	"\x0epod_namespaces\x18\x01 \x03(\tR\rpodNamespaces2\xfe\x01\n" +
 	"\fAgentGateway\x12C\n" +
 	"\x06Enroll\x12\x1b.vfm.agent.v1.EnrollRequest\x1a\x1c.vfm.agent.v1.EnrollResponse\x12a\n" +
 	"\x10RenewCertificate\x12%.vfm.agent.v1.RenewCertificateRequest\x1a&.vfm.agent.v1.RenewCertificateResponse\x12F\n" +
@@ -927,7 +996,7 @@ func file_vfm_agent_v1_gateway_proto_rawDescGZIP() []byte {
 	return file_vfm_agent_v1_gateway_proto_rawDescData
 }
 
-var file_vfm_agent_v1_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_vfm_agent_v1_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_vfm_agent_v1_gateway_proto_goTypes = []any{
 	(*AgentMessage)(nil),             // 0: vfm.agent.v1.AgentMessage
 	(*ServerMessage)(nil),            // 1: vfm.agent.v1.ServerMessage
@@ -937,59 +1006,61 @@ var file_vfm_agent_v1_gateway_proto_goTypes = []any{
 	(*ServerConfig)(nil),             // 5: vfm.agent.v1.ServerConfig
 	(*Heartbeat)(nil),                // 6: vfm.agent.v1.Heartbeat
 	(*RequestResync)(nil),            // 7: vfm.agent.v1.RequestResync
-	(*CommandAck)(nil),               // 8: vfm.agent.v1.CommandAck
-	(*CommandResult)(nil),            // 9: vfm.agent.v1.CommandResult
-	(*InventorySnapshot)(nil),        // 10: vfm.agent.v1.InventorySnapshot
-	(*ResourceEvents)(nil),           // 11: vfm.agent.v1.ResourceEvents
-	(*LogChunk)(nil),                 // 12: vfm.agent.v1.LogChunk
-	(*LogSessionEnded)(nil),          // 13: vfm.agent.v1.LogSessionEnded
-	(*Command)(nil),                  // 14: vfm.agent.v1.Command
-	(*CancelCommand)(nil),            // 15: vfm.agent.v1.CancelCommand
-	(*StartLogSession)(nil),          // 16: vfm.agent.v1.StartLogSession
-	(*StopLogSession)(nil),           // 17: vfm.agent.v1.StopLogSession
-	(*ServerStatus)(nil),             // 18: vfm.agent.v1.ServerStatus
-	(*timestamppb.Timestamp)(nil),    // 19: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),      // 20: google.protobuf.Duration
-	(*EnrollRequest)(nil),            // 21: vfm.agent.v1.EnrollRequest
-	(*RenewCertificateRequest)(nil),  // 22: vfm.agent.v1.RenewCertificateRequest
-	(*EnrollResponse)(nil),           // 23: vfm.agent.v1.EnrollResponse
-	(*RenewCertificateResponse)(nil), // 24: vfm.agent.v1.RenewCertificateResponse
+	(*WatchScope)(nil),               // 8: vfm.agent.v1.WatchScope
+	(*CommandAck)(nil),               // 9: vfm.agent.v1.CommandAck
+	(*CommandResult)(nil),            // 10: vfm.agent.v1.CommandResult
+	(*InventorySnapshot)(nil),        // 11: vfm.agent.v1.InventorySnapshot
+	(*ResourceEvents)(nil),           // 12: vfm.agent.v1.ResourceEvents
+	(*LogChunk)(nil),                 // 13: vfm.agent.v1.LogChunk
+	(*LogSessionEnded)(nil),          // 14: vfm.agent.v1.LogSessionEnded
+	(*Command)(nil),                  // 15: vfm.agent.v1.Command
+	(*CancelCommand)(nil),            // 16: vfm.agent.v1.CancelCommand
+	(*StartLogSession)(nil),          // 17: vfm.agent.v1.StartLogSession
+	(*StopLogSession)(nil),           // 18: vfm.agent.v1.StopLogSession
+	(*ServerStatus)(nil),             // 19: vfm.agent.v1.ServerStatus
+	(*timestamppb.Timestamp)(nil),    // 20: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),      // 21: google.protobuf.Duration
+	(*EnrollRequest)(nil),            // 22: vfm.agent.v1.EnrollRequest
+	(*RenewCertificateRequest)(nil),  // 23: vfm.agent.v1.RenewCertificateRequest
+	(*EnrollResponse)(nil),           // 24: vfm.agent.v1.EnrollResponse
+	(*RenewCertificateResponse)(nil), // 25: vfm.agent.v1.RenewCertificateResponse
 }
 var file_vfm_agent_v1_gateway_proto_depIdxs = []int32{
 	2,  // 0: vfm.agent.v1.AgentMessage.hello:type_name -> vfm.agent.v1.Hello
 	6,  // 1: vfm.agent.v1.AgentMessage.heartbeat:type_name -> vfm.agent.v1.Heartbeat
-	8,  // 2: vfm.agent.v1.AgentMessage.ack:type_name -> vfm.agent.v1.CommandAck
-	9,  // 3: vfm.agent.v1.AgentMessage.result:type_name -> vfm.agent.v1.CommandResult
-	10, // 4: vfm.agent.v1.AgentMessage.snapshot:type_name -> vfm.agent.v1.InventorySnapshot
-	11, // 5: vfm.agent.v1.AgentMessage.events:type_name -> vfm.agent.v1.ResourceEvents
-	12, // 6: vfm.agent.v1.AgentMessage.log_chunk:type_name -> vfm.agent.v1.LogChunk
-	13, // 7: vfm.agent.v1.AgentMessage.log_ended:type_name -> vfm.agent.v1.LogSessionEnded
+	9,  // 2: vfm.agent.v1.AgentMessage.ack:type_name -> vfm.agent.v1.CommandAck
+	10, // 3: vfm.agent.v1.AgentMessage.result:type_name -> vfm.agent.v1.CommandResult
+	11, // 4: vfm.agent.v1.AgentMessage.snapshot:type_name -> vfm.agent.v1.InventorySnapshot
+	12, // 5: vfm.agent.v1.AgentMessage.events:type_name -> vfm.agent.v1.ResourceEvents
+	13, // 6: vfm.agent.v1.AgentMessage.log_chunk:type_name -> vfm.agent.v1.LogChunk
+	14, // 7: vfm.agent.v1.AgentMessage.log_ended:type_name -> vfm.agent.v1.LogSessionEnded
 	4,  // 8: vfm.agent.v1.ServerMessage.hello_ack:type_name -> vfm.agent.v1.HelloAck
-	14, // 9: vfm.agent.v1.ServerMessage.command:type_name -> vfm.agent.v1.Command
-	15, // 10: vfm.agent.v1.ServerMessage.cancel:type_name -> vfm.agent.v1.CancelCommand
-	16, // 11: vfm.agent.v1.ServerMessage.start_logs:type_name -> vfm.agent.v1.StartLogSession
-	17, // 12: vfm.agent.v1.ServerMessage.stop_logs:type_name -> vfm.agent.v1.StopLogSession
+	15, // 9: vfm.agent.v1.ServerMessage.command:type_name -> vfm.agent.v1.Command
+	16, // 10: vfm.agent.v1.ServerMessage.cancel:type_name -> vfm.agent.v1.CancelCommand
+	17, // 11: vfm.agent.v1.ServerMessage.start_logs:type_name -> vfm.agent.v1.StartLogSession
+	18, // 12: vfm.agent.v1.ServerMessage.stop_logs:type_name -> vfm.agent.v1.StopLogSession
 	7,  // 13: vfm.agent.v1.ServerMessage.resync:type_name -> vfm.agent.v1.RequestResync
-	18, // 14: vfm.agent.v1.Hello.velero:type_name -> vfm.agent.v1.ServerStatus
-	3,  // 15: vfm.agent.v1.Hello.policy:type_name -> vfm.agent.v1.AgentPolicy
-	19, // 16: vfm.agent.v1.HelloAck.server_time:type_name -> google.protobuf.Timestamp
-	5,  // 17: vfm.agent.v1.HelloAck.config:type_name -> vfm.agent.v1.ServerConfig
-	20, // 18: vfm.agent.v1.ServerConfig.heartbeat_interval:type_name -> google.protobuf.Duration
-	20, // 19: vfm.agent.v1.ServerConfig.snapshot_resync_interval:type_name -> google.protobuf.Duration
-	20, // 20: vfm.agent.v1.ServerConfig.log_session_timeout:type_name -> google.protobuf.Duration
-	20, // 21: vfm.agent.v1.ServerConfig.log_session_idle_timeout:type_name -> google.protobuf.Duration
-	19, // 22: vfm.agent.v1.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
-	21, // 23: vfm.agent.v1.AgentGateway.Enroll:input_type -> vfm.agent.v1.EnrollRequest
-	22, // 24: vfm.agent.v1.AgentGateway.RenewCertificate:input_type -> vfm.agent.v1.RenewCertificateRequest
-	0,  // 25: vfm.agent.v1.AgentGateway.Connect:input_type -> vfm.agent.v1.AgentMessage
-	23, // 26: vfm.agent.v1.AgentGateway.Enroll:output_type -> vfm.agent.v1.EnrollResponse
-	24, // 27: vfm.agent.v1.AgentGateway.RenewCertificate:output_type -> vfm.agent.v1.RenewCertificateResponse
-	1,  // 28: vfm.agent.v1.AgentGateway.Connect:output_type -> vfm.agent.v1.ServerMessage
-	26, // [26:29] is the sub-list for method output_type
-	23, // [23:26] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	8,  // 14: vfm.agent.v1.ServerMessage.watch_scope:type_name -> vfm.agent.v1.WatchScope
+	19, // 15: vfm.agent.v1.Hello.velero:type_name -> vfm.agent.v1.ServerStatus
+	3,  // 16: vfm.agent.v1.Hello.policy:type_name -> vfm.agent.v1.AgentPolicy
+	20, // 17: vfm.agent.v1.HelloAck.server_time:type_name -> google.protobuf.Timestamp
+	5,  // 18: vfm.agent.v1.HelloAck.config:type_name -> vfm.agent.v1.ServerConfig
+	21, // 19: vfm.agent.v1.ServerConfig.heartbeat_interval:type_name -> google.protobuf.Duration
+	21, // 20: vfm.agent.v1.ServerConfig.snapshot_resync_interval:type_name -> google.protobuf.Duration
+	21, // 21: vfm.agent.v1.ServerConfig.log_session_timeout:type_name -> google.protobuf.Duration
+	21, // 22: vfm.agent.v1.ServerConfig.log_session_idle_timeout:type_name -> google.protobuf.Duration
+	20, // 23: vfm.agent.v1.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
+	22, // 24: vfm.agent.v1.AgentGateway.Enroll:input_type -> vfm.agent.v1.EnrollRequest
+	23, // 25: vfm.agent.v1.AgentGateway.RenewCertificate:input_type -> vfm.agent.v1.RenewCertificateRequest
+	0,  // 26: vfm.agent.v1.AgentGateway.Connect:input_type -> vfm.agent.v1.AgentMessage
+	24, // 27: vfm.agent.v1.AgentGateway.Enroll:output_type -> vfm.agent.v1.EnrollResponse
+	25, // 28: vfm.agent.v1.AgentGateway.RenewCertificate:output_type -> vfm.agent.v1.RenewCertificateResponse
+	1,  // 29: vfm.agent.v1.AgentGateway.Connect:output_type -> vfm.agent.v1.ServerMessage
+	27, // [27:30] is the sub-list for method output_type
+	24, // [24:27] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_vfm_agent_v1_gateway_proto_init() }
@@ -1018,6 +1089,7 @@ func file_vfm_agent_v1_gateway_proto_init() {
 		(*ServerMessage_StartLogs)(nil),
 		(*ServerMessage_StopLogs)(nil),
 		(*ServerMessage_Resync)(nil),
+		(*ServerMessage_WatchScope)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1025,7 +1097,7 @@ func file_vfm_agent_v1_gateway_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vfm_agent_v1_gateway_proto_rawDesc), len(file_vfm_agent_v1_gateway_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

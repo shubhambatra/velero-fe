@@ -55,7 +55,12 @@ function identity(item: ResourceItem): Result<ValidTombstone & { objectKind: str
   if (info === undefined) {
     return fail('unsupported kind');
   }
-  if (!DNS_LABEL.test(item.namespace) || item.namespace.length > 63) {
+  if (info.clusterScoped === true) {
+    // A node or a namespace belongs to no namespace; an agent that says otherwise is wrong.
+    if (item.namespace !== '') {
+      return fail('invalid namespace');
+    }
+  } else if (!DNS_LABEL.test(item.namespace) || item.namespace.length > 63) {
     return fail('invalid namespace');
   }
   if (!OBJECT_NAME.test(item.name) || item.name.length > 253) {
@@ -149,7 +154,7 @@ export function validateItem(item: ResourceItem): Result<ValidResource> {
   if (parsed.kind !== id.value.objectKind) {
     return fail('object kind does not match the item kind');
   }
-  if (parsed.metadata.name !== item.name || parsed.metadata.namespace !== item.namespace) {
+  if (parsed.metadata.name !== item.name || (parsed.metadata.namespace ?? '') !== item.namespace) {
     return fail('object identity does not match the item');
   }
   if (typeof parsed.metadata.uid === 'string' && parsed.metadata.uid !== item.uid) {

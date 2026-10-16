@@ -2,11 +2,13 @@ package inventory
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -23,6 +25,8 @@ const (
 	DefaultBatchWait   = 2 * time.Second
 	DefaultMaxPending  = 5000
 	DefaultResyncEvery = 10 * time.Minute
+	// DefaultPodScopeThreshold is PLAN.md §7.1's 20 000 pods.
+	DefaultPodScopeThreshold = 20000
 )
 
 // Options configures a [Syncer].
@@ -31,8 +35,13 @@ type Options struct {
 	Discovery discovery.DiscoveryInterface
 	// Namespace is where Velero runs; only objects there are synced.
 	Namespace string
-	// Kinds defaults to [VeleroKinds].
+	// Kinds defaults to [VeleroKinds], plus [CoreKinds] when Core is set.
 	Kinds []Kind
+	// Core adds the live view of PLAN.md §7.1: nodes, namespaces, pods, PVCs, events.
+	Core bool
+	// PodScopeThreshold: above this many pods the agent reports pods only for the
+	// namespaces the control plane asks about (PLAN.md §7.1). Default 20 000.
+	PodScopeThreshold int
 
 	// SendWait delivers a message, waiting for room. Snapshot chunks use it: a
 	// snapshot is only useful whole, so it must not drop a chunk.
@@ -66,6 +75,8 @@ type Options struct {
 type Syncer struct {
 	opts    Options
 	factory dynamicinformer.DynamicSharedInformerFactory
+	// cluster is the same for the kinds watched in every namespace.
+	cluster dynamicinformer.DynamicSharedInformerFactory
 
 	resyncReq chan struct{}
 	wake      chan struct{}
@@ -80,12 +91,25 @@ type Syncer struct {
 	// so an informer event for exactly that version (the late echo of the initial
 	// list) is not sent a second time.
 	inSnapshot map[string]string
+	// reported holds the keys of objects the control plane has been told about, so an
+	// object that stops qualifying (an event past its hour, a pod outside the scope) is
+	// deleted there exactly once instead of on every change.
+	reported map[string]bool
+	// scope is the namespaces whose pods are wanted; scoped means pods are limited to it.
+	scope  map[string]bool
+	scoped bool
 }
 
 // New returns a syncer; call [Syncer.Run] to start it.
 func New(opts Options) *Syncer {
 	if opts.Kinds == nil {
 		opts.Kinds = VeleroKinds
+		if opts.Core {
+			opts.Kinds = append(append([]Kind{}, VeleroKinds...), CoreKinds...)
+		}
+	}
+	if opts.PodScopeThreshold <= 0 {
+		opts.PodScopeThreshold = DefaultPodScopeThreshold
 	}
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
@@ -108,6 +132,9 @@ func New(opts Options) *Syncer {
 	return &Syncer{
 		opts:      opts,
 		factory:   dynamicinformer.NewFilteredDynamicSharedInformerFactory(opts.Dynamic, 0, opts.Namespace, nil),
+		cluster:   dynamicinformer.NewFilteredDynamicSharedInformerFactory(opts.Dynamic, 0, metav1.NamespaceAll, nil),
+		reported:  map[string]bool{},
+		scope:     map[string]bool{},
 		resyncReq: make(chan struct{}, 1),
 		wake:      make(chan struct{}, 1),
 		informers: map[string]cache.SharedIndexInformer{},
@@ -141,6 +168,26 @@ func (s *Syncer) HandleServerMessage(msg *pb.ServerMessage) {
 	if msg.GetResync() != nil {
 		s.opts.Logger.Info("the control plane requested a resync", "reason", msg.GetResync().GetReason())
 		s.Resync()
+	}
+	if ws := msg.GetWatchScope(); ws != nil {
+		next := make(map[string]bool, len(ws.GetPodNamespaces()))
+		for _, ns := range ws.GetPodNamespaces() {
+			next[ns] = true
+		}
+		s.mu.Lock()
+		changed := len(next) != len(s.scope)
+		for ns := range next {
+			changed = changed || !s.scope[ns]
+		}
+		s.scope = next
+		scoped := s.scoped
+		s.mu.Unlock()
+		// A small cluster reports every pod whatever it is told; only a scoped one has
+		// anything to change.
+		if changed && scoped {
+			s.opts.Logger.Info("the pod scope changed", "namespaces", len(next))
+			s.Resync()
+		}
 	}
 }
 
@@ -213,7 +260,11 @@ func (s *Syncer) ensureInformers(ctx context.Context) {
 		if _, ok := s.informers[key]; ok {
 			continue
 		}
-		informer := s.factory.ForResource(kind.GVR).Informer()
+		factory := s.factory
+		if kind.Cluster {
+			factory = s.cluster
+		}
+		informer := factory.ForResource(kind.GVR).Informer()
 		if _, err := informer.AddEventHandler(s.handlerFor(kind)); err != nil {
 			s.opts.Logger.Error("could not watch a Velero kind", "kind", key, "error", err)
 			continue
@@ -228,6 +279,7 @@ func (s *Syncer) ensureInformers(ctx context.Context) {
 		return
 	}
 	s.factory.Start(ctx.Done())
+	s.cluster.Start(ctx.Done())
 	syncs := make([]cache.InformerSynced, 0, len(started))
 	for _, informer := range started {
 		syncs = append(syncs, informer.HasSynced)
@@ -263,7 +315,13 @@ func (s *Syncer) enqueue(kind Kind, typ pb.ResourceEventType, obj *unstructured.
 		item = Tombstone(kind.Proto, obj)
 	} else {
 		var err error
-		if item, err = Item(kind.Proto, obj); err != nil {
+		item, err = s.itemFor(kind, obj)
+		switch {
+		case errors.Is(err, errNotReported):
+			// It does not qualify now: if the control plane holds it, retire it.
+			typ = pb.ResourceEventType_RESOURCE_EVENT_TYPE_DELETE
+			item = Tombstone(kind.Proto, obj)
+		case err != nil:
 			s.opts.Logger.Warn("skipping an object that cannot be synced", "kind", kind.String(), "error", err)
 			return
 		}
@@ -275,6 +333,10 @@ func (s *Syncer) enqueue(kind Kind, typ pb.ResourceEventType, obj *unstructured.
 		return
 	}
 	key := objectKey(item)
+	if typ == pb.ResourceEventType_RESOURCE_EVENT_TYPE_DELETE && !s.reported[key] {
+		s.mu.Unlock()
+		return
+	}
 	if typ == pb.ResourceEventType_RESOURCE_EVENT_TYPE_UPSERT && s.inSnapshot[key] == item.GetResourceVersion() && item.GetResourceVersion() != "" {
 		s.mu.Unlock()
 		return
@@ -289,9 +351,39 @@ func (s *Syncer) enqueue(kind Kind, typ pb.ResourceEventType, obj *unstructured.
 		s.Resync()
 		return
 	}
+	if typ == pb.ResourceEventType_RESOURCE_EVENT_TYPE_DELETE {
+		delete(s.reported, key)
+	} else {
+		s.reported[key] = true
+	}
 	s.pending = append(s.pending, &pb.ResourceEvent{Type: typ, Item: item})
 	s.mu.Unlock()
 	s.wakeBatcher()
+}
+
+// errNotReported means an object is not to be reported (now): the projection declined
+// it, or it is a pod outside the scope of a large cluster.
+var errNotReported = errors.New("not reported")
+
+func (s *Syncer) itemFor(kind Kind, obj *unstructured.Unstructured) (*pb.ResourceItem, error) {
+	if kind.Proto == pb.ResourceKind_RESOURCE_KIND_POD {
+		s.mu.Lock()
+		out := s.scoped && !s.scope[obj.GetNamespace()]
+		s.mu.Unlock()
+		if out {
+			return nil, errNotReported
+		}
+	}
+	if kind.Project != nil {
+		projected := kind.Project(obj)
+		if projected == nil {
+			return nil, errNotReported
+		}
+		// The projection is a new object; what identifies the real one carries over.
+		projected.SetResourceVersion(obj.GetResourceVersion())
+		return Item(kind.Proto, projected)
+	}
+	return Item(kind.Proto, obj)
 }
 
 func (s *Syncer) wakeBatcher() {
@@ -368,6 +460,21 @@ func (s *Syncer) snapshot(ctx context.Context) {
 	}
 	s.mu.Unlock()
 
+	// Pod scope: past the threshold only the asked-for namespaces are reported. The
+	// switch back has some room (90 %) so a cluster hovering at the line does not flap.
+	for _, e := range informers {
+		if e.kind.Proto == pb.ResourceKind_RESOURCE_KIND_POD {
+			pods := len(e.inf.GetStore().List())
+			s.mu.Lock()
+			if pods > s.opts.PodScopeThreshold {
+				s.scoped = true
+			} else if pods < s.opts.PodScopeThreshold*9/10 {
+				s.scoped = false
+			}
+			s.mu.Unlock()
+		}
+	}
+
 	var items []*pb.ResourceItem
 	for _, e := range informers {
 		for _, obj := range e.inf.GetStore().List() {
@@ -375,7 +482,10 @@ func (s *Syncer) snapshot(ctx context.Context) {
 			if !ok {
 				continue
 			}
-			item, err := Item(e.kind.Proto, u)
+			item, err := s.itemFor(e.kind, u)
+			if errors.Is(err, errNotReported) {
+				continue
+			}
 			if err != nil {
 				s.opts.Logger.Warn("skipping an object that cannot be synced", "kind", e.kind.String(), "error", err)
 				continue
@@ -425,8 +535,10 @@ func (s *Syncer) snapshot(ctx context.Context) {
 		s.snapshotID = id
 		s.batchSeq = 0
 		s.inSnapshot = make(map[string]string, len(items))
+		s.reported = make(map[string]bool, len(items))
 		for _, it := range items {
 			s.inSnapshot[objectKey(it)] = it.GetResourceVersion()
+			s.reported[objectKey(it)] = true
 		}
 		// Events that arrived while the snapshot was being built and are already
 		// in it are redundant.
@@ -437,6 +549,9 @@ func (s *Syncer) snapshot(ctx context.Context) {
 				continue
 			}
 			delete(s.inSnapshot, objectKey(ev.GetItem()))
+			if ev.GetType() == pb.ResourceEventType_RESOURCE_EVENT_TYPE_UPSERT {
+				s.reported[objectKey(ev.GetItem())] = true
+			}
 			kept = append(kept, ev)
 		}
 		s.pending = kept

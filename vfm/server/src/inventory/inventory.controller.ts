@@ -11,7 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RbacService } from '../rbac/rbac.service';
 import { RequirePermission } from '../rbac/require-permission.decorator';
 import { AllowsApiToken } from '../tokens/api-token.decorator';
-import { KIND_NAMES, permissionForKindName } from './kinds';
+import { KIND_NAMES, LIVE_VIEW_KINDS, permissionForKindName } from './kinds';
 
 /**
  * `/orgs/{orgId}/clusters/{clusterId}/inventory`: how much of each kind the
@@ -48,7 +48,7 @@ export class InventoryController {
     const allowed: string[] = [];
     for (const kind of KIND_NAMES) {
       const permission = permissionForKindName(kind);
-      if (permission === undefined) {
+      if (permission === undefined || LIVE_VIEW_KINDS.has(kind)) {
         continue;
       }
       if (!permitted.has(permission)) {

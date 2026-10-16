@@ -1655,6 +1655,106 @@ paths:
       summary: Delete a volume snapshot location (velero snapshot-location delete)
       tags:
         - storage
+  /orgs/{orgId}/clusters/{clusterId}/inventory/nodes:
+    get:
+      operationId: ResourcesController_nodes
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Nodes of the cluster
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/inventory/namespaces:
+    get:
+      operationId: ResourcesController_namespaces
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Namespaces you may see
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/inventory/pods:
+    get:
+      operationId: ResourcesController_pods
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Pod summaries in the namespaces you may see (no env vars, specs or annotations)
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/inventory/pvcs:
+    get:
+      operationId: ResourcesController_pvcs
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Persistent volume claims in the namespaces you may see
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/inventory/events:
+    get:
+      operationId: ResourcesController_events
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Warnings and Velero events of the last hour in the namespaces you may see
+      tags:
+        - inventory
   /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/trigger:
     post:
       description: Makes a backup from the schedule’s template. The caller needs `backup:create` over

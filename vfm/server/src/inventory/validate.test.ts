@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { ResourceKind, type ResourceItem } from '../gateway/pb/vfm/agent/v1/inventory';
@@ -189,5 +192,95 @@ describe('validateTombstone', () => {
   it('still refuses a malformed identity', () => {
     expect(validateTombstone(backup({ name: 'bad name' })).ok).toBe(false);
     expect(validateTombstone(backup({ kind: ResourceKind.RESOURCE_KIND_NODE })).ok).toBe(false);
+  });
+});
+
+describe('the live-view kinds', () => {
+  const live = (
+    kind: ResourceKind,
+    objectKind: string,
+    namespace: string,
+    over: Record<string, unknown> = {},
+  ): ResourceItem => ({
+    kind,
+    namespace,
+    name: 'thing',
+    uid: 'uid-1',
+    resourceVersion: '1',
+    creationTimestamp: undefined,
+    objectJson: enc({
+      apiVersion: 'v1',
+      kind: objectKind,
+      metadata: { name: 'thing', ...(namespace === '' ? {} : { namespace }), uid: 'uid-1' },
+      status: { phase: 'Running' },
+      ...over,
+    }),
+  });
+
+  it('takes a node and a namespace with no namespace, and a pod with one', () => {
+    expect(validateItem(live(ResourceKind.RESOURCE_KIND_NODE, 'Node', ''))).toMatchObject({
+      ok: true,
+    });
+    expect(validateItem(live(ResourceKind.RESOURCE_KIND_NAMESPACE, 'Namespace', ''))).toMatchObject(
+      { ok: true },
+    );
+    expect(validateItem(live(ResourceKind.RESOURCE_KIND_POD, 'Pod', 'shop'))).toMatchObject({
+      ok: true,
+      value: { kind: 'POD', namespace: 'shop', phase: 'Running' },
+    });
+  });
+
+  it('refuses a node that names a namespace and a pod that names none', () => {
+    expect(validateItem(live(ResourceKind.RESOURCE_KIND_NODE, 'Node', 'shop'))).toMatchObject({
+      ok: false,
+    });
+    expect(validateItem(live(ResourceKind.RESOURCE_KIND_POD, 'Pod', ''))).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it('refuses an object filed under another kind', () => {
+    expect(validateItem(live(ResourceKind.RESOURCE_KIND_POD, 'Node', 'shop'))).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it('still has no kind for a Secret', () => {
+    expect(
+      validateItem(live(ResourceKind.RESOURCE_KIND_UNSPECIFIED, 'Secret', 'shop')),
+    ).toMatchObject({
+      ok: false,
+      reason: 'unsupported kind',
+    });
+  });
+});
+
+describe('what the agent really sends for the live view', () => {
+  // test/fixtures/core-projections.json was produced by the agent's own projections
+  // (agent/internal/inventory/core.go) so the two sides cannot drift apart unnoticed.
+  it('is accepted, kind by kind', () => {
+    const fixtures = JSON.parse(
+      readFileSync(join(__dirname, '../../test/fixtures/core-projections.json'), 'utf8'),
+    ) as {
+      kind: number;
+      namespace: string;
+      name: string;
+      uid: string;
+      resourceVersion: string;
+      object: unknown;
+    }[];
+    expect(fixtures).toHaveLength(5);
+    for (const f of fixtures) {
+      const result = validateItem({
+        kind: ResourceKind[ResourceKind[f.kind] as keyof typeof ResourceKind],
+        namespace: f.namespace,
+        name: f.name,
+        uid: f.uid,
+        resourceVersion: f.resourceVersion,
+        creationTimestamp: undefined,
+        objectJson: enc(f.object),
+      });
+      expect(result, f.name).toMatchObject({ ok: true });
+    }
   });
 });

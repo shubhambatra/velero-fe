@@ -9,12 +9,15 @@ export interface KindInfo {
   objectKind: string;
   /** What a user needs to see objects (or learn they changed) of this kind. */
   permission: Permission;
+  /** Cluster-scoped objects (nodes, namespaces) have no namespace of their own. */
+  clusterScoped?: boolean;
 }
 
 /**
- * The kinds the control plane accepts from an agent. Anything absent is refused:
- * the protocol enum also names core kinds (Node, Pod, ...) that arrive with M5, and
- * an agent has no business sending those before the ingest for them exists.
+ * The kinds the control plane accepts from an agent. Anything absent is refused. The
+ * core kinds (PLAN.md §7.1) arrive as the projections the agent builds: pods are
+ * summaries with no env vars, specs or annotations, and the server stores what it is
+ * sent only after the same checks as any other object.
  */
 const TABLE: ReadonlyMap<ResourceKind, KindInfo> = new Map([
   [
@@ -66,6 +69,27 @@ const TABLE: ReadonlyMap<ResourceKind, KindInfo> = new Map([
     { name: 'DATA_DOWNLOAD', objectKind: 'DataDownload', permission: 'restore:read' },
   ],
   [
+    ResourceKind.RESOURCE_KIND_NODE,
+    { name: 'NODE', objectKind: 'Node', permission: 'cluster:read', clusterScoped: true },
+  ],
+  [
+    ResourceKind.RESOURCE_KIND_NAMESPACE,
+    { name: 'NAMESPACE', objectKind: 'Namespace', permission: 'cluster:read', clusterScoped: true },
+  ],
+  [ResourceKind.RESOURCE_KIND_POD, { name: 'POD', objectKind: 'Pod', permission: 'cluster:read' }],
+  [
+    ResourceKind.RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM,
+    {
+      name: 'PERSISTENT_VOLUME_CLAIM',
+      objectKind: 'PersistentVolumeClaim',
+      permission: 'cluster:read',
+    },
+  ],
+  [
+    ResourceKind.RESOURCE_KIND_EVENT,
+    { name: 'EVENT', objectKind: 'Event', permission: 'cluster:read' },
+  ],
+  [
     ResourceKind.RESOURCE_KIND_DELETE_BACKUP_REQUEST,
     { name: 'DELETE_BACKUP_REQUEST', objectKind: 'DeleteBackupRequest', permission: 'backup:read' },
   ],
@@ -84,3 +108,16 @@ export function permissionForKindName(name: string): Permission | undefined {
 }
 
 export const KIND_NAMES: readonly string[] = [...TABLE.values()].map((info) => info.name);
+
+/**
+ * The live-view kinds. They are read through their own lists, which filter by namespace;
+ * the per-kind totals of `GET …/inventory` leave them out so a namespace-limited user is
+ * not told how many pods the namespaces they cannot see hold.
+ */
+export const LIVE_VIEW_KINDS: ReadonlySet<string> = new Set([
+  'NODE',
+  'NAMESPACE',
+  'POD',
+  'PERSISTENT_VOLUME_CLAIM',
+  'EVENT',
+]);

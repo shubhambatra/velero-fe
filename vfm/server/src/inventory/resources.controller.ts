@@ -42,6 +42,7 @@ const listQuery = z.object({
   backup: z.string().max(253).optional(),
   paused: flag.optional(),
   createdByVfm: flag.optional(),
+  namespace: z.string().max(63).optional(),
 });
 
 const nameParam = z
@@ -63,6 +64,7 @@ const compact = (raw: Raw): ListQuery => {
     'backup',
     'paused',
     'createdByVfm',
+    'namespace',
   ] as const) {
     if (raw[key] !== undefined) {
       (out as unknown as Record<string, unknown>)[key] = raw[key];
@@ -311,5 +313,79 @@ export class ResourcesController {
       parseBody(nameParam, n),
       r.apiToken,
     );
+  }
+
+  @Get('inventory/nodes')
+  @AllowsApiToken()
+  @RequirePermission('cluster:read')
+  @ApiOperation({ summary: 'Nodes of the cluster' })
+  nodes(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('orgId') o: string,
+    @Param('clusterId') c: string,
+    @Query() q: unknown,
+    @Req() r: Request,
+  ) {
+    return this.list(u, o, c, 'NODE', q, r);
+  }
+
+  @Get('inventory/namespaces')
+  @AllowsApiToken()
+  @RequirePermission('cluster:read')
+  @ApiOperation({ summary: 'Namespaces you may see' })
+  namespaces(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('orgId') o: string,
+    @Param('clusterId') c: string,
+    @Query() q: unknown,
+    @Req() r: Request,
+  ) {
+    return this.list(u, o, c, 'NAMESPACE', q, r);
+  }
+
+  @Get('inventory/pods')
+  @AllowsApiToken()
+  @RequirePermission('cluster:read')
+  @ApiOperation({
+    summary: 'Pod summaries in the namespaces you may see (no env vars, specs or annotations)',
+  })
+  pods(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('orgId') o: string,
+    @Param('clusterId') c: string,
+    @Query() q: unknown,
+    @Req() r: Request,
+  ) {
+    return this.list(u, o, c, 'POD', q, r);
+  }
+
+  @Get('inventory/pvcs')
+  @AllowsApiToken()
+  @RequirePermission('cluster:read')
+  @ApiOperation({ summary: 'Persistent volume claims in the namespaces you may see' })
+  pvcs(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('orgId') o: string,
+    @Param('clusterId') c: string,
+    @Query() q: unknown,
+    @Req() r: Request,
+  ) {
+    return this.list(u, o, c, 'PERSISTENT_VOLUME_CLAIM', q, r);
+  }
+
+  @Get('inventory/events')
+  @AllowsApiToken()
+  @RequirePermission('cluster:read')
+  @ApiOperation({
+    summary: 'Warnings and Velero events of the last hour in the namespaces you may see',
+  })
+  events(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('orgId') o: string,
+    @Param('clusterId') c: string,
+    @Query() q: unknown,
+    @Req() r: Request,
+  ) {
+    return this.list(u, o, c, 'EVENT', q, r);
   }
 }

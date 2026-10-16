@@ -5,9 +5,9 @@
 // source: vfm/agent/v1/logs.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
 
-export const protobufPackage = "vfm.agent.v1";
+export const protobufPackage = 'vfm.agent.v1';
 
 export enum LogSessionEndReason {
   LOG_SESSION_END_REASON_UNSPECIFIED = 0,
@@ -23,28 +23,28 @@ export enum LogSessionEndReason {
 export function logSessionEndReasonFromJSON(object: any): LogSessionEndReason {
   switch (object) {
     case 0:
-    case "LOG_SESSION_END_REASON_UNSPECIFIED":
+    case 'LOG_SESSION_END_REASON_UNSPECIFIED':
       return LogSessionEndReason.LOG_SESSION_END_REASON_UNSPECIFIED;
     case 1:
-    case "LOG_SESSION_END_REASON_STOPPED":
+    case 'LOG_SESSION_END_REASON_STOPPED':
       return LogSessionEndReason.LOG_SESSION_END_REASON_STOPPED;
     case 2:
-    case "LOG_SESSION_END_REASON_POD_GONE":
+    case 'LOG_SESSION_END_REASON_POD_GONE':
       return LogSessionEndReason.LOG_SESSION_END_REASON_POD_GONE;
     case 3:
-    case "LOG_SESSION_END_REASON_TIMEOUT":
+    case 'LOG_SESSION_END_REASON_TIMEOUT':
       return LogSessionEndReason.LOG_SESSION_END_REASON_TIMEOUT;
     case 4:
-    case "LOG_SESSION_END_REASON_EVICTED_BY_LIMIT":
+    case 'LOG_SESSION_END_REASON_EVICTED_BY_LIMIT':
       return LogSessionEndReason.LOG_SESSION_END_REASON_EVICTED_BY_LIMIT;
     case 5:
-    case "LOG_SESSION_END_REASON_DENIED_BY_POLICY":
+    case 'LOG_SESSION_END_REASON_DENIED_BY_POLICY':
       return LogSessionEndReason.LOG_SESSION_END_REASON_DENIED_BY_POLICY;
     case 6:
-    case "LOG_SESSION_END_REASON_ERROR":
+    case 'LOG_SESSION_END_REASON_ERROR':
       return LogSessionEndReason.LOG_SESSION_END_REASON_ERROR;
     case -1:
-    case "UNRECOGNIZED":
+    case 'UNRECOGNIZED':
     default:
       return LogSessionEndReason.UNRECOGNIZED;
   }
@@ -53,22 +53,22 @@ export function logSessionEndReasonFromJSON(object: any): LogSessionEndReason {
 export function logSessionEndReasonToJSON(object: LogSessionEndReason): string {
   switch (object) {
     case LogSessionEndReason.LOG_SESSION_END_REASON_UNSPECIFIED:
-      return "LOG_SESSION_END_REASON_UNSPECIFIED";
+      return 'LOG_SESSION_END_REASON_UNSPECIFIED';
     case LogSessionEndReason.LOG_SESSION_END_REASON_STOPPED:
-      return "LOG_SESSION_END_REASON_STOPPED";
+      return 'LOG_SESSION_END_REASON_STOPPED';
     case LogSessionEndReason.LOG_SESSION_END_REASON_POD_GONE:
-      return "LOG_SESSION_END_REASON_POD_GONE";
+      return 'LOG_SESSION_END_REASON_POD_GONE';
     case LogSessionEndReason.LOG_SESSION_END_REASON_TIMEOUT:
-      return "LOG_SESSION_END_REASON_TIMEOUT";
+      return 'LOG_SESSION_END_REASON_TIMEOUT';
     case LogSessionEndReason.LOG_SESSION_END_REASON_EVICTED_BY_LIMIT:
-      return "LOG_SESSION_END_REASON_EVICTED_BY_LIMIT";
+      return 'LOG_SESSION_END_REASON_EVICTED_BY_LIMIT';
     case LogSessionEndReason.LOG_SESSION_END_REASON_DENIED_BY_POLICY:
-      return "LOG_SESSION_END_REASON_DENIED_BY_POLICY";
+      return 'LOG_SESSION_END_REASON_DENIED_BY_POLICY';
     case LogSessionEndReason.LOG_SESSION_END_REASON_ERROR:
-      return "LOG_SESSION_END_REASON_ERROR";
+      return 'LOG_SESSION_END_REASON_ERROR';
     case LogSessionEndReason.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return 'UNRECOGNIZED';
   }
 }
 
@@ -95,9 +95,7 @@ export interface StopLogSession {
  */
 export interface LogChunk {
   sessionId?: string | undefined;
-  commandId?:
-    | string
-    | undefined;
+  commandId?: string | undefined;
   /** Starts at 0 and increases by one per chunk of an origin. */
   sequence: number;
   data: Uint8Array;
@@ -113,10 +111,10 @@ export interface LogSessionEnded {
 
 function createBaseStartLogSession(): StartLogSession {
   return {
-    sessionId: "",
-    namespace: "",
-    pod: "",
-    container: "",
+    sessionId: '',
+    namespace: '',
+    pod: '',
+    container: '',
     follow: false,
     tailLines: 0,
     sinceSeconds: 0,
@@ -127,16 +125,16 @@ function createBaseStartLogSession(): StartLogSession {
 
 export const StartLogSession: MessageFns<StartLogSession> = {
   encode(message: StartLogSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.sessionId !== "") {
+    if (message.sessionId !== '') {
       writer.uint32(10).string(message.sessionId);
     }
-    if (message.namespace !== "") {
+    if (message.namespace !== '') {
       writer.uint32(18).string(message.namespace);
     }
-    if (message.pod !== "") {
+    if (message.pod !== '') {
       writer.uint32(26).string(message.pod);
     }
-    if (message.container !== "") {
+    if (message.container !== '') {
       writer.uint32(34).string(message.container);
     }
     if (message.follow !== false) {
@@ -161,7 +159,7 @@ export const StartLogSession: MessageFns<StartLogSession> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -259,22 +257,22 @@ export const StartLogSession: MessageFns<StartLogSession> = {
       sessionId: isSet(object.sessionId)
         ? globalThis.String(object.sessionId)
         : isSet(object.session_id)
-        ? globalThis.String(object.session_id)
-        : "",
-      namespace: isSet(object.namespace) ? globalThis.String(object.namespace) : "",
-      pod: isSet(object.pod) ? globalThis.String(object.pod) : "",
-      container: isSet(object.container) ? globalThis.String(object.container) : "",
+          ? globalThis.String(object.session_id)
+          : '',
+      namespace: isSet(object.namespace) ? globalThis.String(object.namespace) : '',
+      pod: isSet(object.pod) ? globalThis.String(object.pod) : '',
+      container: isSet(object.container) ? globalThis.String(object.container) : '',
       follow: isSet(object.follow) ? globalThis.Boolean(object.follow) : false,
       tailLines: isSet(object.tailLines)
         ? globalThis.Number(object.tailLines)
         : isSet(object.tail_lines)
-        ? globalThis.Number(object.tail_lines)
-        : 0,
+          ? globalThis.Number(object.tail_lines)
+          : 0,
       sinceSeconds: isSet(object.sinceSeconds)
         ? globalThis.Number(object.sinceSeconds)
         : isSet(object.since_seconds)
-        ? globalThis.Number(object.since_seconds)
-        : 0,
+          ? globalThis.Number(object.since_seconds)
+          : 0,
       timestamps: isSet(object.timestamps) ? globalThis.Boolean(object.timestamps) : false,
       previous: isSet(object.previous) ? globalThis.Boolean(object.previous) : false,
     };
@@ -282,16 +280,16 @@ export const StartLogSession: MessageFns<StartLogSession> = {
 
   toJSON(message: StartLogSession): unknown {
     const obj: any = {};
-    if (message.sessionId !== "") {
+    if (message.sessionId !== '') {
       obj.sessionId = message.sessionId;
     }
-    if (message.namespace !== "") {
+    if (message.namespace !== '') {
       obj.namespace = message.namespace;
     }
-    if (message.pod !== "") {
+    if (message.pod !== '') {
       obj.pod = message.pod;
     }
-    if (message.container !== "") {
+    if (message.container !== '') {
       obj.container = message.container;
     }
     if (message.follow !== false) {
@@ -317,10 +315,10 @@ export const StartLogSession: MessageFns<StartLogSession> = {
   },
   fromPartial(object: DeepPartial<StartLogSession>): StartLogSession {
     const message = createBaseStartLogSession();
-    message.sessionId = object.sessionId ?? "";
-    message.namespace = object.namespace ?? "";
-    message.pod = object.pod ?? "";
-    message.container = object.container ?? "";
+    message.sessionId = object.sessionId ?? '';
+    message.namespace = object.namespace ?? '';
+    message.pod = object.pod ?? '';
+    message.container = object.container ?? '';
     message.follow = object.follow ?? false;
     message.tailLines = object.tailLines ?? 0;
     message.sinceSeconds = object.sinceSeconds ?? 0;
@@ -331,12 +329,12 @@ export const StartLogSession: MessageFns<StartLogSession> = {
 };
 
 function createBaseStopLogSession(): StopLogSession {
-  return { sessionId: "" };
+  return { sessionId: '' };
 }
 
 export const StopLogSession: MessageFns<StopLogSession> = {
   encode(message: StopLogSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.sessionId !== "") {
+    if (message.sessionId !== '') {
       writer.uint32(10).string(message.sessionId);
     }
     return writer;
@@ -346,7 +344,7 @@ export const StopLogSession: MessageFns<StopLogSession> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -380,14 +378,14 @@ export const StopLogSession: MessageFns<StopLogSession> = {
       sessionId: isSet(object.sessionId)
         ? globalThis.String(object.sessionId)
         : isSet(object.session_id)
-        ? globalThis.String(object.session_id)
-        : "",
+          ? globalThis.String(object.session_id)
+          : '',
     };
   },
 
   toJSON(message: StopLogSession): unknown {
     const obj: any = {};
-    if (message.sessionId !== "") {
+    if (message.sessionId !== '') {
       obj.sessionId = message.sessionId;
     }
     return obj;
@@ -398,13 +396,19 @@ export const StopLogSession: MessageFns<StopLogSession> = {
   },
   fromPartial(object: DeepPartial<StopLogSession>): StopLogSession {
     const message = createBaseStopLogSession();
-    message.sessionId = object.sessionId ?? "";
+    message.sessionId = object.sessionId ?? '';
     return message;
   },
 };
 
 function createBaseLogChunk(): LogChunk {
-  return { sessionId: undefined, commandId: undefined, sequence: 0, data: new Uint8Array(0), eof: false };
+  return {
+    sessionId: undefined,
+    commandId: undefined,
+    sequence: 0,
+    data: new Uint8Array(0),
+    eof: false,
+  };
 }
 
 export const LogChunk: MessageFns<LogChunk> = {
@@ -431,7 +435,7 @@ export const LogChunk: MessageFns<LogChunk> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -497,13 +501,13 @@ export const LogChunk: MessageFns<LogChunk> = {
       sessionId: isSet(object.sessionId)
         ? globalThis.String(object.sessionId)
         : isSet(object.session_id)
-        ? globalThis.String(object.session_id)
-        : undefined,
+          ? globalThis.String(object.session_id)
+          : undefined,
       commandId: isSet(object.commandId)
         ? globalThis.String(object.commandId)
         : isSet(object.command_id)
-        ? globalThis.String(object.command_id)
-        : undefined,
+          ? globalThis.String(object.command_id)
+          : undefined,
       sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : 0,
       data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
       eof: isSet(object.eof) ? globalThis.Boolean(object.eof) : false,
@@ -545,18 +549,18 @@ export const LogChunk: MessageFns<LogChunk> = {
 };
 
 function createBaseLogSessionEnded(): LogSessionEnded {
-  return { sessionId: "", reason: 0, message: "" };
+  return { sessionId: '', reason: 0, message: '' };
 }
 
 export const LogSessionEnded: MessageFns<LogSessionEnded> = {
   encode(message: LogSessionEnded, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.sessionId !== "") {
+    if (message.sessionId !== '') {
       writer.uint32(10).string(message.sessionId);
     }
     if (message.reason !== 0) {
       writer.uint32(16).int32(message.reason);
     }
-    if (message.message !== "") {
+    if (message.message !== '') {
       writer.uint32(26).string(message.message);
     }
     return writer;
@@ -566,7 +570,7 @@ export const LogSessionEnded: MessageFns<LogSessionEnded> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -616,22 +620,22 @@ export const LogSessionEnded: MessageFns<LogSessionEnded> = {
       sessionId: isSet(object.sessionId)
         ? globalThis.String(object.sessionId)
         : isSet(object.session_id)
-        ? globalThis.String(object.session_id)
-        : "",
+          ? globalThis.String(object.session_id)
+          : '',
       reason: isSet(object.reason) ? logSessionEndReasonFromJSON(object.reason) : 0,
-      message: isSet(object.message) ? globalThis.String(object.message) : "",
+      message: isSet(object.message) ? globalThis.String(object.message) : '',
     };
   },
 
   toJSON(message: LogSessionEnded): unknown {
     const obj: any = {};
-    if (message.sessionId !== "") {
+    if (message.sessionId !== '') {
       obj.sessionId = message.sessionId;
     }
     if (message.reason !== 0) {
       obj.reason = logSessionEndReasonToJSON(message.reason);
     }
-    if (message.message !== "") {
+    if (message.message !== '') {
       obj.message = message.message;
     }
     return obj;
@@ -642,16 +646,16 @@ export const LogSessionEnded: MessageFns<LogSessionEnded> = {
   },
   fromPartial(object: DeepPartial<LogSessionEnded>): LogSessionEnded {
     const message = createBaseLogSessionEnded();
-    message.sessionId = object.sessionId ?? "";
+    message.sessionId = object.sessionId ?? '';
     message.reason = object.reason ?? 0;
-    message.message = object.message ?? "";
+    message.message = object.message ?? '';
     return message;
   },
 };
 
 function bytesFromBase64(b64: string): Uint8Array {
   if ((globalThis as any).Buffer) {
-    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, 'base64'));
   } else {
     const bin = globalThis.atob(b64);
     const arr = new Uint8Array(bin.length);
@@ -664,31 +668,35 @@ function bytesFromBase64(b64: string): Uint8Array {
 
 function base64FromBytes(arr: Uint8Array): string {
   if ((globalThis as any).Buffer) {
-    return (globalThis as any).Buffer.from(arr).toString("base64");
+    return (globalThis as any).Buffer.from(arr).toString('base64');
   } else {
     const bin: string[] = [];
     arr.forEach((byte) => {
       bin.push(globalThis.String.fromCharCode(byte));
     });
-    return globalThis.btoa(bin.join(""));
+    return globalThis.btoa(bin.join(''));
   }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 function longToNumber(int64: { toString(): string }): number {
   const num = globalThis.Number(int64.toString());
   if (num > globalThis.Number.MAX_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
+    throw new globalThis.Error('Value is larger than Number.MAX_SAFE_INTEGER');
   }
   if (num < globalThis.Number.MIN_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
+    throw new globalThis.Error('Value is smaller than Number.MIN_SAFE_INTEGER');
   }
   return num;
 }

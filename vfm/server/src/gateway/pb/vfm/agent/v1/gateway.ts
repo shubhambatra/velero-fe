@@ -5,7 +5,7 @@
 // source: vfm/agent/v1/gateway.proto
 
 /* eslint-disable */
-import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
+import { BinaryReader, BinaryWriter } from '@bufbuild/protobuf/wire';
 import {
   type CallOptions,
   type ChannelCredentials,
@@ -19,23 +19,26 @@ import {
   type Metadata,
   type ServiceError,
   type UntypedServiceImplementation,
-} from "@grpc/grpc-js";
-import { Duration } from "../../../google/protobuf/duration";
-import { Timestamp } from "../../../google/protobuf/timestamp";
-import { CancelCommand, Command, CommandAck, CommandResult, ServerStatus } from "./command";
-import { EnrollRequest, EnrollResponse, RenewCertificateRequest, RenewCertificateResponse } from "./enrollment";
-import { InventorySnapshot, ResourceEvents } from "./inventory";
-import { LogChunk, LogSessionEnded, StartLogSession, StopLogSession } from "./logs";
+} from '@grpc/grpc-js';
+import { Duration } from '../../../google/protobuf/duration';
+import { Timestamp } from '../../../google/protobuf/timestamp';
+import { CancelCommand, Command, CommandAck, CommandResult, ServerStatus } from './command';
+import {
+  EnrollRequest,
+  EnrollResponse,
+  RenewCertificateRequest,
+  RenewCertificateResponse,
+} from './enrollment';
+import { InventorySnapshot, ResourceEvents } from './inventory';
+import { LogChunk, LogSessionEnded, StartLogSession, StopLogSession } from './logs';
 
-export const protobufPackage = "vfm.agent.v1";
+export const protobufPackage = 'vfm.agent.v1';
 
 export interface AgentMessage {
   /** UUIDv7. */
   messageId: string;
   /** Must be the first message on a stream. */
-  hello?:
-    | Hello
-    | undefined;
+  hello?: Hello | undefined;
   /** Every 15 s. */
   heartbeat?: Heartbeat | undefined;
   ack?: CommandAck | undefined;
@@ -54,6 +57,7 @@ export interface ServerMessage {
   startLogs?: StartLogSession | undefined;
   stopLogs?: StopLogSession | undefined;
   resync?: RequestResync | undefined;
+  watchScope?: WatchScope | undefined;
 }
 
 export interface Hello {
@@ -73,9 +77,7 @@ export interface Hello {
    * Velero server version and plugins as of connect; empty version means
    * Velero was not found.
    */
-  velero:
-    | ServerStatus
-    | undefined;
+  velero: ServerStatus | undefined;
   /**
    * What this agent can do, as stable strings (e.g. "csi-data-mover"). Gating
    * the UI on these rather than on version numbers keeps it honest.
@@ -108,9 +110,7 @@ export interface ServerConfig {
   snapshotResyncInterval: Duration | undefined;
   maxLogSessions: number;
   logSessionTimeout: Duration | undefined;
-  logSessionIdleTimeout:
-    | Duration
-    | undefined;
+  logSessionIdleTimeout: Duration | undefined;
   /** gRPC message cap in bytes. */
   maxMessageBytes: number;
   maxLogChunkBytes: number;
@@ -128,9 +128,19 @@ export interface RequestResync {
   reason: string;
 }
 
+/**
+ * The namespaces whose pods the control plane wants right now (PLAN.md §7.1). Only
+ * acted on when the cluster is large (more pods than the agent's threshold); a small
+ * cluster always reports every pod. Sent on connect and whenever the set changes; the
+ * list is the whole set, not a change.
+ */
+export interface WatchScope {
+  podNamespaces: string[];
+}
+
 function createBaseAgentMessage(): AgentMessage {
   return {
-    messageId: "",
+    messageId: '',
     hello: undefined,
     heartbeat: undefined,
     ack: undefined,
@@ -144,7 +154,7 @@ function createBaseAgentMessage(): AgentMessage {
 
 export const AgentMessage: MessageFns<AgentMessage> = {
   encode(message: AgentMessage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.messageId !== "") {
+    if (message.messageId !== '') {
       writer.uint32(10).string(message.messageId);
     }
     if (message.hello !== undefined) {
@@ -178,7 +188,7 @@ export const AgentMessage: MessageFns<AgentMessage> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -276,8 +286,8 @@ export const AgentMessage: MessageFns<AgentMessage> = {
       messageId: isSet(object.messageId)
         ? globalThis.String(object.messageId)
         : isSet(object.message_id)
-        ? globalThis.String(object.message_id)
-        : "",
+          ? globalThis.String(object.message_id)
+          : '',
       hello: isSet(object.hello) ? Hello.fromJSON(object.hello) : undefined,
       heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
       ack: isSet(object.ack) ? CommandAck.fromJSON(object.ack) : undefined,
@@ -287,19 +297,19 @@ export const AgentMessage: MessageFns<AgentMessage> = {
       logChunk: isSet(object.logChunk)
         ? LogChunk.fromJSON(object.logChunk)
         : isSet(object.log_chunk)
-        ? LogChunk.fromJSON(object.log_chunk)
-        : undefined,
+          ? LogChunk.fromJSON(object.log_chunk)
+          : undefined,
       logEnded: isSet(object.logEnded)
         ? LogSessionEnded.fromJSON(object.logEnded)
         : isSet(object.log_ended)
-        ? LogSessionEnded.fromJSON(object.log_ended)
-        : undefined,
+          ? LogSessionEnded.fromJSON(object.log_ended)
+          : undefined,
     };
   },
 
   toJSON(message: AgentMessage): unknown {
     const obj: any = {};
-    if (message.messageId !== "") {
+    if (message.messageId !== '') {
       obj.messageId = message.messageId;
     }
     if (message.hello !== undefined) {
@@ -334,46 +344,59 @@ export const AgentMessage: MessageFns<AgentMessage> = {
   },
   fromPartial(object: DeepPartial<AgentMessage>): AgentMessage {
     const message = createBaseAgentMessage();
-    message.messageId = object.messageId ?? "";
-    message.hello = (object.hello !== undefined && object.hello !== null) ? Hello.fromPartial(object.hello) : undefined;
-    message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
-      ? Heartbeat.fromPartial(object.heartbeat)
-      : undefined;
-    message.ack = (object.ack !== undefined && object.ack !== null) ? CommandAck.fromPartial(object.ack) : undefined;
-    message.result = (object.result !== undefined && object.result !== null)
-      ? CommandResult.fromPartial(object.result)
-      : undefined;
-    message.snapshot = (object.snapshot !== undefined && object.snapshot !== null)
-      ? InventorySnapshot.fromPartial(object.snapshot)
-      : undefined;
-    message.events = (object.events !== undefined && object.events !== null)
-      ? ResourceEvents.fromPartial(object.events)
-      : undefined;
-    message.logChunk = (object.logChunk !== undefined && object.logChunk !== null)
-      ? LogChunk.fromPartial(object.logChunk)
-      : undefined;
-    message.logEnded = (object.logEnded !== undefined && object.logEnded !== null)
-      ? LogSessionEnded.fromPartial(object.logEnded)
-      : undefined;
+    message.messageId = object.messageId ?? '';
+    message.hello =
+      object.hello !== undefined && object.hello !== null
+        ? Hello.fromPartial(object.hello)
+        : undefined;
+    message.heartbeat =
+      object.heartbeat !== undefined && object.heartbeat !== null
+        ? Heartbeat.fromPartial(object.heartbeat)
+        : undefined;
+    message.ack =
+      object.ack !== undefined && object.ack !== null
+        ? CommandAck.fromPartial(object.ack)
+        : undefined;
+    message.result =
+      object.result !== undefined && object.result !== null
+        ? CommandResult.fromPartial(object.result)
+        : undefined;
+    message.snapshot =
+      object.snapshot !== undefined && object.snapshot !== null
+        ? InventorySnapshot.fromPartial(object.snapshot)
+        : undefined;
+    message.events =
+      object.events !== undefined && object.events !== null
+        ? ResourceEvents.fromPartial(object.events)
+        : undefined;
+    message.logChunk =
+      object.logChunk !== undefined && object.logChunk !== null
+        ? LogChunk.fromPartial(object.logChunk)
+        : undefined;
+    message.logEnded =
+      object.logEnded !== undefined && object.logEnded !== null
+        ? LogSessionEnded.fromPartial(object.logEnded)
+        : undefined;
     return message;
   },
 };
 
 function createBaseServerMessage(): ServerMessage {
   return {
-    messageId: "",
+    messageId: '',
     helloAck: undefined,
     command: undefined,
     cancel: undefined,
     startLogs: undefined,
     stopLogs: undefined,
     resync: undefined,
+    watchScope: undefined,
   };
 }
 
 export const ServerMessage: MessageFns<ServerMessage> = {
   encode(message: ServerMessage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.messageId !== "") {
+    if (message.messageId !== '') {
       writer.uint32(10).string(message.messageId);
     }
     if (message.helloAck !== undefined) {
@@ -394,6 +417,9 @@ export const ServerMessage: MessageFns<ServerMessage> = {
     if (message.resync !== undefined) {
       RequestResync.encode(message.resync, writer.uint32(122).fork()).join();
     }
+    if (message.watchScope !== undefined) {
+      WatchScope.encode(message.watchScope, writer.uint32(130).fork()).join();
+    }
     return writer;
   },
 
@@ -401,7 +427,7 @@ export const ServerMessage: MessageFns<ServerMessage> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -466,6 +492,14 @@ export const ServerMessage: MessageFns<ServerMessage> = {
             message.resync = RequestResync.decode(reader, reader.uint32());
             continue;
           }
+          case 16: {
+            if (tag !== 130) {
+              break;
+            }
+
+            message.watchScope = WatchScope.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -483,32 +517,37 @@ export const ServerMessage: MessageFns<ServerMessage> = {
       messageId: isSet(object.messageId)
         ? globalThis.String(object.messageId)
         : isSet(object.message_id)
-        ? globalThis.String(object.message_id)
-        : "",
+          ? globalThis.String(object.message_id)
+          : '',
       helloAck: isSet(object.helloAck)
         ? HelloAck.fromJSON(object.helloAck)
         : isSet(object.hello_ack)
-        ? HelloAck.fromJSON(object.hello_ack)
-        : undefined,
+          ? HelloAck.fromJSON(object.hello_ack)
+          : undefined,
       command: isSet(object.command) ? Command.fromJSON(object.command) : undefined,
       cancel: isSet(object.cancel) ? CancelCommand.fromJSON(object.cancel) : undefined,
       startLogs: isSet(object.startLogs)
         ? StartLogSession.fromJSON(object.startLogs)
         : isSet(object.start_logs)
-        ? StartLogSession.fromJSON(object.start_logs)
-        : undefined,
+          ? StartLogSession.fromJSON(object.start_logs)
+          : undefined,
       stopLogs: isSet(object.stopLogs)
         ? StopLogSession.fromJSON(object.stopLogs)
         : isSet(object.stop_logs)
-        ? StopLogSession.fromJSON(object.stop_logs)
-        : undefined,
+          ? StopLogSession.fromJSON(object.stop_logs)
+          : undefined,
       resync: isSet(object.resync) ? RequestResync.fromJSON(object.resync) : undefined,
+      watchScope: isSet(object.watchScope)
+        ? WatchScope.fromJSON(object.watchScope)
+        : isSet(object.watch_scope)
+          ? WatchScope.fromJSON(object.watch_scope)
+          : undefined,
     };
   },
 
   toJSON(message: ServerMessage): unknown {
     const obj: any = {};
-    if (message.messageId !== "") {
+    if (message.messageId !== '') {
       obj.messageId = message.messageId;
     }
     if (message.helloAck !== undefined) {
@@ -529,6 +568,9 @@ export const ServerMessage: MessageFns<ServerMessage> = {
     if (message.resync !== undefined) {
       obj.resync = RequestResync.toJSON(message.resync);
     }
+    if (message.watchScope !== undefined) {
+      obj.watchScope = WatchScope.toJSON(message.watchScope);
+    }
     return obj;
   },
 
@@ -537,25 +579,35 @@ export const ServerMessage: MessageFns<ServerMessage> = {
   },
   fromPartial(object: DeepPartial<ServerMessage>): ServerMessage {
     const message = createBaseServerMessage();
-    message.messageId = object.messageId ?? "";
-    message.helloAck = (object.helloAck !== undefined && object.helloAck !== null)
-      ? HelloAck.fromPartial(object.helloAck)
-      : undefined;
-    message.command = (object.command !== undefined && object.command !== null)
-      ? Command.fromPartial(object.command)
-      : undefined;
-    message.cancel = (object.cancel !== undefined && object.cancel !== null)
-      ? CancelCommand.fromPartial(object.cancel)
-      : undefined;
-    message.startLogs = (object.startLogs !== undefined && object.startLogs !== null)
-      ? StartLogSession.fromPartial(object.startLogs)
-      : undefined;
-    message.stopLogs = (object.stopLogs !== undefined && object.stopLogs !== null)
-      ? StopLogSession.fromPartial(object.stopLogs)
-      : undefined;
-    message.resync = (object.resync !== undefined && object.resync !== null)
-      ? RequestResync.fromPartial(object.resync)
-      : undefined;
+    message.messageId = object.messageId ?? '';
+    message.helloAck =
+      object.helloAck !== undefined && object.helloAck !== null
+        ? HelloAck.fromPartial(object.helloAck)
+        : undefined;
+    message.command =
+      object.command !== undefined && object.command !== null
+        ? Command.fromPartial(object.command)
+        : undefined;
+    message.cancel =
+      object.cancel !== undefined && object.cancel !== null
+        ? CancelCommand.fromPartial(object.cancel)
+        : undefined;
+    message.startLogs =
+      object.startLogs !== undefined && object.startLogs !== null
+        ? StartLogSession.fromPartial(object.startLogs)
+        : undefined;
+    message.stopLogs =
+      object.stopLogs !== undefined && object.stopLogs !== null
+        ? StopLogSession.fromPartial(object.stopLogs)
+        : undefined;
+    message.resync =
+      object.resync !== undefined && object.resync !== null
+        ? RequestResync.fromPartial(object.resync)
+        : undefined;
+    message.watchScope =
+      object.watchScope !== undefined && object.watchScope !== null
+        ? WatchScope.fromPartial(object.watchScope)
+        : undefined;
     return message;
   },
 };
@@ -563,11 +615,11 @@ export const ServerMessage: MessageFns<ServerMessage> = {
 function createBaseHello(): Hello {
   return {
     protocolVersion: 0,
-    agentVersion: "",
-    chartVersion: "",
-    imageTag: "",
-    kubernetesVersion: "",
-    clusterFingerprint: "",
+    agentVersion: '',
+    chartVersion: '',
+    imageTag: '',
+    kubernetesVersion: '',
+    clusterFingerprint: '',
     velero: undefined,
     capabilities: [],
     policy: undefined,
@@ -579,19 +631,19 @@ export const Hello: MessageFns<Hello> = {
     if (message.protocolVersion !== 0) {
       writer.uint32(8).uint32(message.protocolVersion);
     }
-    if (message.agentVersion !== "") {
+    if (message.agentVersion !== '') {
       writer.uint32(18).string(message.agentVersion);
     }
-    if (message.chartVersion !== "") {
+    if (message.chartVersion !== '') {
       writer.uint32(26).string(message.chartVersion);
     }
-    if (message.imageTag !== "") {
+    if (message.imageTag !== '') {
       writer.uint32(34).string(message.imageTag);
     }
-    if (message.kubernetesVersion !== "") {
+    if (message.kubernetesVersion !== '') {
       writer.uint32(42).string(message.kubernetesVersion);
     }
-    if (message.clusterFingerprint !== "") {
+    if (message.clusterFingerprint !== '') {
       writer.uint32(50).string(message.clusterFingerprint);
     }
     if (message.velero !== undefined) {
@@ -610,7 +662,7 @@ export const Hello: MessageFns<Hello> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -708,33 +760,33 @@ export const Hello: MessageFns<Hello> = {
       protocolVersion: isSet(object.protocolVersion)
         ? globalThis.Number(object.protocolVersion)
         : isSet(object.protocol_version)
-        ? globalThis.Number(object.protocol_version)
-        : 0,
+          ? globalThis.Number(object.protocol_version)
+          : 0,
       agentVersion: isSet(object.agentVersion)
         ? globalThis.String(object.agentVersion)
         : isSet(object.agent_version)
-        ? globalThis.String(object.agent_version)
-        : "",
+          ? globalThis.String(object.agent_version)
+          : '',
       chartVersion: isSet(object.chartVersion)
         ? globalThis.String(object.chartVersion)
         : isSet(object.chart_version)
-        ? globalThis.String(object.chart_version)
-        : "",
+          ? globalThis.String(object.chart_version)
+          : '',
       imageTag: isSet(object.imageTag)
         ? globalThis.String(object.imageTag)
         : isSet(object.image_tag)
-        ? globalThis.String(object.image_tag)
-        : "",
+          ? globalThis.String(object.image_tag)
+          : '',
       kubernetesVersion: isSet(object.kubernetesVersion)
         ? globalThis.String(object.kubernetesVersion)
         : isSet(object.kubernetes_version)
-        ? globalThis.String(object.kubernetes_version)
-        : "",
+          ? globalThis.String(object.kubernetes_version)
+          : '',
       clusterFingerprint: isSet(object.clusterFingerprint)
         ? globalThis.String(object.clusterFingerprint)
         : isSet(object.cluster_fingerprint)
-        ? globalThis.String(object.cluster_fingerprint)
-        : "",
+          ? globalThis.String(object.cluster_fingerprint)
+          : '',
       velero: isSet(object.velero) ? ServerStatus.fromJSON(object.velero) : undefined,
       capabilities: globalThis.Array.isArray(object?.capabilities)
         ? object.capabilities.map((e: any) => globalThis.String(e))
@@ -748,19 +800,19 @@ export const Hello: MessageFns<Hello> = {
     if (message.protocolVersion !== 0) {
       obj.protocolVersion = Math.round(message.protocolVersion);
     }
-    if (message.agentVersion !== "") {
+    if (message.agentVersion !== '') {
       obj.agentVersion = message.agentVersion;
     }
-    if (message.chartVersion !== "") {
+    if (message.chartVersion !== '') {
       obj.chartVersion = message.chartVersion;
     }
-    if (message.imageTag !== "") {
+    if (message.imageTag !== '') {
       obj.imageTag = message.imageTag;
     }
-    if (message.kubernetesVersion !== "") {
+    if (message.kubernetesVersion !== '') {
       obj.kubernetesVersion = message.kubernetesVersion;
     }
-    if (message.clusterFingerprint !== "") {
+    if (message.clusterFingerprint !== '') {
       obj.clusterFingerprint = message.clusterFingerprint;
     }
     if (message.velero !== undefined) {
@@ -781,18 +833,20 @@ export const Hello: MessageFns<Hello> = {
   fromPartial(object: DeepPartial<Hello>): Hello {
     const message = createBaseHello();
     message.protocolVersion = object.protocolVersion ?? 0;
-    message.agentVersion = object.agentVersion ?? "";
-    message.chartVersion = object.chartVersion ?? "";
-    message.imageTag = object.imageTag ?? "";
-    message.kubernetesVersion = object.kubernetesVersion ?? "";
-    message.clusterFingerprint = object.clusterFingerprint ?? "";
-    message.velero = (object.velero !== undefined && object.velero !== null)
-      ? ServerStatus.fromPartial(object.velero)
-      : undefined;
+    message.agentVersion = object.agentVersion ?? '';
+    message.chartVersion = object.chartVersion ?? '';
+    message.imageTag = object.imageTag ?? '';
+    message.kubernetesVersion = object.kubernetesVersion ?? '';
+    message.clusterFingerprint = object.clusterFingerprint ?? '';
+    message.velero =
+      object.velero !== undefined && object.velero !== null
+        ? ServerStatus.fromPartial(object.velero)
+        : undefined;
     message.capabilities = object.capabilities?.map((e) => e) || [];
-    message.policy = (object.policy !== undefined && object.policy !== null)
-      ? AgentPolicy.fromPartial(object.policy)
-      : undefined;
+    message.policy =
+      object.policy !== undefined && object.policy !== null
+        ? AgentPolicy.fromPartial(object.policy)
+        : undefined;
     return message;
   },
 };
@@ -835,7 +889,7 @@ export const AgentPolicy: MessageFns<AgentPolicy> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -909,33 +963,33 @@ export const AgentPolicy: MessageFns<AgentPolicy> = {
       allowRestore: isSet(object.allowRestore)
         ? globalThis.Boolean(object.allowRestore)
         : isSet(object.allow_restore)
-        ? globalThis.Boolean(object.allow_restore)
-        : false,
+          ? globalThis.Boolean(object.allow_restore)
+          : false,
       restoreDeniedNamespaces: globalThis.Array.isArray(object?.restoreDeniedNamespaces)
         ? object.restoreDeniedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.restore_denied_namespaces)
-        ? object.restore_denied_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.restore_denied_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       allowBslWrite: isSet(object.allowBslWrite)
         ? globalThis.Boolean(object.allowBslWrite)
         : isSet(object.allow_bsl_write)
-        ? globalThis.Boolean(object.allow_bsl_write)
-        : false,
+          ? globalThis.Boolean(object.allow_bsl_write)
+          : false,
       allowLogStreaming: isSet(object.allowLogStreaming)
         ? globalThis.Boolean(object.allowLogStreaming)
         : isSet(object.allow_log_streaming)
-        ? globalThis.Boolean(object.allow_log_streaming)
-        : false,
+          ? globalThis.Boolean(object.allow_log_streaming)
+          : false,
       logStreamDeniedNamespaces: globalThis.Array.isArray(object?.logStreamDeniedNamespaces)
         ? object.logStreamDeniedNamespaces.map((e: any) => globalThis.String(e))
         : globalThis.Array.isArray(object?.log_stream_denied_namespaces)
-        ? object.log_stream_denied_namespaces.map((e: any) => globalThis.String(e))
-        : [],
+          ? object.log_stream_denied_namespaces.map((e: any) => globalThis.String(e))
+          : [],
       readOnly: isSet(object.readOnly)
         ? globalThis.Boolean(object.readOnly)
         : isSet(object.read_only)
-        ? globalThis.Boolean(object.read_only)
-        : false,
+          ? globalThis.Boolean(object.read_only)
+          : false,
     };
   },
 
@@ -999,7 +1053,7 @@ export const HelloAck: MessageFns<HelloAck> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1049,13 +1103,13 @@ export const HelloAck: MessageFns<HelloAck> = {
       acceptedProtocolVersion: isSet(object.acceptedProtocolVersion)
         ? globalThis.Number(object.acceptedProtocolVersion)
         : isSet(object.accepted_protocol_version)
-        ? globalThis.Number(object.accepted_protocol_version)
-        : 0,
+          ? globalThis.Number(object.accepted_protocol_version)
+          : 0,
       serverTime: isSet(object.serverTime)
         ? fromJsonTimestamp(object.serverTime)
         : isSet(object.server_time)
-        ? fromJsonTimestamp(object.server_time)
-        : undefined,
+          ? fromJsonTimestamp(object.server_time)
+          : undefined,
       config: isSet(object.config) ? ServerConfig.fromJSON(object.config) : undefined,
     };
   },
@@ -1081,9 +1135,10 @@ export const HelloAck: MessageFns<HelloAck> = {
     const message = createBaseHelloAck();
     message.acceptedProtocolVersion = object.acceptedProtocolVersion ?? 0;
     message.serverTime = object.serverTime ?? undefined;
-    message.config = (object.config !== undefined && object.config !== null)
-      ? ServerConfig.fromPartial(object.config)
-      : undefined;
+    message.config =
+      object.config !== undefined && object.config !== null
+        ? ServerConfig.fromPartial(object.config)
+        : undefined;
     return message;
   },
 };
@@ -1134,7 +1189,7 @@ export const ServerConfig: MessageFns<ServerConfig> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1224,43 +1279,43 @@ export const ServerConfig: MessageFns<ServerConfig> = {
       heartbeatInterval: isSet(object.heartbeatInterval)
         ? Duration.fromJSON(object.heartbeatInterval)
         : isSet(object.heartbeat_interval)
-        ? Duration.fromJSON(object.heartbeat_interval)
-        : undefined,
+          ? Duration.fromJSON(object.heartbeat_interval)
+          : undefined,
       snapshotResyncInterval: isSet(object.snapshotResyncInterval)
         ? Duration.fromJSON(object.snapshotResyncInterval)
         : isSet(object.snapshot_resync_interval)
-        ? Duration.fromJSON(object.snapshot_resync_interval)
-        : undefined,
+          ? Duration.fromJSON(object.snapshot_resync_interval)
+          : undefined,
       maxLogSessions: isSet(object.maxLogSessions)
         ? globalThis.Number(object.maxLogSessions)
         : isSet(object.max_log_sessions)
-        ? globalThis.Number(object.max_log_sessions)
-        : 0,
+          ? globalThis.Number(object.max_log_sessions)
+          : 0,
       logSessionTimeout: isSet(object.logSessionTimeout)
         ? Duration.fromJSON(object.logSessionTimeout)
         : isSet(object.log_session_timeout)
-        ? Duration.fromJSON(object.log_session_timeout)
-        : undefined,
+          ? Duration.fromJSON(object.log_session_timeout)
+          : undefined,
       logSessionIdleTimeout: isSet(object.logSessionIdleTimeout)
         ? Duration.fromJSON(object.logSessionIdleTimeout)
         : isSet(object.log_session_idle_timeout)
-        ? Duration.fromJSON(object.log_session_idle_timeout)
-        : undefined,
+          ? Duration.fromJSON(object.log_session_idle_timeout)
+          : undefined,
       maxMessageBytes: isSet(object.maxMessageBytes)
         ? globalThis.Number(object.maxMessageBytes)
         : isSet(object.max_message_bytes)
-        ? globalThis.Number(object.max_message_bytes)
-        : 0,
+          ? globalThis.Number(object.max_message_bytes)
+          : 0,
       maxLogChunkBytes: isSet(object.maxLogChunkBytes)
         ? globalThis.Number(object.maxLogChunkBytes)
         : isSet(object.max_log_chunk_bytes)
-        ? globalThis.Number(object.max_log_chunk_bytes)
-        : 0,
+          ? globalThis.Number(object.max_log_chunk_bytes)
+          : 0,
       maxBufferedEvents: isSet(object.maxBufferedEvents)
         ? globalThis.Number(object.maxBufferedEvents)
         : isSet(object.max_buffered_events)
-        ? globalThis.Number(object.max_buffered_events)
-        : 0,
+          ? globalThis.Number(object.max_buffered_events)
+          : 0,
     };
   },
 
@@ -1298,19 +1353,21 @@ export const ServerConfig: MessageFns<ServerConfig> = {
   },
   fromPartial(object: DeepPartial<ServerConfig>): ServerConfig {
     const message = createBaseServerConfig();
-    message.heartbeatInterval = (object.heartbeatInterval !== undefined && object.heartbeatInterval !== null)
-      ? Duration.fromPartial(object.heartbeatInterval)
-      : undefined;
+    message.heartbeatInterval =
+      object.heartbeatInterval !== undefined && object.heartbeatInterval !== null
+        ? Duration.fromPartial(object.heartbeatInterval)
+        : undefined;
     message.snapshotResyncInterval =
-      (object.snapshotResyncInterval !== undefined && object.snapshotResyncInterval !== null)
+      object.snapshotResyncInterval !== undefined && object.snapshotResyncInterval !== null
         ? Duration.fromPartial(object.snapshotResyncInterval)
         : undefined;
     message.maxLogSessions = object.maxLogSessions ?? 0;
-    message.logSessionTimeout = (object.logSessionTimeout !== undefined && object.logSessionTimeout !== null)
-      ? Duration.fromPartial(object.logSessionTimeout)
-      : undefined;
+    message.logSessionTimeout =
+      object.logSessionTimeout !== undefined && object.logSessionTimeout !== null
+        ? Duration.fromPartial(object.logSessionTimeout)
+        : undefined;
     message.logSessionIdleTimeout =
-      (object.logSessionIdleTimeout !== undefined && object.logSessionIdleTimeout !== null)
+      object.logSessionIdleTimeout !== undefined && object.logSessionIdleTimeout !== null
         ? Duration.fromPartial(object.logSessionIdleTimeout)
         : undefined;
     message.maxMessageBytes = object.maxMessageBytes ?? 0;
@@ -1345,7 +1402,7 @@ export const Heartbeat: MessageFns<Heartbeat> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1403,23 +1460,23 @@ export const Heartbeat: MessageFns<Heartbeat> = {
       sentAt: isSet(object.sentAt)
         ? fromJsonTimestamp(object.sentAt)
         : isSet(object.sent_at)
-        ? fromJsonTimestamp(object.sent_at)
-        : undefined,
+          ? fromJsonTimestamp(object.sent_at)
+          : undefined,
       inFlightCommands: isSet(object.inFlightCommands)
         ? globalThis.Number(object.inFlightCommands)
         : isSet(object.in_flight_commands)
-        ? globalThis.Number(object.in_flight_commands)
-        : 0,
+          ? globalThis.Number(object.in_flight_commands)
+          : 0,
       activeLogSessions: isSet(object.activeLogSessions)
         ? globalThis.Number(object.activeLogSessions)
         : isSet(object.active_log_sessions)
-        ? globalThis.Number(object.active_log_sessions)
-        : 0,
+          ? globalThis.Number(object.active_log_sessions)
+          : 0,
       bufferedEvents: isSet(object.bufferedEvents)
         ? globalThis.Number(object.bufferedEvents)
         : isSet(object.buffered_events)
-        ? globalThis.Number(object.buffered_events)
-        : 0,
+          ? globalThis.Number(object.buffered_events)
+          : 0,
     };
   },
 
@@ -1454,12 +1511,12 @@ export const Heartbeat: MessageFns<Heartbeat> = {
 };
 
 function createBaseRequestResync(): RequestResync {
-  return { reason: "" };
+  return { reason: '' };
 }
 
 export const RequestResync: MessageFns<RequestResync> = {
   encode(message: RequestResync, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.reason !== "") {
+    if (message.reason !== '') {
       writer.uint32(10).string(message.reason);
     }
     return writer;
@@ -1469,7 +1526,7 @@ export const RequestResync: MessageFns<RequestResync> = {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
     if (previousRecursionDepth >= 100) {
-      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
     }
     (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
     try {
@@ -1499,12 +1556,12 @@ export const RequestResync: MessageFns<RequestResync> = {
   },
 
   fromJSON(object: any): RequestResync {
-    return { reason: isSet(object.reason) ? globalThis.String(object.reason) : "" };
+    return { reason: isSet(object.reason) ? globalThis.String(object.reason) : '' };
   },
 
   toJSON(message: RequestResync): unknown {
     const obj: any = {};
-    if (message.reason !== "") {
+    if (message.reason !== '') {
       obj.reason = message.reason;
     }
     return obj;
@@ -1515,7 +1572,80 @@ export const RequestResync: MessageFns<RequestResync> = {
   },
   fromPartial(object: DeepPartial<RequestResync>): RequestResync {
     const message = createBaseRequestResync();
-    message.reason = object.reason ?? "";
+    message.reason = object.reason ?? '';
+    return message;
+  },
+};
+
+function createBaseWatchScope(): WatchScope {
+  return { podNamespaces: [] };
+}
+
+export const WatchScope: MessageFns<WatchScope> = {
+  encode(message: WatchScope, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.podNamespaces) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WatchScope {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWatchScope();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.podNamespaces.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WatchScope {
+    return {
+      podNamespaces: globalThis.Array.isArray(object?.podNamespaces)
+        ? object.podNamespaces.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.pod_namespaces)
+          ? object.pod_namespaces.map((e: any) => globalThis.String(e))
+          : [],
+    };
+  },
+
+  toJSON(message: WatchScope): unknown {
+    const obj: any = {};
+    if (message.podNamespaces?.length) {
+      obj.podNamespaces = message.podNamespaces;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WatchScope>): WatchScope {
+    return WatchScope.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WatchScope>): WatchScope {
+    const message = createBaseWatchScope();
+    message.podNamespaces = object.podNamespaces?.map((e) => e) || [];
     return message;
   },
 };
@@ -1530,25 +1660,29 @@ export type AgentGatewayService = typeof AgentGatewayService;
 export const AgentGatewayService = {
   /** Bootstrap-token authenticated; no client certificate yet. */
   enroll: {
-    path: "/vfm.agent.v1.AgentGateway/Enroll" as const,
+    path: '/vfm.agent.v1.AgentGateway/Enroll' as const,
     requestStream: false as const,
     responseStream: false as const,
-    requestSerialize: (value: EnrollRequest): Buffer => Buffer.from(EnrollRequest.encode(value).finish()),
+    requestSerialize: (value: EnrollRequest): Buffer =>
+      Buffer.from(EnrollRequest.encode(value).finish()),
     requestDeserialize: (value: Buffer): EnrollRequest => EnrollRequest.decode(value),
-    responseSerialize: (value: EnrollResponse): Buffer => Buffer.from(EnrollResponse.encode(value).finish()),
+    responseSerialize: (value: EnrollResponse): Buffer =>
+      Buffer.from(EnrollResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): EnrollResponse => EnrollResponse.decode(value),
   },
   /** mTLS authenticated. */
   renewCertificate: {
-    path: "/vfm.agent.v1.AgentGateway/RenewCertificate" as const,
+    path: '/vfm.agent.v1.AgentGateway/RenewCertificate' as const,
     requestStream: false as const,
     responseStream: false as const,
     requestSerialize: (value: RenewCertificateRequest): Buffer =>
       Buffer.from(RenewCertificateRequest.encode(value).finish()),
-    requestDeserialize: (value: Buffer): RenewCertificateRequest => RenewCertificateRequest.decode(value),
+    requestDeserialize: (value: Buffer): RenewCertificateRequest =>
+      RenewCertificateRequest.decode(value),
     responseSerialize: (value: RenewCertificateResponse): Buffer =>
       Buffer.from(RenewCertificateResponse.encode(value).finish()),
-    responseDeserialize: (value: Buffer): RenewCertificateResponse => RenewCertificateResponse.decode(value),
+    responseDeserialize: (value: Buffer): RenewCertificateResponse =>
+      RenewCertificateResponse.decode(value),
   },
   /**
    * mTLS authenticated. One long-lived bidirectional stream per agent.
@@ -1556,12 +1690,14 @@ export const AgentGatewayService = {
    * buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
    */
   connect: {
-    path: "/vfm.agent.v1.AgentGateway/Connect" as const,
+    path: '/vfm.agent.v1.AgentGateway/Connect' as const,
     requestStream: true as const,
     responseStream: true as const,
-    requestSerialize: (value: AgentMessage): Buffer => Buffer.from(AgentMessage.encode(value).finish()),
+    requestSerialize: (value: AgentMessage): Buffer =>
+      Buffer.from(AgentMessage.encode(value).finish()),
     requestDeserialize: (value: Buffer): AgentMessage => AgentMessage.decode(value),
-    responseSerialize: (value: ServerMessage): Buffer => Buffer.from(ServerMessage.encode(value).finish()),
+    responseSerialize: (value: ServerMessage): Buffer =>
+      Buffer.from(ServerMessage.encode(value).finish()),
     responseDeserialize: (value: Buffer): ServerMessage => ServerMessage.decode(value),
   },
 } as const;
@@ -1619,25 +1755,36 @@ export interface AgentGatewayClient extends Client {
    */
   connect(): ClientDuplexStream<AgentMessage, ServerMessage>;
   connect(options: Partial<CallOptions>): ClientDuplexStream<AgentMessage, ServerMessage>;
-  connect(metadata: Metadata, options?: Partial<CallOptions>): ClientDuplexStream<AgentMessage, ServerMessage>;
+  connect(
+    metadata: Metadata,
+    options?: Partial<CallOptions>,
+  ): ClientDuplexStream<AgentMessage, ServerMessage>;
 }
 
 export const AgentGatewayClient = makeGenericClientConstructor(
   AgentGatewayService,
-  "vfm.agent.v1.AgentGateway",
+  'vfm.agent.v1.AgentGateway',
 ) as unknown as {
-  new (address: string, credentials: ChannelCredentials, options?: Partial<ClientOptions>): AgentGatewayClient;
+  new (
+    address: string,
+    credentials: ChannelCredentials,
+    options?: Partial<ClientOptions>,
+  ): AgentGatewayClient;
   service: typeof AgentGatewayService;
   serviceName: string;
 };
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
-  : Partial<T>;
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+    ? globalThis.Array<DeepPartial<U>>
+    : T extends ReadonlyArray<infer U>
+      ? ReadonlyArray<DeepPartial<U>>
+      : T extends {}
+        ? { [K in keyof T]?: DeepPartial<T[K]> }
+        : Partial<T>;
 
 function toTimestamp(date: Date): Timestamp {
   const seconds = Math.trunc(date.getTime() / 1_000);
@@ -1654,7 +1801,7 @@ function fromTimestamp(t: Timestamp): Date {
 function fromJsonTimestamp(o: any): Date {
   if (o instanceof globalThis.Date) {
     return o;
-  } else if (typeof o === "string") {
+  } else if (typeof o === 'string') {
     return new globalThis.Date(o);
   } else {
     return fromTimestamp(Timestamp.fromJSON(o));
