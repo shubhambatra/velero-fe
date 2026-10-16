@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-17 (session 7, M4 day 27) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-17 (session 7, M5 day 28) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -174,7 +174,9 @@ criteria are still unmet (B-1, B-2).
 - **M4 day 25 done** (ADR-030): schedules — create, update, pause/resume, delete (`agent/internal/velero/{schedule,cron}.go`, `server/src/schedules/`, `GET …/schedules/{name}`, `web/src/pages/schedule-wizard.tsx`, `web/src/components/{cron-builder,backup-fields}.tsx`, `web/src/lib/{cron,schedule-form}.ts`).
 - **M4 day 26 done** (ADR-031): storage locations — upsert, delete, set default; transient credential written by the agent to a Secret it owns (`agent/internal/velero/storage.go`, `server/src/storage/`, `server/src/commands/transient.ts`, `web/src/pages/location-form.tsx`, `web/src/lib/location-form.ts`).
 - **M4 day 27 done** (ADR-032): write-ops sweep — golden paths 2–7 and 10 at the control plane, credentials grep over DB, API, audit and all logs, agent policy shown in the UI (`server/test/golden-paths.e2e.test.ts`, `server/src/rbac/access.controller.ts`).
-- **M4 is complete in code.** Its exit criteria (golden paths 1–11 on a real Velero, then the ⛔ human backup and restore drill on a non-kind cluster) need B-2 and the user. **Next: M5 day 28** (cluster live view and logs, plan line 744) — or, if the user wants the checkpoint first, B-2 then `smoke.sh` and the real-cluster runs.
+- **M4 is complete in code.** Its exit criteria (golden paths 1–11 on a real Velero, then the ⛔ human backup and restore drill on a non-kind cluster) need B-2 and the user.
+- **M5 day 28 done** (ADR-033): core inventory — `agent/internal/inventory/core.go`, `WatchScope` in `gateway.proto`, `server/src/inventory/{watch-scope.service,projections}.ts`, `GET …/inventory/{nodes,namespaces,pods,pvcs,events}`.
+- **Next: M5 day 29 — workloads UI** (plan line 749): nodes table, namespaces with "last successful backup covering this namespace" (computed by the control plane; needs a server projection over backups) and coverage badges, pods → containers drill-down, events tab. Listing a namespace's pods (`?namespace=`) is what asks a large cluster's agent for them.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

@@ -9,6 +9,35 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M5 day 28: the core inventory
+
+Session 7, continued. CI green on day 27 (`c7531ef`).
+
+### Done
+
+- Agent: allowlist projections for nodes, namespaces, pods, PVCs and events, a cluster-wide informer set, event retirement,
+  the pod scope for large clusters (`WatchScope`), `VFM_CORE_INVENTORY` and `VFM_POD_SCOPE_THRESHOLD` (ADR-033).
+- Protocol: `WatchScope` (server message 16), regenerated for Go and TypeScript.
+- Server: the five kinds accepted and validated (cluster-scoped kinds carry no namespace), summaries and the
+  `GET …/inventory/{nodes,namespaces,pods,pvcs,events}` lists with namespace visibility, the watch-scope service.
+
+### Test status
+
+Server unit **799**, e2e **476**; web **357**; Go all packages pass (9 new), golangci-lint 0, govulncheck clean, `buf lint`
+clean; lint, typecheck, build clean; OpenAPI regenerated. Requirements **65/152 (42.8 %)** (R-040, R-074, R-076, R-077
+verified; R-072, R-075 partial until the tables exist).
+
+### Found on the way
+
+Two older tests assumed a pod was an unsupported kind: updated. The per-kind totals would have told a namespace-limited
+user how many pods other namespaces hold: the live-view kinds are left out of them, with a test.
+
+### Not verified
+
+The informers against a real API server (B-2); a 20 000-pod cluster; the UI (day 29).
+
+---
+
 ## 2026-10-17 — M4 day 27: write-ops test sweep
 
 Session 7, continued. CI green on day 26 (`d2b1917`).

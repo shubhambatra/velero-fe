@@ -1790,3 +1790,48 @@ Golden paths 1, 8, 9, 11 (M2 days) and 12 (M6); the paths' real-cluster halves; 
 ### Verified
 
 Server unit 791, e2e 466 (7 new); web 357; Go all packages (1 new); access policy unit tests; lint, typecheck, build.
+
+## ADR-033 — The core inventory (M5 day 28)
+
+### Decisions
+
+- **A projection, not a redaction.** For Node, Namespace, Pod, PVC and Event the agent builds a _new_ object holding only
+  allowlisted fields (`agent/internal/inventory/core.go`); nothing is deleted from the real object to get there, so a
+  field nobody listed cannot leak by being forgotten. A pod keeps phase, ready/restart counts, node, owner and per-
+  container `{name, image, state, reason, restarts, lastTerminationReason}`; no env vars, commands, volumes, annotations,
+  labels or container messages (they routinely carry secrets). Nodes keep conditions (type, status, reason; no message),
+  allocatable, kubelet version, taints, schedulable; PVCs keep class, volume, phase, capacity. Events keep type, reason,
+  message (512 characters), count, involved object. The server bounds everything again on read.
+- **Stored in `velero_resources`, not a second table.** PLAN §9's `cluster_inventory` is that table's role for the core
+  kinds: one atomic snapshot, one delta path, one org-scoping extension. Kind names are `NODE`, `NAMESPACE`, `POD`,
+  `PERSISTENT_VOLUME_CLAIM`, `EVENT`. Cluster-scoped kinds must arrive with no namespace; namespaced ones with a valid one.
+  Synthetic `status.phase` (node Ready/NotReady, event Warning/Normal) and `status.startTimestamp` (pod start, event last
+  seen) let the generic columns serve list filters and sorts.
+- **Cluster-wide watch, Velero-namespace watch kept.** A second informer factory watches the core kinds in every namespace;
+  Velero's kinds stay in Velero's. `VFM_CORE_INVENTORY` (default on) switches the live view off.
+- **Events.** Kept if a warning or about a `velero.io` object, and only for an hour: an event that stops qualifying is
+  retired with one DELETE (tracked in a `reported` set so it is sent once); the list also filters by the hour, covering the
+  gap until the agent or Kubernetes drops it. The plan's daily retention job is therefore not needed for events.
+- **Pod scope (`WatchScope`).** Past `VFM_POD_SCOPE_THRESHOLD` pods (default 20 000, switching back at 90 %) the agent reports
+  pods only for namespaces named by a new `WatchScope` server message, and nothing until it is told. The control plane marks a
+  namespace wanted for 10 minutes whenever an authorized user lists its pods (a Redis sorted set, shared by replicas),
+  sends the whole set when it changes, and does not send "nothing" to a fresh agent (that is its default). A small cluster
+  always reports every pod.
+- **Reads.** `GET …/inventory/{nodes,namespaces,pods,pvcs,events}` need `cluster:read`; nodes are visible to everyone with
+  it, while namespaces, pods, PVCs and events follow the **namespace scope of `backup:read`** (the plan has no separate
+  workload permission): a namespace-limited user sees only their namespaces. The per-kind totals of `GET …/inventory`
+  leave the live-view kinds out, so a limited user is not told how many pods other namespaces hold.
+- **Limits.** The per-cluster snapshot cap stays 50 000 items; 20 000 pods plus the rest fits, and a cluster near it should
+  lower the pod threshold.
+
+### Deferred
+
+"Last successful backup covering this namespace" and the tables themselves (day 29); the chart's values for the two new
+settings (the defaults apply); pod labels (needed only if the UI filters by them).
+
+### Verified
+
+Go: projections (a pod full of secrets reports none), events, snapshot across namespaces, scope (large cluster, small
+cluster), one retirement. Server: kind and namespace rules, summaries, a fixture produced by the agent's own projections
+validates, 10 e2e (lists, filters, visibility, refusal of malformed items, scope messages, no count leak). The two tests that
+assumed a pod was an unsupported kind now use a truly unsupported one.
