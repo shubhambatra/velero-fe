@@ -1157,3 +1157,65 @@ The chart installed on a real cluster, the image pulled from a registry (none is
 the RBAC accepted by a real API server (a rule the API server rejects would only show then),
 leader election between two real replicas, and `-race` locally. All need the kind clusters
 (B-2) or a registry; none is something a unit test can stand in for.
+
+---
+
+## ADR-021 — Inventory sync on the agent (M3 day 16)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+- **Scope.** The eleven Velero kinds of §5.3, in the Velero namespace only, through the dynamic
+  client and informers (no Velero Go types yet). Core kinds (Node, Namespace, Pod, PVC, Event) are
+  M5 day 28, as the README has always said; the plan's day 16 line names the Velero kinds.
+- **Capability detection.** Which kinds the cluster serves is discovered, not assumed, so an older
+  Velero without the data-mover kinds (`v2alpha1`), or a cluster with no Velero, is reported
+  honestly. "Not found" means absent; any other discovery failure keeps what is already watched
+  and is logged, because treating an outage as "Velero has nothing" would empty the inventory.
+  Detection reruns on every resync, so installing or upgrading Velero later is picked up.
+- **One invariant.** A delta is sent only while a **completed** snapshot exists, and every doubt is
+  answered with a new snapshot rather than a patch: a refused send, more than 5 000 unsent
+  changes, a new connection, a `RequestResync`, or the 10-minute timer. Missed events therefore
+  heal on their own, and the server never has to merge across a gap.
+- **No buffering while disconnected.** §5.6 asks for a 5 000-event buffer that overflows into a
+  forced resync. The informer caches already hold the truth and a snapshot on reconnect covers
+  everything that happened, so nothing is buffered and nothing can overflow. Stronger than the plan,
+  not weaker. Pending changes are also discarded when the connection state changes.
+- **Snapshots** are chunked to 1 MB with a contiguous 0-based sequence, a snapshot id and `last` on
+  the final chunk; an empty cluster sends one empty last chunk so the server replaces its copy with
+  nothing. Chunks use a blocking send (`SendWait`): a snapshot is only useful whole, so it waits for
+  queue room instead of dropping a chunk. Deltas use the non-blocking send, because refusal has a
+  remedy (resync).
+- **Deltas** are debounced: the first pending change starts a 2 s clock, a burst becomes one message,
+  at most 500 events per batch, `batch_sequence` increasing, each naming its snapshot. An upsert
+  whose resource version the snapshot already carried (the late echo of the informer's initial list)
+  is dropped, so existing objects are not sent twice.
+- **What leaves the cluster is decided here.** `managedFields` and the last-applied annotation (a
+  second full copy of the object, and whatever someone pasted) are stripped; nothing is ever read from
+  a Secret and there is no Secret kind in the protocol; an object over 256 KB is skipped and logged,
+  never truncated.
+- **Stale messages.** At the start of each stream the manager discards inventory messages left in
+  its queue by the previous one (a half-sent snapshot would only confuse the server), keeping acks and
+  results, which are still owed.
+- **Config.** `VFM_RESYNC_INTERVAL` (default 10 m, minimum 10 s).
+
+### Verified
+
+Informer-backed tests against a fake Velero (dynamic fake plus fake discovery): snapshot
+contiguity and `last`, the empty cluster, chunking under a small limit with every item exactly
+once, deltas naming the snapshot, debounce, batch maximum, nothing sent while disconnected and a
+complete replacement snapshot on reconnect, server-requested and periodic resync, refused-send and
+overflow fallbacks, unserved kinds ignored even when their objects exist, a later Velero install
+picked up, and no delta while a snapshot is still in flight. Two mutations (refused batch not
+resyncing; chunk limit ignored) each failed their test. A third (deltas before a snapshot) did not,
+because the guard is redundant while the single `Run` goroutine is blocked inside the snapshot; the
+test pins the property regardless. End to end over the real stream: snapshot on connect, a delta,
+and after the control plane is killed and restarted a new snapshot containing everything.
+
+### Not done here
+
+The server does not ingest any of this yet (day 17). It accepts and ignores snapshot and event
+messages, which a test proves does not disturb the stream. Nothing has run against a real Velero
+or a real API server (B-2).

@@ -34,6 +34,7 @@ import (
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/gateway"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/health"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/identity"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/inventory"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/kube"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/leader"
 	pb "github.com/shubhambatra/velero-fe/vfm/agent/internal/pb/vfm/agent/v1"
@@ -196,6 +197,17 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 			Namespace: cfg.VeleroNamespace,
 		}).Handle)
 
+		syncer := inventory.New(inventory.Options{
+			Dynamic:     kubeClient.Dynamic(),
+			Discovery:   kubeClient.Clientset().Discovery(),
+			Namespace:   cfg.VeleroNamespace,
+			SendWait:    func(ctx context.Context, m *pb.AgentMessage) error { return manager.SendWait(ctx, m) },
+			TrySend:     func(m *pb.AgentMessage) bool { return manager.Send(m) },
+			NewID:       gateway.NewMessageID,
+			Logger:      logger,
+			ResyncEvery: cfg.ResyncInterval,
+		})
+
 		var err error
 		manager, err = gateway.New(gateway.Options{
 			Address:         cfg.ControlPlaneAddress,
@@ -211,9 +223,13 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 			Hello:             helloBuilder(kubeClient, current.get),
 			AgentVersion:      version,
 			HeartbeatInterval: cfg.HeartbeatInterval,
-			OnMessage:         dispatcher.Handle,
+			OnMessage: func(m *pb.ServerMessage) {
+				dispatcher.Handle(m)
+				syncer.HandleServerMessage(m)
+			},
 			OnConnection: func(connected bool) {
 				logger.Info("control-plane connection state", "connected", connected)
+				syncer.SetConnected(connected)
 			},
 			Logger: logger,
 		})
@@ -221,6 +237,7 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 			return err
 		}
 
+		go syncer.Run(ctx)
 		go state.Run(ctx, cache, stateSaveInterval, func(err error) {
 			logger.Warn("could not persist the executed-command cache", "error", err)
 		})

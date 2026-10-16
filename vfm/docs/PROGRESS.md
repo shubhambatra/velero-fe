@@ -9,6 +9,35 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M3 day 16: inventory sync on the agent
+
+Session 7, continued. CI was green on all five jobs at `0bbdafb`.
+
+### Done
+
+- `internal/inventory`: capability detection, the sanitiser, and the syncer (snapshot on connect, on a
+  timer and on request; debounced deltas; fallbacks to a snapshot instead of a gap) (ADR-021).
+- Manager: a blocking `SendWait` and dropping of stale inventory messages at stream start.
+- Config `VFM_RESYNC_INTERVAL`; wired into the leader task.
+
+### Test status
+
+Go: all packages pass, 17 new inventory tests plus an end-to-end flow over the real stream;
+golangci-lint 0 issues. Server unit 561, e2e 231 (one new: the stream tolerates inventory messages
+before the ingest exists). Two of three mutations were caught; the third is redundant by design
+(ADR-021).
+
+### Not verified
+
+A real Velero / API server (B-2). The server side of all of this (day 17).
+
+### Next
+
+M3 day 17 — inventory ingest on the server: atomic snapshot replace, delta upsert, `velero_resources`
+with extracted columns, validation of agent payloads, SSE `/stream` with per-user permission filtering.
+
+---
+
 ## 2026-10-16 — M2 day 15: the agent chart, the image and stream hardening
 
 Session 7, continued. CI green on day 14 (`f57a446`).

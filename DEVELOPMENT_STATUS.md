@@ -47,14 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **42 / 152 — 27.6 %** |
-| Requirements partial | 27 |
-| Requirements not started | 81 |
+| **Requirements verified** | **45 / 152 — 29.6 %** |
+| Requirements partial | 29 |
+| Requirements not started | 78 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
 which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
-and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39; day 15 added R-021 and R-116 → 41, and R-049 (closing the chart-version gap) → 42._
+and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39; day 15 added R-021 and R-116 → 41, and R-049 (closing the chart-version gap) → 42; M3 day 16 added R-038, R-039, R-041 → 45._
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
 R-025, R-103, R-105, R-113, R-127, R-152.
@@ -107,7 +107,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
 | M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–15 built and verified in parts** (ADR-015…020); exit criteria NOT met — no cluster install (B-2); ⛔ human checkpoint pending |
-| M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
+| M3 — Read-only Velero visibility (days 16–20) | 696–713 | **day 16 done** (agent inventory sync, ADR-021); day 17 next |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
 | M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
 | M6 — Alerts, reports, approvals (days 32–35) | 762–776 | not started |
@@ -655,11 +655,11 @@ make them obvious.
 | R-034 | `ServerMessage` payloads: HelloAck, Command, CancelCommand, StartLogSession, StopLogSession, RequestResync | 209–219 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-035 | `Command` with all 16 operations | 221–243 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-036 | `advanced_spec_json` escape hatch, merged then validated agent-side against the Velero type with unknown-field rejection, gated on `advanced:write` | 246 | M4 | ⬜ |
-| R-037 | Inventory snapshot chunked to ≤ 1 MB with snapshot id and sequence; atomic replace on the last chunk | 250 | M3 | ⬜ |
-| R-038 | Informer deltas batched and debounced: max 2 s, max 500 items | 251 | M3 | ⬜ |
-| R-039 | Full resync every 10 minutes or on `RequestResync` | 252 | M3 | ⬜ |
-| R-040 | All Velero and core kinds of §5.3 synced, subject to detected-version capabilities | 253 | M3/M5 | ⬜ |
-| R-041 | Secrets never synced; BSLs carry only the secret name/key reference | 254 | M3 | ⬜ |
+| R-037 | Inventory snapshot chunked to ≤ 1 MB with snapshot id and sequence; atomic replace on the last chunk | 250 | M3 | 🟡 agent side verified (≤1 MB chunks, id, contiguous sequence, last flag); atomic replace on the server is day 17 |
+| R-038 | Informer deltas batched and debounced: max 2 s, max 500 items | 251 | M3 | ✅ verified 2026-10-16: agent debounces to 2 s and 500 per batch (informer-backed tests) |
+| R-039 | Full resync every 10 minutes or on `RequestResync` | 252 | M3 | ✅ verified 2026-10-16: agent resyncs on a timer and on `RequestResync` (tests); the server does not yet send `RequestResync` |
+| R-040 | All Velero and core kinds of §5.3 synced, subject to detected-version capabilities | 253 | M3/M5 | 🟡 all eleven Velero kinds with detected capabilities; core kinds (Node, Namespace, Pod, PVC, Event) are M5 |
+| R-041 | Secrets never synced; BSLs carry only the secret name/key reference | 254 | M3 | ✅ verified 2026-10-16: no Secret kind in the protocol, informers watch Velero kinds only, last-applied stripped; BSLs carry only the reference |
 | R-042 | Command lifecycle state machine exactly as §5.4, including TIMED_OUT and CANCELLED | 258–263 | M2 | ✅ verified 2026-10-16: pure state-machine table + e2e over real gRPC; timeout, cancel and re-delivery paths |
 | R-043 | Agent idempotency: LRU of the last 10 000 command ids with results, persisted to a ConfigMap every 30 s; duplicates replay the cached result | 266 | M2 | 🟡 LRU of 10 000, replay, and restart-survival tested (fake clientset); persistence to a real ConfigMap unverified (B-2) |
 | R-044 | Created CRs labelled `vfm.io/command-id`, `vfm.io/requested-by` and annotated `vfm.io/managed=true`; existing object with that label short-circuits creation | 267 | M2/M4 | 🟡 labels, annotation and look-up-by-label before create verified for `ServerStatusRequest`; the M4 objects follow |

@@ -9,6 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CaService } from '../src/ca/ca.service';
 import { CSRF_HEADER } from '../src/auth/csrf.guard';
 import { SessionService } from '../src/auth/session.service';
+import { ResourceEventType, ResourceKind } from '../src/gateway/pb/vfm/agent/v1/inventory';
 import { GatewayService } from '../src/gateway/gateway.service';
 import { StreamsService } from '../src/streams/streams.service';
 import {
@@ -339,6 +340,57 @@ describe('agent streams (e2e, two replicas)', () => {
         stream.send({ messageId: `hb${i.toString()}`, heartbeat: {} });
       }
       expect((await stateOf(clusterId)).status).toBe('CONNECTED');
+      stream.cancel();
+    });
+  });
+
+  describe('inventory messages before the ingest exists', () => {
+    it('are accepted and ignored without disturbing the stream', async () => {
+      const { clusterId, cert } = await enrolledAgent();
+      const stream = connect(portA, cert);
+      await stream.next();
+
+      stream.send({
+        messageId: 's1',
+        snapshot: {
+          snapshotId: 'snap-1',
+          sequence: 0,
+          last: true,
+          items: [
+            {
+              kind: ResourceKind.RESOURCE_KIND_BACKUP,
+              namespace: 'velero',
+              name: 'b1',
+              uid: 'u',
+              resourceVersion: '1',
+              objectJson: Buffer.from('{}'),
+            },
+          ],
+        },
+      });
+      stream.send({
+        messageId: 'e1',
+        events: {
+          snapshotId: 'snap-1',
+          batchSequence: 1,
+          events: [
+            {
+              type: ResourceEventType.RESOURCE_EVENT_TYPE_UPSERT,
+              item: { kind: ResourceKind.RESOURCE_KIND_BACKUP, name: 'b2' },
+            },
+          ],
+        },
+      });
+      // Still serving: a heartbeat afterwards is processed and the cluster stays CONNECTED.
+      await new Promise((r) => setTimeout(r, 100));
+      const before = (await stateOf(clusterId)).lastSeenAt;
+      stream.send({ messageId: 'hb', heartbeat: {} });
+      const later = await eventually(
+        'a newer last_seen_at',
+        () => stateOf(clusterId),
+        (c) => (c.lastSeenAt?.getTime() ?? 0) > (before?.getTime() ?? 0),
+      );
+      expect(later.status).toBe('CONNECTED');
       stream.cancel();
     });
   });

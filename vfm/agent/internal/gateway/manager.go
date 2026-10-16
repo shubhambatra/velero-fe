@@ -131,6 +131,46 @@ func (m *Manager) Send(msg *pb.AgentMessage) bool {
 	}
 }
 
+// SendWait queues a message, waiting for room instead of failing. It is for
+// producers that must not drop (the chunks of an inventory snapshot) and returns
+// ctx's error if it gives up.
+func (m *Manager) SendWait(ctx context.Context, msg *pb.AgentMessage) error {
+	if msg.GetMessageId() == "" {
+		msg.MessageId = NewMessageID()
+	}
+	select {
+	case m.outbox <- msg:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// dropStaleInventory removes inventory messages left in the queue by an earlier
+// stream. A new stream begins with a fresh snapshot that supersedes all of them,
+// and a half-sent snapshot from the last stream would only confuse the server.
+// Acks and results are kept: those are still owed.
+func (m *Manager) dropStaleInventory() {
+	var keep []*pb.AgentMessage
+	for {
+		select {
+		case msg := <-m.outbox:
+			if msg.GetSnapshot() == nil && msg.GetEvents() == nil {
+				keep = append(keep, msg)
+			}
+			continue
+		default:
+		}
+		break
+	}
+	for _, msg := range keep {
+		select {
+		case m.outbox <- msg:
+		default:
+		}
+	}
+}
+
 // NewMessageID is a UUIDv7 message id (PLAN.md §5.2).
 func NewMessageID() string {
 	id, err := uuid.NewV7()
@@ -195,6 +235,7 @@ func (m *Manager) session(ctx context.Context) error {
 		return err
 	}
 	defer func() { _ = conn.Close() }()
+	m.dropStaleInventory()
 
 	client := pb.NewAgentGatewayClient(conn)
 	// Detached from ctx on purpose: cancelling ctx must not abort the RPC

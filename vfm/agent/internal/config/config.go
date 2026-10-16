@@ -46,6 +46,7 @@ const (
 	EnvEnrollmentToken         = EnvPrefix + "ENROLLMENT_TOKEN"
 	EnvPolicyConfigMap         = EnvPrefix + "POLICY_CONFIGMAP"
 	EnvChartVersion            = EnvPrefix + "CHART_VERSION"
+	EnvResyncInterval          = EnvPrefix + "RESYNC_INTERVAL"
 	EnvImageTag                = EnvPrefix + "IMAGE_TAG"
 	EnvStateConfigMap          = EnvPrefix + "STATE_CONFIGMAP"
 	EnvVeleroNamespace         = EnvPrefix + "VELERO_NAMESPACE"
@@ -87,6 +88,7 @@ var (
 	settingPolicyConfigMap         = setting{EnvPolicyConfigMap, "policy-configmap"}
 	settingStateConfigMap          = setting{EnvStateConfigMap, "state-configmap"}
 	settingVeleroNamespace         = setting{EnvVeleroNamespace, "velero-namespace"}
+	settingResyncInterval          = setting{EnvResyncInterval, "resync-interval"}
 	settingEnrollmentToken         = setting{env: EnvEnrollmentToken}
 	settingClusterID               = setting{EnvClusterID, "cluster-id"}
 	settingClusterName             = setting{EnvClusterName, "cluster-name"}
@@ -163,6 +165,10 @@ type Config struct {
 	// requests.
 	VeleroNamespace string
 
+	// ResyncInterval is how often a full inventory snapshot is sent, which heals
+	// any delta the control plane missed (PLAN.md §5.3: every 10 minutes).
+	ResyncInterval time.Duration
+
 	// EnrollmentToken is the one-time bootstrap token. Environment only, and
 	// never logged; unused once the agent holds a certificate.
 	EnrollmentToken string
@@ -230,6 +236,7 @@ func Default() *Config {
 		PolicyConfigMap:    DefaultPolicyConfigMap,
 		StateConfigMap:     DefaultStateConfigMap,
 		VeleroNamespace:    DefaultVeleroNamespace,
+		ResyncInterval:     10 * time.Minute,
 		HealthAddr:         ":8081",
 		MetricsAddr:        ":9090",
 		LogLevel:           slog.LevelInfo,
@@ -295,6 +302,7 @@ func (c *Config) applyEnv(getenv func(string) (string, bool), probs *problems) {
 	env.str(settingPolicyConfigMap, &c.PolicyConfigMap)
 	env.str(settingStateConfigMap, &c.StateConfigMap)
 	env.str(settingVeleroNamespace, &c.VeleroNamespace)
+	env.duration(settingResyncInterval, &c.ResyncInterval)
 	env.str(settingEnrollmentToken, &c.EnrollmentToken)
 	env.str(settingClusterID, &c.ClusterID)
 	env.str(settingClusterName, &c.ClusterName)
@@ -351,6 +359,8 @@ func (c *Config) applyFlags(args []string, probs *problems) error {
 		"ConfigMap the executed-command cache is persisted to")
 	fs.StringVar(&c.VeleroNamespace, settingVeleroNamespace.flag, c.VeleroNamespace,
 		"namespace Velero runs in")
+	fs.DurationVar(&c.ResyncInterval, settingResyncInterval.flag, c.ResyncInterval,
+		"interval between full inventory snapshots")
 	fs.StringVar(&c.ClusterID, settingClusterID.flag, c.ClusterID,
 		"cluster ID issued by the control plane at enrollment")
 	fs.StringVar(&c.ClusterName, settingClusterName.flag, c.ClusterName,
@@ -502,6 +512,9 @@ func (c *Config) validate(probs *problems) {
 	if c.HeartbeatInterval < time.Second {
 		probs.add(settingHeartbeatInterval, "must be at least 1s")
 	}
+	if c.ResyncInterval < 10*time.Second {
+		probs.add(settingResyncInterval, "must be at least 10s")
+	}
 	if c.ShutdownTimeout < time.Second {
 		probs.add(settingShutdownTimeout, "must be at least 1s")
 	}
@@ -612,6 +625,7 @@ func (c *Config) LogValue() slog.Value {
 		slog.String("policy_configmap", c.PolicyConfigMap),
 		slog.String("state_configmap", c.StateConfigMap),
 		slog.String("velero_namespace", c.VeleroNamespace),
+		slog.String("resync_interval", c.ResyncInterval.String()),
 		// Presence only: the token is a credential.
 		slog.Bool("enrollment_token_set", c.EnrollmentToken != ""),
 		slog.String("cluster_id", c.ClusterID),

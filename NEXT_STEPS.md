@@ -162,7 +162,8 @@ criteria are still unmet (B-1, B-2).
   4. ⛔ **Human checkpoint**: install the agent on one real, non-kind cluster and confirm it connects.
   (The cluster page already shows the Velero version and plugins, the agent version, an "update available"
   badge and a Refresh button.)
-- Then **M3 day 16 — inventory sync** (agent informers) is next.
+- **M3 day 16 done** (ADR-021): `agent/internal/inventory`.
+- **Next: M3 day 17 — inventory ingest (server)**: atomic snapshot replace keyed by snapshot id/sequence (discard an incomplete snapshot on disconnect), delta upsert/delete applied only on top of a fully received snapshot, `velero_resources` with extracted columns, validation of agent payloads (semi-trusted; reject unknown kinds, oversize, mismatched namespace), SSE `/stream` filtered per user permission. Register through `StreamsService.onAgentMessage`; send `RequestResync` when a delta names an unknown snapshot.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---
