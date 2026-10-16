@@ -61,6 +61,7 @@ func TestReadOnlyAllowsOnlyTheDiagnosticRefresh(t *testing.T) {
 		"restore":  restore(&pb.RestoreSpec{IncludedNamespaces: []string{"shop"}}),
 		"schedule": {Op: &pb.Command_CreateSchedule{}},
 		"delete":   {Op: &pb.Command_DeleteBackup{}},
+		"trigger":  {Op: &pb.Command_TriggerSchedule{}},
 		"bsl":      {Op: &pb.Command_UpsertBsl{}},
 		"empty":    {},
 	} {

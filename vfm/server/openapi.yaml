@@ -1083,6 +1083,28 @@ paths:
       summary: Backups you may see
       tags:
         - inventory
+    post:
+      description: "A user with a namespace-scoped binding must name every namespace and set
+        `includeClusterResources: false`. `advancedSpec` needs `advanced:write`. Returns 202 with
+        the command; follow it, and the backup appears in the inventory."
+      operationId: BackupsController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create a backup (velero backup create)
+      tags:
+        - backups
   /orgs/{orgId}/clusters/{clusterId}/restores:
     get:
       description: "Filters: phase, q, backup, schedule, createdByVfm. Sorts: startedAt, completedAt,
@@ -1212,6 +1234,32 @@ paths:
         it."
       tags:
         - inventory
+    delete:
+      description: Needs recent re-authentication. Velero removes the backup, its files in object storage
+        and its snapshots through a DeleteBackupRequest.
+      operationId: BackupsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a backup and its data (velero backup delete)
+      tags:
+        - backups
   /orgs/{orgId}/clusters/{clusterId}/restores/{name}:
     get:
       operationId: ResourcesController_restore
@@ -1237,6 +1285,33 @@ paths:
       summary: "One restore: summary, timeline, spec, status and YAML. 404 if you may not see it."
       tags:
         - inventory
+  /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/trigger:
+    post:
+      description: Makes a backup from the schedule’s template. The caller needs `backup:create` over
+        everything the template covers.
+      operationId: BackupsController_trigger
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Run a schedule now (velero backup create --from-schedule)
+      tags:
+        - backups
   /orgs/{orgId}/clusters/{clusterId}/backups/{name}/logs:
     post:
       operationId: DownloadsController_fetchBackupLog

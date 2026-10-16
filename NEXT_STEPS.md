@@ -167,7 +167,8 @@ criteria are still unmet (B-1, B-2).
 - **M3 day 18 done** (ADR-023): fleet overview, cluster overview, live updates (`web/src/lib/{events,fleet}.ts`, `pages/{overview,cluster}-page.tsx`).
 - **M3 day 19 done** (ADR-024): lists + detail pages, namespace visibility, cursor pagination (`server/src/inventory/{projections,resources.*}.ts`, `web/src/pages/cluster-{lists,detail}.tsx`).
 - **M3 day 20 done** (ADR-025): `FetchDownload` pipeline, `velero_files` cache, backup/restore log and detail panels (`agent/internal/velero/download.go`, `server/src/downloads/`, `web/src/components/file-panel.tsx`).
-- **Next: ⛔ M3 human checkpoint (UI review).** Exit criteria (plan line 713): every Velero object created via the CLI in kind appears in the UI within 3 s; logs and details render; a scoped Viewer sees only permitted data. Needs B-2 (kind) for the CLI part. After the checkpoint: M4 day 21 (plan §16), starting with the backup wizard.
+- **M4 day 21 done** (ADR-026): backup create / delete / run-now (`agent/internal/velero/backup*.go`, `server/src/backups/`).
+- **Next: M4 day 22 — backup wizard UI + CLI-equivalent generator** (plan line 722). The API is ready: `POST …/backups`, `DELETE …/backups/{name}`, `POST …/schedules/{name}/trigger`; a scoped user must name every namespace and send `includeClusterResources: false` (the wizard should default to that). The ⛔ M3 human checkpoint (UI review) is still open and needs B-2 for the CLI part.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

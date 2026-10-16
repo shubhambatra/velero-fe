@@ -1465,3 +1465,55 @@ Chrome: fetch, background polling, saved copy after reload, level filter, resour
 
 A real Velero `DownloadRequest` and real object storage (B-2); logs near the 16 MiB limit in a browser; narrow
 viewports and keyboard-only use.
+
+---
+
+## ADR-026 — Backup create, delete and run-now (M4 day 21)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decisions
+
+- **API.** `POST …/backups` (every `velero backup create` flag as a typed, **strict** field — an unknown field is
+  a 422), `DELETE …/backups/{name}` (sudo mode, session only, never an API token) and
+  `POST …/schedules/{name}/trigger`. Each answers 202 with the command; a backup is never reported as made by the
+  response. `--wait` is the UI following the command and the inventory.
+- **Namespace rule for creating (PLAN §8.2), one pure function `createCoverage`.** Empty or `*` namespaces mean all;
+  exclude lists and selectors never narrow; the backup includes cluster-scoped resources **unless
+  `includeClusterResources` is explicitly `false`**, and any named cluster-scoped kind counts whatever that says. So a
+  scoped user must name every namespace and send `false`. This is deliberately stricter than the read-visibility rule
+  of ADR-024 ("auto" does not hide a backup, but does stop one being made). Namespace names are DNS labels or `*`;
+  globs such as `dev*` (which Velero 1.18 expands) are refused so a pattern cannot step outside a scope.
+- **Escape hatch.** `advancedSpec` needs `advanced:write` on the whole cluster, and so do hooks (they run commands in
+  workloads), which are not a typed field. It is merged onto the generated spec by the agent and the result checked
+  against Velero's `BackupSpec` shape (a table in `agent/internal/velero/backupspec.go`; unknown fields, wrong types,
+  bad durations rejected with their paths). The agent does not link Velero's Go types, so the table is the contract
+  and is held by tests; a schedule's template, already accepted by Velero, is copied as it is.
+- **Delete** creates a `DeleteBackupRequest` (labelled with the backup's name and uid, as the CLI does), never deletes
+  the `Backup`: that would leave its data in object storage. A hidden backup answers 404 like a missing one; a scoped
+  administrator can delete only what their scope covers (`backup:delete` visibility).
+- **Trigger** checks schedule visibility (404 if hidden), then `backup:create` over what the template covers (403).
+- **Idempotency** as for every command: the agent finds an object by the `vfm.io/command-id` label before creating.
+  Names are checked to be at most 63 characters, because Velero turns them into label values.
+- **Known leak, accepted.** Choosing a name that is already taken reports ALREADY_EXISTS in the command, which tells a
+  scoped user a backup of that name exists even if it covers other namespaces. The wizard generates names.
+
+### Deferred
+
+Object labels/annotations beyond `spec.metadata.labels` (`--labels`); restore, schedule and storage writes (days
+23–27); the wizard and CLI-equivalent generator (day 22); a pre-check of storage-location names against inventory.
+
+### Verified
+
+18 Go handler tests, 40 server unit tests (the coverage rule exhaustively, strictness, durations, protobuf), 36 e2e
+tests over a real gRPC stream and PostgreSQL. Mutation checks failed tests when removed: the cluster-scoped rule, the
+`advanced:write` check, the delete visibility check, the trigger authorization, and the strict unknown-field check.
+The real Go handlers were run against the real server: a backup with selectors, durations, an optional `false` and a
+hook arrived as intended; an unknown advanced field was refused with its path; a schedule produced a backup from its
+template; a delete created a request and left the backup object.
+
+### Not verified
+
+Real Velero (B-2): that Velero accepts every generated spec and that `DeleteBackupRequest` behaves as the CLI's does.
+No browser UI exists for this yet.

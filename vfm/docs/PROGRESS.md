@@ -9,6 +9,37 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M4 day 21: backup create, delete and run now
+
+Session 7, continued. CI green on day 20 (`ef3ca8c`).
+
+### Done
+
+- Agent: `BackupHandler` (create, delete through `DeleteBackupRequest`, trigger a schedule), `BackupSpecMap`, and the
+  strict spec validator behind `advanced_spec_json`; handlers registered.
+- Server: `backups` module with the three routes, the pure `createCoverage` rule, the `CREATE_BACKUP`,
+  `DELETE_BACKUP` and `TRIGGER_SCHEDULE` commands (ADR-026).
+
+### Test status
+
+Server unit **706** (40 new), e2e **353** (36 new); Go all packages pass (18 new), golangci-lint 0, govulncheck
+clean; lint, typecheck, build clean; OpenAPI regenerated. Requirements **53/152 (34.9 %)**.
+
+### Driven for real
+
+The real Go handlers against the real server over mTLS gRPC (create with hook and selectors, an invalid advanced spec,
+trigger, delete). No browser: there is no UI for this until day 22.
+
+### Not verified
+
+Real Velero (B-2).
+
+### Next
+
+M4 day 22 — backup wizard UI and the CLI-equivalent generator (plan line 722).
+
+---
+
 ## 2026-10-16 — M3 day 20: Velero's files for a backup or restore
 
 Session 7, continued. CI green on day 19 (`0bb2b06`).
