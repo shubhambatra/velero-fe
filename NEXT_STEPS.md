@@ -166,7 +166,8 @@ criteria are still unmet (B-1, B-2).
 - **M3 day 17 done** (ADR-022): `server/src/{inventory,events}`, `velero_resources`, SSE `/api/v1/stream`.
 - **M3 day 18 done** (ADR-023): fleet overview, cluster overview, live updates (`web/src/lib/{events,fleet}.ts`, `pages/{overview,cluster}-page.tsx`).
 - **M3 day 19 done** (ADR-024): lists + detail pages, namespace visibility, cursor pagination (`server/src/inventory/{projections,resources.*}.ts`, `web/src/pages/cluster-{lists,detail}.tsx`).
-- **Next: M3 day 20 — DownloadRequest pipeline** (plan line ~709): `FetchDownload` command (agent creates a DownloadRequest, waits for the signed URL, fetches in-cluster, gunzips, streams `LogChunk`s keyed by command_id); server caches per plan §7.3 for 7 days behind `backup:logs`; UI log viewer and "describe --details" panels. Then the M3 human checkpoint (UI review).
+- **M3 day 20 done** (ADR-025): `FetchDownload` pipeline, `velero_files` cache, backup/restore log and detail panels (`agent/internal/velero/download.go`, `server/src/downloads/`, `web/src/components/file-panel.tsx`).
+- **Next: ⛔ M3 human checkpoint (UI review).** Exit criteria (plan line 713): every Velero object created via the CLI in kind appears in the UI within 3 s; logs and details render; a scoped Viewer sees only permitted data. Needs B-2 (kind) for the CLI part. After the checkpoint: M4 day 21 (plan §16), starting with the backup wizard.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

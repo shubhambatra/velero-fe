@@ -196,6 +196,12 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 			Dynamic:   kubeClient.Dynamic(),
 			Namespace: cfg.VeleroNamespace,
 		}).Handle)
+		dispatcher.Register("fetch_download", (&velero.DownloadHandler{
+			Dynamic:   kubeClient.Dynamic(),
+			Namespace: cfg.VeleroNamespace,
+			Send:      func(m *pb.AgentMessage) bool { return manager.Send(m) },
+			NewID:     gateway.NewMessageID,
+		}).Handle)
 
 		syncer := inventory.New(inventory.Options{
 			Dynamic:     kubeClient.Dynamic(),

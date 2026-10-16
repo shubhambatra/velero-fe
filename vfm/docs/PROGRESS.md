@@ -9,6 +9,40 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M3 day 20: Velero's files for a backup or restore
+
+Session 7, continued. CI green on day 19 (`0bb2b06`).
+
+### Done
+
+- Agent: `FetchDownload` handler (DownloadRequest, in-cluster fetch, gunzip, chunked stream with checksum);
+  allowed in read-only mode.
+- Server: `FETCH_DOWNLOAD` command, `DownloadAssembler`, `velero_files` cache (7 days, configurable), endpoints
+  for logs and detail parts of backups and restores (ADR-025).
+- Web: file panels on the backup and restore pages: log viewer (level and text filters, paging), results,
+  resource list by kind, volume details, item operations.
+
+### Test status
+
+Server unit **666** (13 new + allow-list), e2e **317** (23 new), web **134** (10 new); Go all packages pass,
+golangci-lint 0, govulncheck clean; lint, typecheck, build clean; OpenAPI regenerated.
+
+### Driven for real
+
+Real Go handler against the real server once, and Chrome against a real server and the real agent code over a fake
+object store (see ADR-025). Found there: the fetch poll paused in a background tab, now continued.
+
+### Not verified
+
+Real Velero and object storage (B-2); narrow viewports and keyboard-only use.
+
+### Next
+
+⛔ M3 human checkpoint (UI review): every Velero object created with the CLI in kind appears within 3 s, logs and
+details render, a scoped Viewer sees only what is permitted. It needs kind (B-2) for the CLI part.
+
+---
+
 ## 2026-10-16 — M3 day 19: lists and detail pages
 
 Session 7, continued. CI green on day 18 (`e9eca65`).

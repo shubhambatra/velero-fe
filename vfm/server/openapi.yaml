@@ -1237,6 +1237,222 @@ paths:
       summary: "One restore: summary, timeline, spec, status and YAML. 404 if you may not see it."
       tags:
         - inventory
+  /orgs/{orgId}/clusters/{clusterId}/backups/{name}/logs:
+    post:
+      operationId: DownloadsController_fetchBackupLog
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Fetch a backup’s log from the cluster (or report a fresh copy)
+      tags:
+        - downloads
+    get:
+      operationId: DownloadsController_backupLog
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: A backup’s log, as text; 204 when none is held
+      tags:
+        - downloads
+  /orgs/{orgId}/clusters/{clusterId}/backups/{name}/details/{part}:
+    post:
+      operationId: DownloadsController_fetchBackupDetail
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: part
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Fetch a detail file of a backup (results, resource-list, ...)
+      tags:
+        - downloads
+    get:
+      operationId: DownloadsController_backupDetail
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: part
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: A detail file of a backup; 204 when none is held
+      tags:
+        - downloads
+  /orgs/{orgId}/clusters/{clusterId}/restores/{name}/logs:
+    post:
+      operationId: DownloadsController_fetchRestoreLog
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Fetch a restore’s log from the cluster (or report a fresh copy)
+      tags:
+        - downloads
+    get:
+      operationId: DownloadsController_restoreLog
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: A restore’s log, as text; 204 when none is held
+      tags:
+        - downloads
+  /orgs/{orgId}/clusters/{clusterId}/restores/{name}/details/{part}:
+    post:
+      operationId: DownloadsController_fetchRestoreDetail
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: part
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Fetch a detail file of a restore (results, resource-list, ...)
+      tags:
+        - downloads
+    get:
+      operationId: DownloadsController_restoreDetail
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: part
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: A detail file of a restore; 204 when none is held
+      tags:
+        - downloads
   /stream:
     get:
       description: Events carry no object names. Re-read through the REST API on an event.

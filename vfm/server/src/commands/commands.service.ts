@@ -14,6 +14,9 @@ import {
 import type { Command as CommandRow, Prisma } from '@prisma/client';
 
 import { newId } from '../common/uuid';
+import { DownloadAssembler } from '../downloads/download-assembler';
+import { DownloadCache } from '../downloads/download-cache.service';
+import { DEFAULT_MAX_BYTES, partByKey } from '../downloads/parts';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env.schema';
 import { EventsService } from '../events/events.service';
@@ -81,6 +84,7 @@ const text = (value: string): string => clean(value, MAX_ERROR_TEXT);
 export class CommandsService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(CommandsService.name);
   private timer: NodeJS.Timeout | undefined;
+  private readonly assembler = new DownloadAssembler();
 
   /** Tunable at runtime so a test can turn the on-connect refresh on for one case. */
   readonly options: { refreshOnConnect: boolean };
@@ -90,6 +94,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     private readonly redis: RedisService,
     private readonly streams: StreamsService,
     private readonly events: EventsService,
+    private readonly cache: DownloadCache,
     @Inject(ENV) env: Env,
   ) {
     this.options = { refreshOnConnect: env.COMMANDS_REFRESH_ON_CONNECT };
@@ -241,6 +246,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
 
   /** Marks commands past their deadline `TIMED_OUT`, and asks their agents to stop them. */
   async sweepTimeouts(): Promise<number> {
+    this.assembler.expire();
     const lock = await this.redis.connection.set(
       TIMEOUT_LOCK_KEY,
       '1',
@@ -349,6 +355,8 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       await this.onAck(clusterId, message.ack.commandId, message.ack.state);
     } else if (message.result !== undefined) {
       await this.onResult(clusterId, message.result);
+    } else if (message.logChunk !== undefined) {
+      await this.onChunk(clusterId, message.logChunk);
     }
   }
 
@@ -421,12 +429,27 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       return;
     }
 
+    // A download is judged before anything else: the file must be whole and match
+    // its checksum, or the command fails whatever the agent says.
+    const download = result.ok ? await this.finishDownload(row, result) : undefined;
+    if (!result.ok) {
+      this.assembler.drop(row.id);
+    }
+    const ok = result.ok && download?.error === undefined;
+
     const code = ErrorCode[result.errorCode] as string | undefined;
-    const errorCode = result.ok ? null : (code ?? 'INTERNAL').replace(/^ERROR_CODE_/, '');
-    const status = result.ok ? 'SUCCEEDED' : 'FAILED';
+    const errorCode = ok
+      ? null
+      : result.ok
+        ? 'INTERNAL'
+        : (code ?? 'INTERNAL').replace(/^ERROR_CODE_/, '');
+    const status = ok ? 'SUCCEEDED' : 'FAILED';
+    const errorMessage = ok ? null : (download?.error ?? text(result.errorMessage));
 
     let detail: Prisma.InputJsonValue | undefined;
-    if (result.ok && result.serverStatus !== undefined) {
+    if (ok && download?.detail !== undefined) {
+      detail = download.detail;
+    } else if (result.ok && result.serverStatus !== undefined) {
       detail = sanitizeVeleroStatus(result.serverStatus);
     } else if (result.ok && result.created !== undefined) {
       detail = {
@@ -440,12 +463,12 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       this.prisma.command.updateMany({
         where: {
           id: row.id,
-          status: { in: statusesAccepting(result.ok ? 'succeeded' : 'failed') },
+          status: { in: statusesAccepting(ok ? 'succeeded' : 'failed') },
         },
         data: {
           status,
           errorCode,
-          errorMessage: result.ok ? null : text(result.errorMessage),
+          errorMessage,
           ...(detail === undefined ? {} : { result: detail }),
           finishedAt: new Date(),
         },
@@ -467,5 +490,91 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
         }),
       );
     }
+  }
+
+  /**
+   * Handles one chunk of a download. The first chunk of a command is where its
+   * ownership and state are checked (the agent may only send for its own cluster's
+   * running downloads); later chunks are held to that decision.
+   */
+  private async onChunk(
+    clusterId: string,
+    chunk: NonNullable<AgentMessage['logChunk']>,
+  ): Promise<void> {
+    const commandId = chunk.commandId;
+    if (commandId === undefined) {
+      return; // a log session chunk: not ours
+    }
+    if (chunk.sequence === 0) {
+      const row = await this.ownedCommand(clusterId, commandId);
+      if (
+        row === null ||
+        row.op !== 'FETCH_DOWNLOAD' ||
+        !['SENT', 'ACKED', 'RUNNING'].includes(row.status)
+      ) {
+        return;
+      }
+      const payload = (row.payload ?? {}) as Record<string, unknown>;
+      const limit = typeof payload.maxBytes === 'number' ? payload.maxBytes : DEFAULT_MAX_BYTES;
+      const refused = this.assembler.start(commandId, clusterId, limit);
+      if (refused !== undefined) {
+        this.logger.warn(`download of command ${commandId} refused: ${refused}`);
+        return;
+      }
+    }
+    if (this.assembler.has(commandId)) {
+      this.assembler.add(commandId, chunk);
+    }
+  }
+
+  /** Verifies and stores a finished download. `error` set means the command must fail. */
+  private async finishDownload(
+    row: CommandRow,
+    result: NonNullable<AgentMessage['result']>,
+  ): Promise<{ error?: string; detail?: Prisma.InputJsonValue } | undefined> {
+    if (row.op !== 'FETCH_DOWNLOAD') {
+      return undefined;
+    }
+    if (result.download === undefined) {
+      this.assembler.drop(row.id);
+      return { error: 'the agent finished without describing what it sent' };
+    }
+    const finished = this.assembler.finish(row.id, result.download);
+    if (!finished.ok) {
+      this.logger.warn(`download of command ${row.id} rejected: ${finished.reason}`);
+      return { error: text(`the file did not arrive intact: ${finished.reason}`) };
+    }
+    const payload = (row.payload ?? {}) as Record<string, unknown>;
+    const part = partByKey(String(payload.part));
+    if (part === undefined) {
+      return { error: 'unknown download part' };
+    }
+    try {
+      await this.cache.put(
+        {
+          orgId: row.orgId,
+          clusterId: row.clusterId,
+          part: part.key,
+          targetName: String(payload.targetName),
+          targetUid: String(payload.targetUid),
+        },
+        finished.data,
+        result.download.sha256Hex.toLowerCase(),
+        row.id,
+        this.cache.retentionSeconds(payload.finished === true),
+      );
+    } catch (error) {
+      this.logger.error(
+        `could not store the file of command ${row.id}: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+      return { error: 'the control plane could not store the file' };
+    }
+    return {
+      detail: {
+        part: part.key,
+        bytes: finished.data.length,
+        sha256: result.download.sha256Hex.toLowerCase(),
+      },
+    };
   }
 }

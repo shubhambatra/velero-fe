@@ -47,9 +47,9 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **48 / 152 — 31.6 %** |
-| Requirements partial | 31 |
-| Requirements not started | 71 |
+| **Requirements verified** | **50 / 152 — 32.9 %** |
+| Requirements partial | 33 |
+| Requirements not started | 67 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
@@ -676,13 +676,13 @@ make them obvious.
 | R-050 | `backup create` with every listed flag | 303 | M4 | ⬜ |
 | R-051 | `backup create --from-schedule` via `TriggerScheduleNow` | 304 | M4 | ⬜ |
 | R-052 | `backup get` / `describe` | 305 | M3 | ⬜ |
-| R-053 | `backup describe --details`: resource list, volume info, item operations, results, PVB/DataUpload | 306 | M3 | ⬜ |
-| R-054 | `backup logs` streamed, gunzipped, rendered and downloadable | 307 | M3 | ⬜ |
+| R-053 | `backup describe --details`: resource list, volume info, item operations, results, PVB/DataUpload | 306 | M3 | 🟡 all five parts and PVB/DataUpload are served and shown (day 19–20); only results and resource list were driven in a browser, and nothing against real Velero |
+| R-054 | `backup logs` streamed, gunzipped, rendered and downloadable | 307 | M3 | ✅ verified 2026-10-16: Go handler (16 tests) and TS pipeline (23 e2e) plus the real Go handler against the real server; driven in Chrome over a fake object store. Not verified against real Velero (B-2) |
 | R-055 | `backup download` **not proxied**: presigned URL only, gated on `backup:download` and the org setting (default off) | 308 | M4 | ⬜ |
 | R-056 | `backup delete` via `DeleteBackupRequest` | 309 | M4 | ⬜ |
 | R-057 | `restore create` with every listed flag | 310 | M4 | ⬜ |
-| R-058 | `restore get` / `describe` / `--details` | 311 | M3 | ⬜ |
-| R-059 | `restore logs` | 312 | M3 | ⬜ |
+| R-058 | `restore get` / `describe` / `--details` | 311 | M3 | 🟡 detail page and its files exist (day 19–20); not driven against real Velero |
+| R-059 | `restore logs` | 312 | M3 | ✅ verified 2026-10-16: Go handler (16 tests) and TS pipeline (23 e2e) plus the real Go handler against the real server; driven in Chrome over a fake object store. Not verified against real Velero (B-2) |
 | R-060 | `restore delete` | 313 | M4 | ⬜ |
 | R-061 | `schedule create` with cron, backup-template flags, owner references, paused | 314 | M4 | ⬜ |
 | R-062 | `schedule get` / `describe` | 315 | M3 | ⬜ |

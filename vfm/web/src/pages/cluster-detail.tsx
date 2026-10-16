@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import type { ReactElement, ReactNode } from 'react';
 
 import { ClusterShell } from '@/components/cluster-shell';
+import { FilePanel } from '@/components/file-panel';
 import { Time } from '@/components/time';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -108,6 +109,49 @@ interface Props {
   orgId: string;
   clusterId: string;
   name: string;
+}
+
+/** Velero's own files for one object: nothing is read until someone asks (PLAN.md §7.3). */
+function Files({ orgId, clusterId, name, kind }: Props & { kind: 'backups' | 'restores' }) {
+  const noun = kind === 'backups' ? 'backup' : 'restore';
+  const panel = (
+    part: `details/${string}` | 'logs',
+    title: string,
+    description: string,
+    view?: 'log' | 'json' | 'resources',
+  ) => (
+    <FilePanel
+      key={part}
+      {...{ orgId, clusterId, kind, name, part, title, description }}
+      {...(view === undefined ? {} : { view })}
+    />
+  );
+  return (
+    <>
+      {panel('logs', 'Log', `What Velero logged while running this ${noun}.`, 'log')}
+      {panel(
+        'details/results',
+        'Warnings and errors',
+        `The problems Velero recorded for this ${noun}, by namespace.`,
+      )}
+      {panel(
+        'details/resource-list',
+        'Resources',
+        `Every item this ${noun} ${kind === 'backups' ? 'backed up' : 'restored'}, by kind.`,
+        'resources',
+      )}
+      {panel(
+        kind === 'backups' ? 'details/volume-infos' : 'details/volume-info',
+        'Volume details',
+        'How each volume was handled.',
+      )}
+      {panel(
+        'details/item-operations',
+        'Item operations',
+        'Asynchronous operations Velero tracked for items.',
+      )}
+    </>
+  );
 }
 
 export function BackupDetailPage({ orgId, clusterId, name }: Props): ReactElement {
@@ -245,6 +289,7 @@ export function BackupDetailPage({ orgId, clusterId, name }: Props): ReactElemen
               )}
             </CardContent>
           </Card>
+          <Files orgId={orgId} clusterId={clusterId} name={name} kind="backups" />
         </>
       )}
     </ClusterShell>
@@ -331,6 +376,7 @@ export function RestoreDetailPage({ orgId, clusterId, name }: Props): ReactEleme
             </CardContent>
           </Card>
           <Common detail={detail.data} />
+          <Files orgId={orgId} clusterId={clusterId} name={name} kind="restores" />
         </>
       )}
     </ClusterShell>

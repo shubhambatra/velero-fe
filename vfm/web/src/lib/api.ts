@@ -246,6 +246,35 @@ export async function apiFetch<T>(path: string, options: ApiRequestOptions = {})
   return (await readJson(response)) as T;
 }
 
+/** A text file served by the control plane, with when it was fetched from the cluster. */
+export interface TextFile {
+  text: string;
+  fetchedAt: string | null;
+  expiresAt: string | null;
+}
+
+/**
+ * GET for a plain-text body (Velero's logs and detail files). `null` for 204: the
+ * server holds no copy. Failures are raised exactly as {@link apiFetch} raises them.
+ */
+export async function apiText(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<TextFile | null> {
+  const { response, requestId } = await apiRequest(path, options);
+  if (!response.ok) {
+    throw new ApiProblem(await readProblem(response), requestId);
+  }
+  if (response.status === 204) {
+    return null;
+  }
+  return {
+    text: await response.text(),
+    fetchedAt: response.headers.get('X-Vfm-Fetched-At'),
+    expiresAt: response.headers.get('X-Vfm-Expires-At'),
+  };
+}
+
 /**
  * Reads a JSON body, tolerating the empty ones: 204, and 200 with no payload.
  * Returns `undefined` in those cases, so `apiFetch<void>()` is the correct

@@ -17,6 +17,7 @@ import { ClustersModule } from './clusters/clusters.module';
 import { CommandsModule } from './commands/commands.module';
 import { EventsModule } from './events/events.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { DownloadsModule } from './downloads/downloads.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './health/health.module';
@@ -91,6 +92,7 @@ function prettyTransportAvailable(): boolean {
     GatewayModule,
     CommandsModule,
     InventoryModule,
+    DownloadsModule,
     EventsModule,
     AuthModule,
     HealthModule,

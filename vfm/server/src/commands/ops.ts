@@ -1,3 +1,4 @@
+import { DEFAULT_MAX_BYTES, partByKey } from '../downloads/parts';
 import type { Command } from '../gateway/pb/vfm/agent/v1/command';
 
 /**
@@ -6,7 +7,7 @@ import type { Command } from '../gateway/pb/vfm/agent/v1/command';
  * caller cannot enqueue an op that is not listed here, and the agent applies the
  * same rule on its side (typed commands only, PLAN.md §1.1 P3).
  *
- * `REFRESH_STATUS` is the only entry in M2. The M4 mutations (backups, restores,
+ * `REFRESH_STATUS` and `FETCH_DOWNLOAD` are the entries so far. The M4 mutations (backups, restores,
  * schedules, storage locations) are added here with their own validation.
  */
 export interface OpDefinition {
@@ -20,6 +21,23 @@ const DEFINITIONS = {
   REFRESH_STATUS: {
     timeoutMs: 60_000,
     build: () => ({ refreshStatus: {} }),
+  },
+  /** Fetch one of Velero's files for a backup or restore (PLAN.md §7.3); see `downloads/`. */
+  FETCH_DOWNLOAD: {
+    timeoutMs: 120_000,
+    build: (payload) => {
+      const part = partByKey(String(payload.part));
+      if (part === undefined) {
+        throw new Error('unknown download part');
+      }
+      return {
+        fetchDownload: {
+          targetKind: part.target,
+          targetName: String(payload.targetName),
+          maxBytes: typeof payload.maxBytes === 'number' ? payload.maxBytes : DEFAULT_MAX_BYTES,
+        },
+      };
+    },
   },
 } as const satisfies Record<string, OpDefinition>;
 

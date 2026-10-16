@@ -194,6 +194,11 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((value) => value === 'true'),
+  /**
+   * How long a fetched backup/restore file (log, results, ...) of a finished
+   * object is kept so repeat views are fast (PLAN.md §7.3: 7 days by default).
+   */
+  DOWNLOAD_CACHE_TTL_DAYS: z.coerce.number().int().min(0).max(90).default(7),
   /** `host:port` shown to the operator in the generated install command. */
   GATEWAY_PUBLIC_ADDRESS: z.string().min(1).default('localhost:8443'),
   /**

@@ -1413,3 +1413,55 @@ lists narrowing) is equivalent at e2e level and is covered by a projection unit 
 
 Real Velero data (B-2); narrow viewports and keyboard-only use; the pages were not driven in a browser this
 session (covered by web unit tests and server e2e only).
+
+---
+
+## ADR-025 — Velero's per-backup files through `FetchDownload` (M3 day 20)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decisions
+
+- **Agent.** `velero.DownloadHandler` creates a `DownloadRequest` (labelled with the command id, so a retry reuses
+  it), waits for `Processed`, fetches the signed URL **from inside the cluster**, gunzips and streams the bytes as
+  64 KiB `LogChunk`s keyed by command id, ending with an empty `eof` chunk, then answers with the byte count and
+  SHA-256. It removes the request on every path. `BackupContents` is not in the table of fetchable kinds (never
+  proxied, P2); names are checked as Kubernetes names; the size limit (default 16 MiB, hard 64 MiB) also stops a
+  compression bomb; a full outbound queue slows the download instead of dropping a chunk; the signed URL never
+  appears in an error or a log. A download is allowed in read-only mode (it creates only a transient request).
+- **Server.** `DownloadAssembler` rebuilds the file in memory on the replica that holds the agent's stream. Limits:
+  64 KiB per chunk, the command's size, four downloads per cluster, 256 MiB per replica, two minutes idle. The first
+  chunk is the point where the command is checked to be this cluster's running `FETCH_DOWNLOAD`. A gap, a repeat,
+  data after the end, a different size or a wrong checksum fails the command and stores nothing.
+- **Cache.** `velero_files` in PostgreSQL, gzipped, keyed by cluster + part + target name + **target uid** (a
+  recreated backup never shows the old file). A finished object's copy lives `DOWNLOAD_CACHE_TTL_DAYS` (default 7;
+  0 switches caching off); one still running keeps its copy 30 seconds. Expired rows are purged every 10 minutes.
+- **API.** `POST …/{backups|restores}/{name}/logs` and `…/details/{part}` ask for a fetch (202 with the command, or
+  200 when a fresh copy is held; `?refresh=true` forces one; a second request joins the one in progress);
+  `GET` serves the held copy as `text/plain` (`nosniff`, `no-store`, 204 when none; `?download=1` attaches it).
+  Logs need `backup:logs` / `restore:logs`, the detail parts the kind's `read`; a hidden object answers 404 exactly
+  like a missing one (ADR-024). A POST is audited by the existing middleware.
+- **UI.** Each file is a panel that reads nothing until asked: not fetched, fetching (follows the command, also in a
+  background tab), failed with the agent's reason and _Try again_, ready with fetched/kept-until times, _Refresh_,
+  _Download_. The log view filters by level and text and shows 500 lines at a time; resource lists group by kind;
+  everything is shown as text, never as markup.
+
+### Deferred
+
+Reading a file is not audited (only the POST that fetches it); a per-file rate limit beyond "one fetch at a time";
+`BackupContents` download links (M4, `backup:download`); virtualised log rendering for very large logs (M5).
+
+### Verified
+
+13 assembler unit tests; 16 Go handler tests (chunk order and checksum, exact chunk multiples, plain-text
+passthrough, limit and compression bomb, refused kinds and names, signed URL never leaked, only http(s), cleanup,
+retry reuse, back-pressure, cancellation); 23 server e2e tests over a real gRPC stream and PostgreSQL (mutation checks:
+checksum check removed, visibility removed, command-ownership check removed all fail tests); 10 web tests. The real Go
+handler was run against the real server once (a 6 000-line log through many chunks, intact), and the pages were driven in
+Chrome: fetch, background polling, saved copy after reload, level filter, resource list and results panels.
+
+### Not verified
+
+A real Velero `DownloadRequest` and real object storage (B-2); logs near the 16 MiB limit in a browser; narrow
+viewports and keyboard-only use.

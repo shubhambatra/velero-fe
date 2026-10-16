@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { DownloadCache } from '../downloads/download-cache.service';
 import { RbacModule } from '../rbac/rbac.module';
 import { StreamsModule } from '../streams/streams.module';
 import { CommandsController } from './commands.controller';
@@ -9,7 +10,7 @@ import { CommandsService } from './commands.service';
 @Module({
   imports: [RbacModule, StreamsModule],
   controllers: [CommandsController],
-  providers: [CommandsService],
-  exports: [CommandsService],
+  providers: [CommandsService, DownloadCache],
+  exports: [CommandsService, DownloadCache],
 })
 export class CommandsModule {}

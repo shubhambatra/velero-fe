@@ -243,6 +243,7 @@ describe('static guard over the source tree', () => {
       'clusters/enrollment.service.ts: an agent certificate identifies its cluster and org',
       'commands/commands.service.ts: an agent reports on commands by id',
       'commands/commands.service.ts: the command timeout sweeper spans every org',
+      'downloads/download-cache.service.ts: expired cached files span every org',
       'oidc/oidc-login.service.ts: an oidc provider id identifies its org',
       'orgs/invites.service.ts: an invite token identifies its org',
       'orgs/orgs.service.ts: a user lists their own memberships (org switcher)',
