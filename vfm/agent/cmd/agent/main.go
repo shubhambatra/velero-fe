@@ -205,6 +205,15 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 		dispatcher.Register("update_schedule", scheduleOps.Update)
 		dispatcher.Register("set_schedule_paused", scheduleOps.SetPaused)
 		dispatcher.Register("delete_schedule", scheduleOps.Delete)
+		storageOps := &velero.StorageHandler{
+			BackupHandler: *backupOps,
+			Kube:          kubeClient.Clientset(),
+		}
+		dispatcher.Register("upsert_bsl", storageOps.UpsertBackupLocation)
+		dispatcher.Register("set_default_bsl", storageOps.SetDefaultBackupLocation)
+		dispatcher.Register("delete_bsl", storageOps.DeleteBackupLocation)
+		dispatcher.Register("upsert_vsl", storageOps.UpsertSnapshotLocation)
+		dispatcher.Register("delete_vsl", storageOps.DeleteSnapshotLocation)
 		restoreOps := &velero.RestoreHandler{
 			BackupHandler: velero.BackupHandler{Dynamic: kubeClient.Dynamic(), Namespace: cfg.VeleroNamespace},
 			Policy:        current.get,

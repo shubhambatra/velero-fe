@@ -1,3 +1,4 @@
+import type { Transient } from './transient';
 import { buildCreateBackup } from '../backups/backup-request';
 import { buildCreateRestore } from '../restores/restore-request';
 import {
@@ -5,6 +6,12 @@ import {
   buildSetSchedulePaused,
   buildUpdateSchedule,
 } from '../schedules/schedule-request';
+import {
+  buildDeleteLocation,
+  buildSetDefaultBsl,
+  buildUpsertBsl,
+  buildUpsertVsl,
+} from '../storage/location-request';
 import { DEFAULT_MAX_BYTES, partByKey } from '../downloads/parts';
 import type { Command } from '../gateway/pb/vfm/agent/v1/command';
 
@@ -17,11 +24,13 @@ import type { Command } from '../gateway/pb/vfm/agent/v1/command';
  * `REFRESH_STATUS`, `FETCH_DOWNLOAD` and the backup operations are the entries so far. The M4 mutations (backups, restores,
  * schedules, storage locations) are added here with their own validation.
  */
+export { TransientUnavailableError, type Transient } from './transient';
+
 export interface OpDefinition {
   /** Default deadline: a command still non-terminal after this is `TIMED_OUT`. */
   timeoutMs: number;
   /** Builds the oneof arm of the protobuf `Command`. */
-  build: (payload: Record<string, unknown>) => Partial<Command>;
+  build: (payload: Record<string, unknown>, transient?: Transient) => Partial<Command>;
 }
 
 const DEFINITIONS = {
@@ -63,6 +72,16 @@ const DEFINITIONS = {
     timeoutMs: 60_000,
     build: (payload) => ({ deleteSchedule: { name: String(payload.name) } }),
   },
+  /** `velero backup-location create` / `set`; the credential, if any, is transient. */
+  UPSERT_BSL: { timeoutMs: 60_000, build: buildUpsertBsl },
+  /** `velero backup-location set --default`. */
+  SET_DEFAULT_BSL: { timeoutMs: 60_000, build: buildSetDefaultBsl },
+  /** `velero backup-location delete`: the bucket and its contents are not touched. */
+  DELETE_BSL: { timeoutMs: 60_000, build: buildDeleteLocation('deleteBsl') },
+  /** `velero snapshot-location create` / `set`; the credential, if any, is transient. */
+  UPSERT_VSL: { timeoutMs: 60_000, build: buildUpsertVsl },
+  /** `velero snapshot-location delete`. */
+  DELETE_VSL: { timeoutMs: 60_000, build: buildDeleteLocation('deleteVsl') },
   /** `velero backup create --from-schedule`. */
   TRIGGER_SCHEDULE: {
     timeoutMs: 60_000,

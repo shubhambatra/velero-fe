@@ -28,7 +28,7 @@ import { ServerMessage, type AgentMessage } from '../gateway/pb/vfm/agent/v1/gat
 import { StreamsService } from '../streams/streams.service';
 import { clean, sanitizeVeleroStatus } from '../streams/hello';
 import { NON_TERMINAL, statusesAccepting } from './command-state';
-import { isOp, OPS, type OpKey } from './ops';
+import { isOp, OPS, TransientUnavailableError, type OpKey, type Transient } from './ops';
 
 /** A cluster with this many unfinished commands refuses more: a stuck agent must not grow the table without bound. */
 const MAX_UNFINISHED_PER_CLUSTER = 100;
@@ -85,6 +85,11 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
   private readonly logger = new Logger(CommandsService.name);
   private timer: NodeJS.Timeout | undefined;
   private readonly assembler = new DownloadAssembler();
+  /**
+   * Secret material for commands in flight, by command id. Memory only, so it is in no
+   * dump, backup or log; it lives until the command ends or its deadline passes.
+   */
+  private readonly transients = new Map<string, { value: Transient; expires: number }>();
 
   /** Tunable at runtime so a test can turn the on-connect refresh on for one case. */
   readonly options: { refreshOnConnect: boolean };
@@ -125,6 +130,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     requestedById: string | null,
     op: OpKey,
     payload: Record<string, unknown> = {},
+    transient?: Transient,
   ): Promise<CommandView> {
     const cluster = await this.prisma.inOrg(orgId, () =>
       this.prisma.cluster.findUnique({ where: { id: clusterId }, select: { status: true } }),
@@ -159,6 +165,10 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
         },
       }),
     );
+
+    if (transient !== undefined) {
+      this.transients.set(row.id, { value: transient, expires: row.deadlineAt.getTime() });
+    }
 
     // Best effort: an undelivered command stays QUEUED and goes out on connect.
     await this.deliver(row).catch((error: unknown) => {
@@ -212,6 +222,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
           : 'the command has already finished',
       );
     }
+    this.transients.delete(commandId);
     // The agent may have received it already; tell it to drop it if it can.
     await this.streams
       .send(
@@ -247,6 +258,12 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
   /** Marks commands past their deadline `TIMED_OUT`, and asks their agents to stop them. */
   async sweepTimeouts(): Promise<number> {
     this.assembler.expire();
+    const now0 = Date.now();
+    for (const [id, held] of this.transients) {
+      if (held.expires < now0) {
+        this.transients.delete(id);
+      }
+    }
     const lock = await this.redis.connection.set(
       TIMEOUT_LOCK_KEY,
       '1',
@@ -303,13 +320,27 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       await this.fail(row, 'INTERNAL', `unknown operation ${row.op}`);
       return false;
     }
+    let built;
+    try {
+      built = OPS[row.op].build(
+        (row.payload ?? {}) as Record<string, unknown>,
+        this.transients.get(row.id)?.value,
+      );
+    } catch (error) {
+      if (error instanceof TransientUnavailableError) {
+        await this.fail(row, 'INVALID_ARGUMENT', error.message);
+        await this.announce(row.orgId, row.clusterId, row.id, 'FAILED');
+        return false;
+      }
+      throw error;
+    }
     const message = ServerMessage.fromPartial({
       messageId: randomUUID(),
       command: {
         commandId: row.id,
         deadline: row.deadlineAt,
         requestedBy: row.requestedById ?? '',
-        ...OPS[row.op].build((row.payload ?? {}) as Record<string, unknown>),
+        ...built,
       },
     });
 
@@ -331,6 +362,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
   }
 
   private async fail(row: CommandRow, code: string, message: string): Promise<void> {
+    this.transients.delete(row.id);
     await this.prisma.inOrg(row.orgId, () =>
       this.prisma.command.updateMany({
         where: { id: row.id, status: { in: [...NON_TERMINAL] } },
@@ -428,6 +460,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     if (row === null) {
       return;
     }
+    this.transients.delete(row.id);
 
     // A download is judged before anything else: the file must be whole and match
     // its checksum, or the command fails whatever the agent says.

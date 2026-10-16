@@ -1235,6 +1235,28 @@ paths:
       summary: Backup storage locations
       tags:
         - inventory
+    post:
+      description: A `credential` with `content` is written by the agent to a Secret and is never stored
+        by the control plane. A `credential` with only `secretName` and `key` points at a Secret
+        that already exists.
+      operationId: StorageController_createBackupLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create a backup storage location (velero backup-location create)
+      tags:
+        - storage
   /orgs/{orgId}/clusters/{clusterId}/snapshot-locations:
     get:
       operationId: ResourcesController_snapshotLocations
@@ -1255,6 +1277,28 @@ paths:
       summary: Volume snapshot locations
       tags:
         - inventory
+    post:
+      description: A `credential` with `content` is written by the agent to a Secret and is never stored
+        by the control plane. A `credential` with only `secretName` and `key` points at a Secret
+        that already exists.
+      operationId: StorageController_createSnapshotLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create a volume snapshot location (velero snapshot-location create)
+      tags:
+        - storage
   /orgs/{orgId}/clusters/{clusterId}/repositories:
     get:
       operationId: ResourcesController_repositories
@@ -1453,6 +1497,162 @@ paths:
       summary: Delete a schedule (velero schedule delete)
       tags:
         - schedules
+  /orgs/{orgId}/clusters/{clusterId}/backup-locations/{name}:
+    get:
+      description: Holds only the reference to a credential Secret, never its contents.
+      operationId: ResourcesController_backupLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One backup storage location: summary, spec, status and YAML"
+      tags:
+        - inventory
+    put:
+      description: A `credential` with `content` is written by the agent to a Secret and is never stored
+        by the control plane. A `credential` with only `secretName` and `key` points at a Secret
+        that already exists. Leave `credential` out to keep the Secret the location uses now.
+      operationId: StorageController_updateBackupLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Replace a backup storage location’s spec
+      tags:
+        - storage
+    delete:
+      description: Needs recent re-authentication. The bucket and the backups in it are not touched. The
+        default location cannot be deleted while others exist.
+      operationId: StorageController_deleteBackupLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a backup storage location (velero backup-location delete)
+      tags:
+        - storage
+  /orgs/{orgId}/clusters/{clusterId}/snapshot-locations/{name}:
+    get:
+      operationId: ResourcesController_snapshotLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One volume snapshot location: summary, spec, status and YAML"
+      tags:
+        - inventory
+    put:
+      description: A `credential` with `content` is written by the agent to a Secret and is never stored
+        by the control plane. A `credential` with only `secretName` and `key` points at a Secret
+        that already exists. Leave `credential` out to keep the Secret the location uses now.
+      operationId: StorageController_updateSnapshotLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Replace a volume snapshot location’s spec
+      tags:
+        - storage
+    delete:
+      description: Needs recent re-authentication. Snapshots already taken are not touched.
+      operationId: StorageController_deleteSnapshotLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a volume snapshot location (velero snapshot-location delete)
+      tags:
+        - storage
   /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/trigger:
     post:
       description: Makes a backup from the schedule’s template. The caller needs `backup:create` over
@@ -1528,6 +1728,31 @@ paths:
       summary: Pause or resume a schedule (velero schedule pause / unpause)
       tags:
         - schedules
+  /orgs/{orgId}/clusters/{clusterId}/backup-locations/{name}/default:
+    post:
+      operationId: StorageController_setDefault
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Make a backup storage location the default (velero backup-location set --default)
+      tags:
+        - storage
   /orgs/{orgId}/clusters/{clusterId}/backups/{name}/logs:
     post:
       operationId: DownloadsController_fetchBackupLog

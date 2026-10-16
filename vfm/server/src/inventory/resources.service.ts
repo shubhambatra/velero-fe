@@ -17,6 +17,16 @@ import {
   timeline,
 } from './projections';
 
+/** The kinds with a detail view, and the Velero kind each is. */
+const DETAIL_OBJECT_KIND = {
+  BACKUP: 'Backup',
+  RESTORE: 'Restore',
+  SCHEDULE: 'Schedule',
+  BACKUP_STORAGE_LOCATION: 'BackupStorageLocation',
+  VOLUME_SNAPSHOT_LOCATION: 'VolumeSnapshotLocation',
+} as const;
+export type DetailKind = keyof typeof DETAIL_OBJECT_KIND;
+
 export const MAX_PAGE = 200;
 export const DEFAULT_PAGE = 50;
 /** How many rows one request may examine while filtering for visibility. */
@@ -283,11 +293,11 @@ export class ResourcesService {
     orgId: string,
     userId: string,
     clusterId: string,
-    kind: 'BACKUP' | 'RESTORE' | 'SCHEDULE',
+    kind: DetailKind,
     name: string,
     token?: TokenLimit,
   ) {
-    const noun = kind.toLowerCase();
+    const noun = DETAIL_OBJECT_KIND[kind].toLowerCase();
     const config = CONFIG[kind];
     const row = await this.prisma.inOrg(orgId, () =>
       this.prisma.veleroResource.findFirst({ where: { clusterId, kind, name, deletedAt: null } }),
@@ -323,7 +333,7 @@ export class ResourcesService {
 
     const object = {
       apiVersion: 'velero.io/v1',
-      kind: noun.charAt(0).toUpperCase() + noun.slice(1),
+      kind: DETAIL_OBJECT_KIND[kind],
       metadata: { name: row.name, namespace: row.namespace, labels: row.labels },
       spec: row.spec,
       status: row.status,

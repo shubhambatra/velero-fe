@@ -448,6 +448,148 @@ export function SchedulesPage({ orgId, clusterId }: Props): ReactElement {
   );
 }
 
+/** Edit, make default and delete for one location, each disabled with its reason when not allowed. */
+function LocationActions({
+  orgId,
+  clusterId,
+  location,
+  kind,
+}: Props & { location: LocationRow; kind: 'backup' | 'snapshot' }): ReactElement {
+  const { name } = location;
+  const access = useAccess(orgId, clusterId);
+  const { follow } = useToasts();
+  const [asking, setAsking] = useState(false);
+  const segment = kind === 'backup' ? 'backup-locations' : 'snapshot-locations';
+  const base = `/orgs/${orgId}/clusters/${clusterId}/${segment}/${encodeURIComponent(name)}`;
+  const noun = kind === 'backup' ? 'backup location' : 'snapshot location';
+
+  const makeDefault = useMutation({
+    mutationFn: () => api<{ id: string }>(`${base}/default`, { method: 'POST', body: {} }),
+    onSuccess: (command) => {
+      follow({ orgId, clusterId, commandId: command.id, title: `Make ${name} the default` });
+    },
+  });
+  const remove = useMutation({
+    mutationFn: () => api<{ id: string }>(base, { method: 'DELETE' }),
+    onSuccess: (command) => {
+      follow({ orgId, clusterId, commandId: command.id, title: `Delete ${noun} ${name}` });
+      setAsking(false);
+    },
+  });
+
+  const denied = access.level('storage:write') !== 'cluster';
+  const reason = denied ? lacks('storage:write') : undefined;
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="flex flex-wrap gap-1">
+        {denied ? (
+          <Button variant="outline" disabled title={reason} aria-label={`Edit ${name}`}>
+            Edit
+          </Button>
+        ) : kind === 'backup' ? (
+          <Link
+            to="/clusters/$clusterId/storage/backup-locations/$name/edit"
+            params={{ clusterId, name }}
+            aria-label={`Edit ${name}`}
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            Edit
+          </Link>
+        ) : (
+          <Link
+            to="/clusters/$clusterId/storage/snapshot-locations/$name/edit"
+            params={{ clusterId, name }}
+            aria-label={`Edit ${name}`}
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            Edit
+          </Link>
+        )}
+        {kind === 'backup' && !location.isDefault && (
+          <Button
+            variant="outline"
+            disabled={denied || makeDefault.isPending}
+            title={reason}
+            aria-label={`Make ${name} the default`}
+            onClick={() => {
+              makeDefault.mutate();
+            }}
+          >
+            Make default
+          </Button>
+        )}
+        <Button
+          variant="destructive"
+          disabled={denied}
+          title={reason}
+          aria-label={`Delete ${name}`}
+          onClick={() => {
+            remove.reset();
+            setAsking(true);
+          }}
+        >
+          Delete
+        </Button>
+      </span>
+      <ErrorNote message={makeDefault.isError ? errorMessage(makeDefault.error) : undefined} />
+      {asking && (
+        <ConfirmDelete
+          name={name}
+          title={`Delete this ${noun}?`}
+          consequence={
+            kind === 'backup'
+              ? 'Velero stops using it. The bucket and the backups in it are not touched, but they will no longer be listed here.'
+              : 'Velero stops using it. Snapshots already taken are not touched.'
+          }
+          confirmLabel={`Delete ${noun}`}
+          busy={remove.isPending}
+          error={remove.isError ? errorMessage(remove.error) : undefined}
+          onConfirm={() => {
+            remove.mutate();
+          }}
+          onCancel={() => {
+            setAsking(false);
+          }}
+        />
+      )}
+    </span>
+  );
+}
+
+function AddLocationLinks({ orgId, clusterId }: Props): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  if (access.level('storage:write') !== 'cluster') {
+    return (
+      <div className="flex justify-end gap-2">
+        <Button disabled title={lacks('storage:write')}>
+          Add backup location
+        </Button>
+        <Button disabled title={lacks('storage:write')}>
+          Add snapshot location
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-end gap-2">
+      <Link
+        to="/clusters/$clusterId/storage/backup-locations/new"
+        params={{ clusterId }}
+        className={buttonVariants({ variant: 'primary' })}
+      >
+        Add backup location
+      </Link>
+      <Link
+        to="/clusters/$clusterId/storage/snapshot-locations/new"
+        params={{ clusterId }}
+        className={buttonVariants({ variant: 'outline' })}
+      >
+        Add snapshot location
+      </Link>
+    </div>
+  );
+}
+
 function Section<T>({
   orgId,
   clusterId,
@@ -547,11 +689,23 @@ export function StoragePage({ orgId, clusterId }: Props): ReactElement {
           </span>
         ),
     },
+    {
+      header: 'Actions',
+      cell: (l) => (
+        <LocationActions orgId={orgId} clusterId={clusterId} location={l} kind="backup" />
+      ),
+    },
   ];
   const snapshotColumns: Column<LocationRow>[] = [
     { header: 'Name', cell: (l) => <span className="font-mono">{l.name}</span> },
     { header: 'Provider', cell: (l) => l.provider ?? '—' },
     { header: 'State', cell: (l) => state(l.phase, l.message) },
+    {
+      header: 'Actions',
+      cell: (l) => (
+        <LocationActions orgId={orgId} clusterId={clusterId} location={l} kind="snapshot" />
+      ),
+    },
   ];
   const repoColumns: Column<RepositoryRow>[] = [
     { header: 'Name', cell: (r) => <span className="font-mono">{r.name}</span> },
@@ -563,6 +717,7 @@ export function StoragePage({ orgId, clusterId }: Props): ReactElement {
   ];
   return (
     <ClusterShell orgId={orgId} clusterId={clusterId} tab="storage">
+      <AddLocationLinks orgId={orgId} clusterId={clusterId} />
       <Section<LocationRow>
         orgId={orgId}
         clusterId={clusterId}

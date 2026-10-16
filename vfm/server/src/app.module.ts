@@ -21,6 +21,7 @@ import { BackupsModule } from './backups/backups.module';
 import { DownloadsModule } from './downloads/downloads.module';
 import { RestoresModule } from './restores/restores.module';
 import { SchedulesModule } from './schedules/schedules.module';
+import { StorageModule } from './storage/storage.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './health/health.module';
@@ -98,6 +99,7 @@ function prettyTransportAvailable(): boolean {
     BackupsModule,
     RestoresModule,
     SchedulesModule,
+    StorageModule,
     DownloadsModule,
     EventsModule,
     AuthModule,

@@ -267,4 +267,49 @@ export class ResourcesController {
       r.apiToken,
     );
   }
+
+  @Get('backup-locations/:name')
+  @AllowsApiToken()
+  @RequirePermission('storage:read')
+  @ApiOperation({
+    summary: 'One backup storage location: summary, spec, status and YAML',
+    description: 'Holds only the reference to a credential Secret, never its contents.',
+  })
+  backupLocation(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('orgId') o: string,
+    @Param('clusterId') c: string,
+    @Param('name') n: string,
+    @Req() r: Request,
+  ) {
+    return this.resources.detail(
+      parseBody(orgIdParam, o),
+      u.id,
+      parseBody(orgIdParam, c),
+      'BACKUP_STORAGE_LOCATION',
+      parseBody(nameParam, n),
+      r.apiToken,
+    );
+  }
+
+  @Get('snapshot-locations/:name')
+  @AllowsApiToken()
+  @RequirePermission('storage:read')
+  @ApiOperation({ summary: 'One volume snapshot location: summary, spec, status and YAML' })
+  snapshotLocation(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('orgId') o: string,
+    @Param('clusterId') c: string,
+    @Param('name') n: string,
+    @Req() r: Request,
+  ) {
+    return this.resources.detail(
+      parseBody(orgIdParam, o),
+      u.id,
+      parseBody(orgIdParam, c),
+      'VOLUME_SNAPSHOT_LOCATION',
+      parseBody(nameParam, n),
+      r.apiToken,
+    );
+  }
 }

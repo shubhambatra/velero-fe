@@ -7,6 +7,7 @@ import { SetupPage } from '@/pages/setup-page';
 import { CreateOrgPage } from '@/pages/admin/create-org-page';
 import { InvitePage } from '@/pages/invite-page';
 import { BackupDetailPage, RestoreDetailPage } from '@/pages/cluster-detail';
+import { LocationFormPage } from '@/pages/location-form';
 import { ScheduleWizardPage } from '@/pages/schedule-wizard';
 import { BackupsPage, RestoresPage, SchedulesPage, StoragePage } from '@/pages/cluster-lists';
 import { ClusterPage } from '@/pages/cluster-page';
@@ -157,6 +158,22 @@ export const editScheduleRoute = clusterSubRoute(
 export const storageRoute = clusterSubRoute('/clusters/$clusterId/storage', (o, c) => (
   <StoragePage orgId={o} clusterId={c} />
 ));
+export const newBackupLocationRoute = clusterSubRoute(
+  '/clusters/$clusterId/storage/backup-locations/new',
+  (o, c) => <LocationFormPage orgId={o} clusterId={c} kind="backup" />,
+);
+export const editBackupLocationRoute = clusterSubRoute(
+  '/clusters/$clusterId/storage/backup-locations/$name/edit',
+  (o, c, n) => <LocationFormPage orgId={o} clusterId={c} kind="backup" name={n} />,
+);
+export const newSnapshotLocationRoute = clusterSubRoute(
+  '/clusters/$clusterId/storage/snapshot-locations/new',
+  (o, c) => <LocationFormPage orgId={o} clusterId={c} kind="snapshot" />,
+);
+export const editSnapshotLocationRoute = clusterSubRoute(
+  '/clusters/$clusterId/storage/snapshot-locations/$name/edit',
+  (o, c, n) => <LocationFormPage orgId={o} clusterId={c} kind="snapshot" name={n} />,
+);
 export const newBackupRoute = clusterSubRoute('/clusters/$clusterId/backups/new', (o, c) => (
   <BackupWizardPage orgId={o} clusterId={c} />
 ));

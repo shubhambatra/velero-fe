@@ -1712,3 +1712,55 @@ Go: create, idempotent re-delivery, refused specs, advanced onto the template, u
 touches only `paused`, delete leaves backups, cron grammar. Server: 31 unit tests, 28 e2e tests (mutation check:
 removing the current-template authorization made a test fail). Web: cron parser and builder, form library (round trip
 of a stored spec), wizard create/edit and list actions. Driven in Chrome against the real server and Go handlers.
+
+## ADR-031 — Storage locations and credentials (M4 day 26)
+
+### Decisions
+
+- **The credential is held in memory, not stored.** A request may carry credential text (`credential.content`). It
+  goes into the command as a `CredentialSecret` and nowhere else: the `commands` row keeps a payload with only the
+  Secret's name and key and `rotatesSecret: true`; the text is kept in `CommandsService.transients` (a map in process
+  memory) until the command finishes, is cancelled, fails, or its deadline passes (swept every 10 s). Neither the
+  audit entry (field names only, ADR-013) nor any response nor any log carries it. If the command must be sent again
+  after a restart or from another replica, the text is gone: the command **fails** with "submit the change again"
+  rather than sending a location without its credential. While a command is relayed to an agent on another replica the
+  message passes through Redis pub/sub (not persisted); accepted.
+- **Two ways to give a credential.** Text (`content`; Secret name defaults to `vfm-bsl-<name>` / `vfm-vsl-<name>`, key
+  to `cloud`), or a reference to a Secret that exists (`secretName` + `key`, no secret material). An update that leaves
+  `credential` out keeps the Secret the location uses now.
+- **The agent never touches a Secret it did not write.** It creates the Secret with `vfm.io/managed` and
+  `vfm.io/location: <Kind>/<name>`; it updates or deletes a Secret only when both annotations match that location. A
+  credential aimed at `cloud-credentials` (Velero's own) is refused with `ALREADY_EXISTS`. Deleting a location removes
+  the Secret it wrote. This needed `delete` on Secrets in Velero's namespace in the chart's Role (namespace-scoped; the
+  agent's own check is the limit).
+- **Provider settings must not hold secrets.** `config` is stored and shown as it is, so a key that looks like a
+  secret (password, secret, token, accesskey, privatekey, credential) is refused in the server, the form and the tests;
+  `signatureVersion`-style keys are fine.
+- **Authorization.** All writes need `storage:write` over the whole cluster (a namespace-limited user is refused);
+  delete also needs a recent sign-in and refuses API tokens; the other writes are open to tokens. There is no separate
+  `storage:delete` permission (PLAN §8.2 has none).
+- **One default.** Setting a default (or saving a location as default) clears the flag on the others. The server
+  refuses to delete the default location while others exist (409). Creating a name that exists is 409, changing or
+  deleting one that does not is 404 (by the inventory; the agent is idempotent either way).
+- **Update replaces the spec** (so what the form shows is what Velero gets); `default` is carried over when the
+  request does not say.
+- **Availability** is the existing state column (phase, message, last validated) on the Storage page, fed by the
+  inventory.
+- **Detail endpoints** `GET …/backup-locations/{name}` and `…/snapshot-locations/{name}` feed the edit form (spec
+  holds only the credential reference).
+- **Web form.** One page for backup and snapshot locations (`/clusters/$id/storage/{backup,snapshot}-locations/new` and
+  `…/$name/edit`), masked credential box with "show", file load, no draft storage, request built inside the mutation
+  function so react-query never holds the text, CLI preview without it.
+
+### Deferred
+
+`caCertRef` (reference to a CA in a Secret); a credential-less "none" choice when editing; showing which backups use a
+location before deleting it; BSL access-mode change guard; the grep test across _all_ logs and dumps (day 27).
+
+### Verified
+
+Go: Secret written and referenced, update and rotation, foreign Secret never overwritten, one default, delete removes
+only our Secret, VSL, refusals, no result carries the text. Server: 22 unit, 39 e2e (mutation check: storing the text
+in the payload made the all-tables scan fail). Web: form library and page tests. Driven in Chrome against the real
+server and the real Go handlers (fake Kubernetes): create with a credential, make default, edit with rotation, typed
+delete; the test credential was found only in the Secret (database scan of every table, both logs, Velero object).

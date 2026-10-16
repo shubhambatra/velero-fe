@@ -9,6 +9,39 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M4 day 26: storage locations
+
+Session 7, continued. CI green on day 25 (`b822c67`).
+
+### Done
+
+- Agent: `StorageHandler` (upsert and delete for backup and snapshot locations, set default), credential written to a
+  Secret the agent owns, never overwriting another; chart Role gained `delete` on Secrets (ADR-031).
+- Server: `storage/` module (`POST/PUT/DELETE …/backup-locations`, `POST …/backup-locations/{name}/default`,
+  `POST/PUT/DELETE …/snapshot-locations`), detail endpoints for both kinds; the credential is transient
+  (`commands/transient.ts`), the stored payload has only a reference.
+- Web: location form (add and change, masked credential, existing-Secret option, CLI preview) and Storage page actions
+  (Add, Edit, Make default, Delete with typed name).
+
+### Test status
+
+Server unit **788**, e2e **460** (39 new); web **356** (29 new); Go all packages pass (10 new), golangci-lint 0,
+govulncheck clean, `buf lint` clean; lint, typecheck, build clean; OpenAPI regenerated. Requirements **59/152
+(38.8 %)** (R-065 verified; R-145 partial: the grep half holds, "Available" needs real Velero).
+
+### Driven for real
+
+Chrome against the real server and gateway with the real Go handlers over fake Kubernetes clients: add a location with
+a pasted credential (Secret created with the text; Velero object, command row, every database table and both logs
+free of it), make default (previous default cleared), edit with a rotated credential, delete with the typed name.
+
+### Not verified
+
+Real Velero accepting the generated specs and reporting Available (B-2); a namespace-limited user in a browser; the
+sudo prompt on delete in a fresh session; another replica relaying a credential.
+
+---
+
 ## 2026-10-16 — M4 day 25: schedules
 
 Session 7, continued. CI green on day 24 (`f87a9f4`).

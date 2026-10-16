@@ -65,9 +65,11 @@ rules:
   # Credentials for backup and snapshot locations. `create` cannot be limited by
   # name (the name is not known to the authoriser at create time), so this is
   # namespace-scoped rather than name-scoped; it never extends beyond Velero's namespace.
+  # `delete` is for the Secret the agent itself wrote for a location it is removing:
+  # the agent checks its own annotations first and removes no other Secret.
   - apiGroups: [""]
     resources: [secrets]
-    verbs: [get, create, update]
+    verbs: [get, create, update, delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

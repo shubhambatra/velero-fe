@@ -89,6 +89,8 @@ export function Area(
     disabled?: boolean;
     rows?: number;
     mono?: boolean;
+    /** Shows dots instead of the text, for a secret. */
+    masked?: boolean;
   },
 ): ReactElement {
   const id = useId();
@@ -101,10 +103,13 @@ export function Area(
           inputClass,
           'h-auto py-2',
           props.mono === true && 'font-mono',
+          props.masked === true && '[-webkit-text-security:disc]',
           props.error !== undefined && 'border-destructive',
         )}
         value={props.value}
         disabled={props.disabled}
+        autoComplete="off"
+        spellCheck={props.masked === true ? false : undefined}
         aria-invalid={props.error !== undefined}
         aria-describedby={describedBy(id, props)}
         onChange={(e) => {
