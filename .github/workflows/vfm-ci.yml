@@ -120,14 +120,14 @@ jobs:
         if: steps.agent.outputs.present == 'true'
         run: |
           printf -- '-----BEGIN CERTIFICATE-----\nMIIBabc\n-----END CERTIFICATE-----\n' > /tmp/ca.pem
-          helm lint vfm/deploy/helm/vfm-agent \
+          helm lint deploy/helm/vfm-agent \
             --set controlPlane.address=vfm.example.com:8443 \
             --set-file controlPlane.caBundle=/tmp/ca.pem
 
       - name: Build the agent image
         if: steps.agent.outputs.present == 'true'
         # Not pushed: this only proves the Dockerfile still builds.
-        run: docker build --build-arg VERSION=ci -t vfm-agent:ci vfm/agent
+        run: docker build --build-arg VERSION=ci -t vfm-agent:ci agent
 
       - name: golangci-lint
         if: steps.agent.outputs.present == 'true'
