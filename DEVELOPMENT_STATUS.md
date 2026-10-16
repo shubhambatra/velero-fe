@@ -49,7 +49,7 @@ unfinished work as done.
 |---|---|
 | **Requirements verified** | **45 / 152 — 29.6 %** |
 | Requirements partial | 29 |
-| Requirements not started | 78 |
+| Requirements not started | 76 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
