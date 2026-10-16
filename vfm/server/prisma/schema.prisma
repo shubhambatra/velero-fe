@@ -144,6 +144,7 @@ model Organization {
   oidcProviders OidcProvider[]
   roleBindings  RoleBinding[]
   apiTokens     ApiToken[]
+  clusters      Cluster[]
 
   @@map("organizations")
 }
@@ -339,8 +340,7 @@ enum RoleBindingSubject {
 /// Grants a user or team a built-in cluster role, optionally limited to some
 /// namespaces (PLAN.md §8.2, §9). Evaluated by `authorize()` in @vfm/shared.
 ///
-/// `clusterId` is a plain UUID with no foreign key: the `clusters` table
-/// arrives in M2, which adds the constraint (docs/DECISIONS.md ADR-012).
+/// `clusterId` references `clusters` (the constraint ADR-012 deferred until M2).
 /// `subjectId` is polymorphic (user or team) and so cannot be a foreign key
 /// either; the service validates it and removes bindings when the subject
 /// leaves the org or is deleted.
@@ -365,7 +365,8 @@ model RoleBinding {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cluster Cluster      @relation(fields: [clusterId], references: [id], onDelete: Cascade)
 
   @@index([orgId, clusterId])
   @@index([orgId, subjectType, subjectId])
@@ -456,7 +457,7 @@ model ApiToken {
   /// owner's", which is the owner's permissions, not every permission.
   permissions Json?
   /// Cluster ids the token is limited to; `null` means all of the owner's.
-  clusterIds  Json?  @map("cluster_ids")
+  clusterIds  Json? @map("cluster_ids")
 
   expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
   lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
@@ -470,4 +471,125 @@ model ApiToken {
   @@index([orgId])
   @@index([userId])
   @@map("api_tokens")
+}
+
+enum ClusterStatus {
+  /// Created in the UI; no agent has enrolled yet.
+  PENDING
+  /// An agent enrolled and holds a certificate, but is not connected now.
+  ENROLLED
+  CONNECTED
+  DISCONNECTED
+  /// Turned off by an admin: certificates revoked, enrollment refused.
+  DISABLED
+
+  @@map("cluster_status")
+}
+
+/// A Kubernetes cluster managed through an agent (PLAN.md §9, §5.1).
+///
+/// Everything from `fingerprint` down is reported by the agent and is only as
+/// trustworthy as the agent; it is display data, never an input to an
+/// authorization decision.
+model Cluster {
+  id String @id @db.Uuid
+
+  orgId String @map("org_id") @db.Uuid
+  name  String
+
+  status ClusterStatus @default(PENDING)
+
+  /// UID of the cluster's `kube-system` namespace, recorded at enrollment. A
+  /// later Hello with a different value means the agent moved clusters.
+  fingerprint String?
+
+  k8sVersion      String? @map("k8s_version")
+  veleroVersion   String? @map("velero_version")
+  veleroPlugins   Json?   @map("velero_plugins")
+  agentVersion    String? @map("agent_version")
+  protocolVersion Int?    @map("protocol_version")
+  agentPolicy     Json?   @map("agent_policy")
+  capabilities    Json?
+
+  lastSeenAt DateTime? @map("last_seen_at") @db.Timestamptz(6)
+
+  labels             Json    @default("{}")
+  grafanaUrlTemplate String? @map("grafana_url_template")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  org             Organization            @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  bootstrapTokens ClusterBootstrapToken[]
+  certificates    AgentCertificate[]
+  roleBindings    RoleBinding[]
+
+  @@unique([orgId, name])
+  @@index([orgId, status])
+  @@map("clusters")
+}
+
+/// One-time enrollment credential (PLAN.md §5.1): 32 random bytes, stored as a
+/// SHA-256 hash, valid 24 h, burned by a conditional UPDATE on first use.
+///
+/// `orgId` is denormalised from the cluster so the table is org-scoped like
+/// every other (docs/DECISIONS.md ADR-016); enrollment itself runs unscoped
+/// because the caller is identified by the token, not by a session.
+model ClusterBootstrapToken {
+  id String @id @db.Uuid
+
+  orgId     String @map("org_id") @db.Uuid
+  clusterId String @map("cluster_id") @db.Uuid
+
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  cluster Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([clusterId])
+  @@map("cluster_bootstrap_tokens")
+}
+
+/// A client certificate issued to an agent. `revokedAt` is the deny-list:
+/// the gateway refuses any presented serial that is absent, revoked or expired.
+model AgentCertificate {
+  id String @id @db.Uuid
+
+  orgId     String @map("org_id") @db.Uuid
+  clusterId String @map("cluster_id") @db.Uuid
+
+  /// Lower-case hex of the certificate serial number.
+  serial    String    @unique
+  notBefore DateTime  @map("not_before") @db.Timestamptz(6)
+  notAfter  DateTime  @map("not_after") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  cluster Cluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([clusterId, revokedAt])
+  @@map("agent_certificates")
+}
+
+/// The internal certificate authority that signs agent certificates and the
+/// gateway's own server certificate (PLAN.md §5.1). One row, id `1`: replicas
+/// race to create it with `skipDuplicates` and all read back the winner. The
+/// private key exists only as an envelope-encrypted value (docs/DECISIONS.md
+/// ADR-016).
+model CertificateAuthority {
+  id Int @id
+
+  certificatePem String   @map("certificate_pem")
+  keyEncrypted   String   @map("key_encrypted")
+  notAfter       DateTime @map("not_after") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("certificate_authority")
 }

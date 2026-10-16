@@ -158,6 +158,37 @@ export const envSchema = z.object({
   SMTP_USER: z.string().min(1).optional(),
   SMTP_PASSWORD: z.string().min(1).optional(),
   MAIL_FROM: z.string().min(3).default('Velero Fleet Manager <no-reply@localhost>'),
+
+  /**
+   * The agent gateway (PLAN.md §5, §10): a gRPC listener separate from the REST
+   * port because it speaks mTLS and holds long-lived streams. `GATEWAY_ENABLED`
+   * is `false` only for tools and tests that never talk to agents.
+   */
+  GATEWAY_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
+  /** `0` binds an ephemeral port, which the tests use. */
+  GATEWAY_PORT: z.coerce.number().int().min(0).max(65_535).default(8443),
+  /**
+   * Hostnames and IPs written into the gateway's TLS certificate. Agents verify
+   * the server against the internal CA **and** this name, so it must include
+   * whatever the Helm command tells them to dial.
+   */
+  GATEWAY_HOSTNAMES: z
+    .string()
+    .default('localhost,127.0.0.1')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((host) => host.trim())
+        .filter((host) => host !== ''),
+    )
+    .refine((hosts) => hosts.length > 0, 'at least one hostname is required'),
+  /** `host:port` shown to the operator in the generated install command. */
+  GATEWAY_PUBLIC_ADDRESS: z.string().min(1).default('localhost:8443'),
+  /** Where the agent's Helm chart is published; shown in the install command. */
+  AGENT_CHART_REF: z.string().min(1).default('oci://ghcr.io/shubhambatra/charts/vfm-agent'),
 });
 
 export type Env = z.infer<typeof envSchema>;

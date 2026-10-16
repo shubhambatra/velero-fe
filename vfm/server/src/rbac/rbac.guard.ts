@@ -60,6 +60,8 @@ export class RbacGuard implements CanActivate {
       throw new BadRequestException('no active organization; select one first');
     }
 
+    await this.rbac.assertClusterInOrg(orgId.data, clusterId.data);
+
     if (required.checkInHandler === true) {
       const { may, visible } = await this.rbac.mayAttempt(
         orgId.data,

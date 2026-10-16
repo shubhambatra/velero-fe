@@ -28,6 +28,20 @@ export interface TokenLimit {
 export class RbacService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * 404 unless the cluster exists **in this org**. Without it, an Owner of org B
+   * would get an empty 200 for a cluster id that belongs to org A (or to nobody),
+   * which both confirms nothing and fails to say "not found".
+   */
+  async assertClusterInOrg(orgId: string, clusterId: string): Promise<void> {
+    const cluster = await this.prisma.inOrg(orgId, () =>
+      this.prisma.cluster.findUnique({ where: { id: clusterId }, select: { id: true } }),
+    );
+    if (cluster === null) {
+      throw new NotFoundException('cluster not found');
+    }
+  }
+
   /** Everything `authorize()` needs for one user, one org, one cluster. */
   async load(orgId: string, userId: string, clusterId: string, token?: TokenLimit) {
     const [membership, teams, bindings, org] = await this.prisma.inOrg(orgId, () =>

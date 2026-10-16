@@ -41,6 +41,8 @@ export const NOT_ORG_OWNED: Readonly<Record<string, string>> = {
   User: 'global identity; a user may belong to several orgs (PLAN.md §8.1)',
   MfaRecoveryCode: 'belongs to a user, not an org (docs/DECISIONS.md ADR-008)',
   Organization: 'the tenant itself; reached by id after a membership check',
+  CertificateAuthority:
+    "one platform-wide row: the control plane's own CA (docs/DECISIONS.md ADR-016)",
 };
 
 function scalarFields(model: string): readonly string[] {

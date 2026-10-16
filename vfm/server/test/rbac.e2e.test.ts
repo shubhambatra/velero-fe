@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { CSRF_HEADER } from '../src/auth/csrf.guard';
 import { SessionService } from '../src/auth/session.service';
-import { createTestApp, type TestApp } from './app-harness';
+import { createTestApp, seedClusters, type TestApp } from './app-harness';
 
 /**
  * End-to-end coverage of M1 day 8 — RBAC — against real PostgreSQL and Redis.
@@ -84,6 +84,7 @@ describe('rbac (e2e)', () => {
     const res = await admin.call('post', '/orgs', { name: `Org ${slug}`, slug }).expect(201);
     const orgId = res.body.id as string;
     await admin.call('post', '/me/active-org', { orgId }).expect(204);
+    await seedClusters(harness.prisma, orgId, [CLUSTER, OTHER_CLUSTER]);
     return orgId;
   }
 
@@ -381,15 +382,17 @@ describe('rbac (e2e)', () => {
   });
 
   describe('org isolation', () => {
-    it('keeps the same cluster id in two orgs separate', async () => {
+    it('treats a cluster of another org as nonexistent, even for an owner', async () => {
       const admin = await platformAdmin();
       const orgA = await createOrg(admin, 'alpha');
       const devA = await addMember(admin, orgA, 'dev@alpha.test');
       await bind(admin, user(devA), 'VIEWER');
 
+      // The cluster belongs to alpha. In beta, where admin is also an owner,
+      // it does not exist: 404, not an empty list that would suggest it does.
       const orgB = await createOrg(admin, 'beta');
-      const list = await admin.call('get', `/clusters/${CLUSTER}/role-bindings`).expect(200);
-      expect(list.body.bindings).toEqual([]);
+      await admin.call('get', `/clusters/${CLUSTER}/role-bindings`).expect(404);
+      await admin.call('get', `/clusters/${CLUSTER}/my-access`).expect(404);
 
       // The alpha member has no standing in beta, whatever the cluster id.
       await devA.call('post', '/me/active-org', { orgId: orgB }).expect(404);

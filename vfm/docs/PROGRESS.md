@@ -9,6 +9,40 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M2 day 11 (part 1): internal CA, clusters, bootstrap tokens
+
+Session 7, continued. CI on the day 10 commit was red in three jobs (buf action
+pushing to the BSR, a golangci-lint built with an older Go, five real `x/net`
+vulnerabilities); fixed in `a9643fc` and **green on all five jobs**.
+
+### Done
+
+- Schema + migration `clusters_and_ca`: `clusters`, `cluster_bootstrap_tokens`,
+  `agent_certificates`, `certificate_authority`; FK on `role_bindings.cluster_id`
+  (ADR-012's deferral). ADR-016.
+- `server/src/ca`: ECDSA P-256 CA, CSR signing (subject/SAN ignored, SPIFFE id
+  stamped, key type enforced), client-certificate verification, gateway server
+  certificate. 11 unit tests including forged CSR, wrong CA, expiry.
+- `server/src/clusters`: REST (`/orgs/{orgId}/clusters` create/list/get/update/
+  delete/disable/enable/bootstrap-token/rotate-certificate), `EnrollmentService`
+  (`enroll`, `renew`, `authenticate`), generated install command (injection-tested).
+- Existence check in the RBAC guard (a cluster of another org is a 404).
+- First real `golangci-lint` (0 issues) and `govulncheck` (clean after `x/net`
+  v0.60.0) runs; Go toolchain bits of B-1 are now cleared except `make`.
+
+### Test status
+
+shared 128, server unit **517**, e2e **178** (22 new in `clusters.e2e.test.ts`:
+concurrent double-enroll, replay, expiry, fingerprint move, revocation by
+disable/delete/rotate, cross-org isolation, audit never records the token).
+
+### Not yet (rest of day 11)
+
+The gRPC listener with `Enroll`/`RenewCertificate` on the wire, and the
+add-cluster UI.
+
+---
+
 ## 2026-10-16 — M2 day 10: the agent protocol contract
 
 Session 7. Started M2 at the user's instruction ("continue with M2"), waiving the

@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AuditService } from '../src/audit/audit.service';
 import { CSRF_HEADER } from '../src/auth/csrf.guard';
 import { SessionService } from '../src/auth/session.service';
-import { createTestApp, type TestApp } from './app-harness';
+import { createTestApp, seedClusters, type TestApp } from './app-harness';
 
 /**
  * End-to-end coverage of the audit log (M1 day 9) against real PostgreSQL.
@@ -100,6 +100,7 @@ describe('audit log (e2e)', () => {
     const res = await admin.call('post', '/orgs', { name: `Org ${slug}`, slug }).expect(201);
     const orgId = res.body.id as string;
     await admin.call('post', '/me/active-org', { orgId }).expect(204);
+    await seedClusters(harness.prisma, orgId, [CLUSTER]);
     return orgId;
   }
 

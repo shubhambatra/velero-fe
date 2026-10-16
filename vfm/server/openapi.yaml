@@ -744,6 +744,175 @@ paths:
       summary: Revoke a role binding (cluster:manage, sudo)
       tags:
         - rbac
+  /orgs/{orgId}/clusters:
+    get:
+      operationId: ClustersController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List the clusters you can see
+      tags:
+        - clusters
+    post:
+      description: Returns a one-time bootstrap token and the install command. The token is shown once.
+      operationId: ClustersController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Add a cluster (Owner/Admin, sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}:
+    get:
+      operationId: ClustersController_get
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Get one cluster
+      tags:
+        - clusters
+    patch:
+      operationId: ClustersController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Rename a cluster or change its labels
+      tags:
+        - clusters
+    delete:
+      operationId: ClustersController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Delete a cluster and lock its agent out (sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/disable:
+    post:
+      operationId: ClustersController_disable
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "Disable a cluster: revoke its certificates (sudo)"
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/enable:
+    post:
+      operationId: ClustersController_enable
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Re-enable a disabled cluster and issue a new token (sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/bootstrap-token:
+    post:
+      description: Invalidates any earlier unused token. Existing certificates are untouched.
+      operationId: ClustersController_reissue
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Issue a new bootstrap token (sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/rotate-certificate:
+    post:
+      operationId: ClustersController_rotate
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Revoke the agent’s certificates and require it to enrol again (sudo)
+      tags:
+        - clusters
   /healthz:
     get:
       description: Returns 200 while the process is able to serve requests.

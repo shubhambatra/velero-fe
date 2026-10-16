@@ -768,3 +768,81 @@ eslint and prettier. New server dependencies: `@bufbuild/protobuf` 2.15.0 and
 
 `buf breaking` in CI compares against `main`, which has no `vfm/proto` yet; the
 first run is the real test of that job (recorded in PROGRESS.md).
+
+---
+
+## ADR-016 — Internal CA, bootstrap tokens and the cluster tables (M2 day 11)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+- **Tables.** `clusters`, `cluster_bootstrap_tokens`, `agent_certificates` (PLAN.md
+  §9) plus `certificate_authority`, which §9 does not list. The CA has to live
+  somewhere shared, because "generated on first start" with several replicas
+  means all of them must end up signing with the same key.
+- **`org_id` on the two child tables.** §9 gives them only `cluster_id`. They carry
+  a denormalised `org_id` so the org-scoping extension (ADR-010) covers them like
+  every other table and a query on them cannot forget the tenant. Enrollment and
+  certificate authentication are the two places that cannot know the org up front
+  (the caller is identified by a token or a certificate, not a session), and use
+  `unscoped()` with a stated reason; both call sites are on the reviewed list in
+  `org-scope.test.ts`.
+- **The CA row is not org-owned** (`NOT_ORG_OWNED`), and is a singleton: id `1`,
+  created with `createMany({skipDuplicates})`, so concurrent first starts race
+  safely and every replica loads the winner's row. The private key is
+  envelope-encrypted (`CryptoService`, context `ca.private_key`) and never
+  returned by any API.
+- **Crypto.** ECDSA P-256 only, for the CA, agent leaves and the gateway's server
+  certificate. The CA is 10 years, `pathLen 0`; agent leaves are 7 days, client
+  auth only, `CA:FALSE`. Implemented with `@peculiar/x509` 2.1.0 (Node has no
+  X.509 issuance API) over Node's WebCrypto; verification of presented
+  certificates uses Node's own `X509Certificate`.
+- **Nothing in a CSR but the public key is trusted.** The control plane sets the
+  subject and the single SAN `spiffe://vfm/cluster/{id}` itself; the CSR's
+  self-signature is checked as proof of key possession; a non-P-256 key is
+  refused.
+- **Bootstrap tokens.** 32 random bytes, base64url, SHA-256 at rest (the same
+  reasoning as ADR-009), 24 h, bound to the cluster, one live token per cluster
+  (issuing a new one deletes the old unused one). Burned with a conditional
+  `UPDATE ... WHERE used_at IS NULL AND expires_at > now()` in the same
+  transaction that records the certificate and moves the cluster to `ENROLLED`.
+  Every failure (unknown, expired, used, disabled cluster, fingerprint mismatch)
+  returns the same message so the endpoint is not an oracle. A _bad CSR_ is the
+  agent's mistake, so it is reported specifically and **does not burn the token**.
+- **Fingerprint.** Recorded at first enrollment. A later enrollment from a
+  different `kube-system` UID is refused until an admin issues a token with
+  `resetFingerprint: true`.
+- **Revocation is by absence as well as by flag.** The gateway accepts a serial
+  only if it exists, is unrevoked, is unexpired and its cluster is not disabled.
+  Deleting a cluster cascades its certificate rows away, which therefore locks the
+  agent out without a separate step. "Rotate certificate" revokes everything and
+  issues a token (the agent must enrol again); "disable" revokes and blocks
+  enrollment until "enable".
+- **Renewal overlaps.** `RenewCertificate` issues a new certificate and leaves the
+  old valid until it expires. Revoking at once would lock out an agent that
+  crashed between receiving the new certificate and persisting it. The window is
+  bounded by the 7-day lifetime, and rotate exists for the leak case.
+- **Existence check in the RBAC guard.** With real clusters the guard now 404s a
+  cluster id that is not in the org (`assertClusterInOrg`), where before an Owner
+  got an empty 200 for any UUID. The `role_bindings.cluster_id` foreign key that
+  ADR-012 deferred is added in the same migration.
+- **Install command.** Generated server-side (`install-command.ts`), every
+  interpolated value validated against a strict pattern before it can appear in a
+  shell snippet an operator pastes with cluster-admin rights. The CA is embedded
+  through a quoted heredoc. **The chart does not exist until M2 day 15**; the
+  command names `AGENT_CHART_REF` (default
+  `oci://ghcr.io/shubhambatra/charts/vfm-agent`, a placeholder) and the values
+  `controlPlane.address`, `controlPlane.caBundle`, `enrollment.token`, which the
+  chart must adopt.
+- **Permissions.** Adding a cluster is Owner/Admin and needs sudo. Per-cluster
+  operations use `cluster:manage` through the RBAC guard; delete, disable, enable,
+  token reissue and rotate also need sudo, as they mint or revoke credentials.
+
+### Not done here (deliberately)
+
+- No rate limit on the enrollment endpoint beyond the 256-bit token: brute force is
+  not feasible, and per-IP limits belong with the gateway's other limits (M7).
+- The gRPC listener, `Connect` and the live revocation of open streams are day 13;
+  `Enroll`/`RenewCertificate` over the wire is the next increment of day 11.

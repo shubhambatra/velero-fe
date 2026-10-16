@@ -133,3 +133,23 @@ export function readCookie(cookies: string[], name: string): string {
   }
   return decodeURIComponent(match.slice(name.length + 1).split(';')[0] ?? '');
 }
+
+/**
+ * Inserts clusters with fixed ids, so a suite that exercises role bindings and
+ * token limits has real rows for the foreign key to point at (docs/DECISIONS.md
+ * ADR-012: the constraint arrived with the `clusters` table in M2).
+ */
+export async function seedClusters(
+  prisma: PrismaService,
+  orgId: string,
+  ids: readonly string[],
+): Promise<void> {
+  await prisma.inOrg(orgId, () =>
+    prisma.cluster.createMany({
+      data: ids.map((id) => ({ id, orgId, name: `cluster-${id.slice(-4)}` })),
+      // A cluster id belongs to one org. A second org in the same test is
+      // meant to find it absent, so a repeat is skipped rather than an error.
+      skipDuplicates: true,
+    }),
+  );
+}

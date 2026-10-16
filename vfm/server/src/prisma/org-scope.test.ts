@@ -238,6 +238,9 @@ describe('static guard over the source tree', () => {
     expect(sites).toEqual([
       'audit/audit.service.ts: audit events may precede org selection and outlive the org',
       'auth/mfa.service.ts: mfa obligation spans all of a user’s orgs',
+      'clusters/enrollment.service.ts: a bootstrap token identifies its cluster and org',
+      'clusters/enrollment.service.ts: a bootstrap token identifies its cluster and org',
+      'clusters/enrollment.service.ts: an agent certificate identifies its cluster and org',
       'oidc/oidc-login.service.ts: an oidc provider id identifies its org',
       'orgs/invites.service.ts: an invite token identifies its org',
       'orgs/orgs.service.ts: a user lists their own memberships (org switcher)',

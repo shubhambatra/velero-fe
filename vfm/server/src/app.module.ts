@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { CsrfGuard } from './auth/csrf.guard';
 import { SessionGuard } from './auth/session.guard';
 import { SudoGuard } from './auth/sudo.guard';
+import { ClustersModule } from './clusters/clusters.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
@@ -82,6 +83,7 @@ function prettyTransportAvailable(): boolean {
     TokensModule,
     OidcModule,
     RbacModule,
+    ClustersModule,
     AuthModule,
     HealthModule,
   ],

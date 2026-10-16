@@ -73,6 +73,8 @@ export const EncryptionContext = {
   userMfaSecret: (userId: string): string => `user.mfa_secret:${userId}`,
   /** An OIDC provider's client secret (M1 day 7). */
   oidcClientSecret: (providerId: string): string => `oidc_provider.client_secret:${providerId}`,
+  /** The internal CA's private key (M2 day 11). */
+  caPrivateKey: (): string => 'ca.private_key',
   /** A notification channel's configuration (M6). */
   notificationChannelConfig: (channelId: string): string =>
     `notification_channel.config:${channelId}`,
