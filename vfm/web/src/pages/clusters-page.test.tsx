@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { jsonResponse, renderApp, stubFetch } from '@/test/utils';
 
@@ -17,7 +17,12 @@ const row = (c: { id: string; name: string; status: string }) => ({
   ...c,
   k8sVersion: null,
   veleroVersion: 'v1.18.4',
-  agentVersion: null,
+  veleroPlugins: [
+    { name: 'velero.io/aws', kind: 'ObjectStore' },
+    { name: 'velero.io/csi', kind: 'BackupItemAction' },
+  ],
+  agentVersion: '0.0.9',
+  agentUpdateAvailable: c.name === 'old-agent',
   lastSeenAt: null,
 });
 
@@ -52,6 +57,10 @@ function server(role: 'OWNER' | 'MEMBER', state: State) {
       state.calls.push(`delete ${url}`);
       state.clusters = [];
       return new Response(null, { status: 204 });
+    }
+    if (url.endsWith('/clusters/c1/refresh-status') && method === 'POST') {
+      state.calls.push('refresh-status');
+      return jsonResponse({ id: 'cmd1', status: 'QUEUED' }, { status: 202 });
     }
     if (url.includes('/clusters/c1/') && method === 'POST') {
       state.calls.push(url.split('/clusters/c1/')[1] ?? '');
@@ -96,7 +105,9 @@ describe('Clusters page', () => {
     expect(screen.queryByLabelText('Cluster name')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add cluster' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Delete/ })).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: 'Actions' })).toBeNull();
+    // The Actions column exists for everyone (Refresh), but holds nothing administrative.
+    expect(screen.queryByRole('button', { name: 'New token' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Disable…' })).toBeNull();
   });
 
   it('tells a member with nothing shared how to get access, not to add one', async () => {
@@ -158,5 +169,41 @@ describe('Clusters page', () => {
     expect(await screen.findByRole('button', { name: 'Enable' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'New token' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Rotate certificate…' })).toBeNull();
+  });
+
+  it('shows the Velero version with its plugins, and flags an agent that is behind', async () => {
+    server('MEMBER', {
+      clusters: [
+        { id: 'c1', name: 'old-agent', status: 'CONNECTED' },
+        { id: 'c2', name: 'current', status: 'CONNECTED' },
+      ],
+      calls: [],
+    });
+    renderApp({ path: '/clusters' });
+
+    const plugins = await screen.findByRole('list', { name: 'Plugins on old-agent' });
+    expect(within(plugins).getByText('velero.io/aws')).toBeVisible();
+    expect(within(plugins).getByText('velero.io/csi')).toBeVisible();
+    expect(screen.getAllByText('update available')).toHaveLength(1);
+  });
+
+  it('lets anyone who can see a connected cluster ask the agent to refresh, but not a pending one', async () => {
+    const user = userEvent.setup();
+    const state: State = {
+      clusters: [
+        { id: 'c1', name: 'prod-eu', status: 'CONNECTED' },
+        { id: 'c2', name: 'new', status: 'PENDING' },
+      ],
+      calls: [],
+    };
+    server('MEMBER', state);
+    renderApp({ path: '/clusters' });
+
+    const buttons = await screen.findAllByRole('button', { name: 'Refresh' });
+    expect(buttons).toHaveLength(1);
+    await user.click(buttons[0] as HTMLElement);
+    await vi.waitFor(() => {
+      expect(state.calls).toContain('refresh-status');
+    });
   });
 });

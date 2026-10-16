@@ -160,8 +160,8 @@ criteria are still unmet (B-1, B-2).
      (the gateway address must be reachable from the cluster: set `GATEWAY_PUBLIC_ADDRESS` and
      `GATEWAY_HOSTNAMES` accordingly). Confirm **Connected** and the Velero version.
   4. ⛔ **Human checkpoint**: install the agent on one real, non-kind cluster and confirm it connects.
-  Small gaps to close first: show the Velero plugin list on the cluster page, store `chartVersion` and
-  `imageTag` from Hello (R-049), and a Refresh button.
+  (The cluster page already shows the Velero version and plugins, the agent version, an "update available"
+  badge and a Refresh button.)
 - Then **M3 day 16 — inventory sync** (agent informers) is next.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 

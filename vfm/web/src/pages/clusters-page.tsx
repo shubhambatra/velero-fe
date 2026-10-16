@@ -17,7 +17,9 @@ interface Cluster {
   status: ClusterStatus;
   k8sVersion: string | null;
   veleroVersion: string | null;
+  veleroPlugins: { name: string; kind: string }[] | null;
   agentVersion: string | null;
+  agentUpdateAvailable: boolean;
   lastSeenAt: string | null;
 }
 
@@ -106,6 +108,17 @@ export function ClustersPage({ orgId }: { orgId: string }): ReactElement {
     },
   });
 
+  /** Asks the agent to re-read Velero's version and plugins; the answer arrives a moment later. */
+  const refreshStatus = useMutation({
+    mutationFn: (cluster: Cluster) =>
+      api(`/orgs/${orgId}/clusters/${cluster.id}/refresh-status`, { method: 'POST', body: {} }),
+    onSuccess: async () => {
+      // The agent answers asynchronously; look again shortly rather than hold the request open.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await refresh();
+    },
+  });
+
   const remove = useMutation({
     mutationFn: (cluster: Cluster) =>
       api(`/orgs/${orgId}/clusters/${cluster.id}`, { method: 'DELETE' }),
@@ -133,7 +146,7 @@ export function ClustersPage({ orgId }: { orgId: string }): ReactElement {
     }
   };
 
-  const failure = [create, mint, disable, remove].find((m) => m.isError);
+  const failure = [create, mint, disable, remove, refreshStatus].find((m) => m.isError);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -228,7 +241,7 @@ export function ClustersPage({ orgId }: { orgId: string }): ReactElement {
                 <th className="p-2">Velero</th>
                 <th className="p-2">Agent</th>
                 <th className="p-2">Last seen</th>
-                {admin && <th className="p-2">Actions</th>}
+                <th className="p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -238,56 +251,89 @@ export function ClustersPage({ orgId }: { orgId: string }): ReactElement {
                   <td className="p-2">
                     <Badge tone={TONE[c.status]}>{c.status.toLowerCase()}</Badge>
                   </td>
-                  <td className="p-2">{c.veleroVersion ?? '—'}</td>
-                  <td className="p-2">{c.agentVersion ?? '—'}</td>
+                  <td className="p-2">
+                    {c.veleroVersion ?? '—'}
+                    {c.veleroPlugins !== null && c.veleroPlugins.length > 0 && (
+                      <ul
+                        aria-label={`Plugins on ${c.name}`}
+                        className="text-xs text-muted-foreground"
+                      >
+                        {c.veleroPlugins.map((p) => (
+                          <li key={`${p.name}/${p.kind}`}>
+                            {p.name} <span className="opacity-70">({p.kind})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                  <td className="p-2">
+                    {c.agentVersion ?? '—'}
+                    {c.agentUpdateAvailable && (
+                      <Badge tone="warn" className="ml-2">
+                        update available
+                      </Badge>
+                    )}
+                  </td>
                   <td className="p-2">{when(c.lastSeenAt)}</td>
-                  {admin && (
-                    <td className="flex flex-wrap gap-2 p-2">
-                      {c.status === 'DISABLED' ? (
-                        <Button
-                          disabled={mint.isPending}
-                          onClick={() => {
-                            mint.mutate({ cluster: c, action: 'enable' });
-                          }}
-                        >
-                          Enable
-                        </Button>
-                      ) : (
-                        <>
+                  <td className="flex flex-wrap gap-2 p-2">
+                    {c.status !== 'PENDING' && c.status !== 'DISABLED' && (
+                      <Button
+                        disabled={refreshStatus.isPending}
+                        onClick={() => {
+                          refreshStatus.mutate(c);
+                        }}
+                      >
+                        Refresh
+                      </Button>
+                    )}
+                    {admin && (
+                      <>
+                        {c.status === 'DISABLED' ? (
                           <Button
                             disabled={mint.isPending}
                             onClick={() => {
-                              mint.mutate({ cluster: c, action: 'bootstrap-token' });
+                              mint.mutate({ cluster: c, action: 'enable' });
                             }}
                           >
-                            New token
+                            Enable
                           </Button>
-                          <Button
-                            onClick={() => {
-                              setPending({ kind: 'rotate', cluster: c });
-                            }}
-                          >
-                            Rotate certificate…
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              setPending({ kind: 'disable', cluster: c });
-                            }}
-                          >
-                            Disable…
-                          </Button>
-                        </>
-                      )}
-                      <Button
-                        onClick={() => {
-                          setTyped('');
-                          setPending({ kind: 'delete', cluster: c });
-                        }}
-                      >
-                        Delete…
-                      </Button>
-                    </td>
-                  )}
+                        ) : (
+                          <>
+                            <Button
+                              disabled={mint.isPending}
+                              onClick={() => {
+                                mint.mutate({ cluster: c, action: 'bootstrap-token' });
+                              }}
+                            >
+                              New token
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setPending({ kind: 'rotate', cluster: c });
+                              }}
+                            >
+                              Rotate certificate…
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setPending({ kind: 'disable', cluster: c });
+                              }}
+                            >
+                              Disable…
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          onClick={() => {
+                            setTyped('');
+                            setPending({ kind: 'delete', cluster: c });
+                          }}
+                        >
+                          Delete…
+                        </Button>
+                      </>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -19,6 +19,10 @@ export interface ClusterView {
   veleroVersion: string | null;
   veleroPlugins: unknown;
   agentVersion: string | null;
+  chartVersion: string | null;
+  imageTag: string | null;
+  /** True when the agent reports an older chart than this control plane ships. */
+  agentUpdateAvailable: boolean;
   protocolVersion: number | null;
   agentPolicy: unknown;
   capabilities: unknown;
@@ -36,7 +40,7 @@ export interface EnrollmentGrant {
   installCommand: string;
 }
 
-const view = (c: Cluster): ClusterView => ({
+const view = (c: Cluster, expectedChart: string): ClusterView => ({
   id: c.id,
   name: c.name,
   status: c.status,
@@ -44,6 +48,9 @@ const view = (c: Cluster): ClusterView => ({
   veleroVersion: c.veleroVersion,
   veleroPlugins: c.veleroPlugins,
   agentVersion: c.agentVersion,
+  chartVersion: c.chartVersion,
+  imageTag: c.imageTag,
+  agentUpdateAvailable: isOlder(c.chartVersion, expectedChart),
   protocolVersion: c.protocolVersion,
   agentPolicy: c.agentPolicy,
   capabilities: c.capabilities,
@@ -52,6 +59,28 @@ const view = (c: Cluster): ClusterView => ({
   grafanaUrlTemplate: c.grafanaUrlTemplate,
   createdAt: c.createdAt,
 });
+
+/** Whether `have` is an older release than `expected`. Pre-release suffixes are ignored; an unknown version is not "older". */
+export function isOlder(have: string | null, expected: string): boolean {
+  if (have === null) {
+    return false;
+  }
+  const parse = (v: string): number[] | null => {
+    const m = /^v?(\d+)\.(\d+)\.(\d+)/.exec(v);
+    return m === null ? null : [Number(m[1]), Number(m[2]), Number(m[3])];
+  };
+  const a = parse(have);
+  const b = parse(expected);
+  if (a === null || b === null) {
+    return false;
+  }
+  for (let i = 0; i < 3; i += 1) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) {
+      return (a[i] ?? 0) < (b[i] ?? 0);
+    }
+  }
+  return false;
+}
 
 /** Clusters of one organization (PLAN.md §10 `/orgs/{orgId}/clusters`). */
 @Injectable()
@@ -82,7 +111,10 @@ export class ClustersService {
       }
       throw error;
     }
-    return { cluster: view(cluster), ...(await this.grant(orgId, cluster)) };
+    return {
+      cluster: view(cluster, this.env.AGENT_CHART_VERSION),
+      ...(await this.grant(orgId, cluster)),
+    };
   }
 
   /**
@@ -106,11 +138,11 @@ export class ClustersService {
         visible.push(cluster);
       }
     }
-    return visible.map(view);
+    return visible.map((c) => view(c, this.env.AGENT_CHART_VERSION));
   }
 
   async get(orgId: string, clusterId: string): Promise<ClusterView> {
-    return view(await this.find(orgId, clusterId));
+    return view(await this.find(orgId, clusterId), this.env.AGENT_CHART_VERSION);
   }
 
   async update(
@@ -136,7 +168,7 @@ export class ClustersService {
           },
         }),
       );
-      return view(updated);
+      return view(updated, this.env.AGENT_CHART_VERSION);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('a cluster with that name already exists');
@@ -169,7 +201,7 @@ export class ClustersService {
       ]),
     );
     await this.streams.closeCluster(clusterId, 'the cluster was disabled');
-    return view(updated);
+    return view(updated, this.env.AGENT_CHART_VERSION);
   }
 
   /** Back to `PENDING`: a disabled cluster needs a fresh token to enrol again. */
@@ -184,7 +216,10 @@ export class ClustersService {
     const updated = await this.prisma.inOrg(orgId, () =>
       this.prisma.cluster.update({ where: { id: clusterId }, data: { status: 'PENDING' } }),
     );
-    return { cluster: view(updated), ...(await this.grant(orgId, updated)) };
+    return {
+      cluster: view(updated, this.env.AGENT_CHART_VERSION),
+      ...(await this.grant(orgId, updated)),
+    };
   }
 
   /**

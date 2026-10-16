@@ -40,8 +40,12 @@ golangci-lint 0 issues; govulncheck clean; `helm lint` clean.
 version and plugins; e2e golden paths 1, 8 (with RefreshServerStatus), 9, 11 pass." **Not met as
 written:** every component is built and verified separately — UI-generated command, enrolment,
 mTLS stream, status, refresh, revocation, two replicas, the chart, the image — but nothing has
-been installed on a kind cluster (B-2), and the plugin list is stored but not yet shown in the UI.
+been installed on a kind cluster (B-2). (The cluster page does show the Velero version, its plugins, the agent version, an "update available" badge and a Refresh button — added at the end of this day.)
 The ⛔ human checkpoint (install on one real, non-kind cluster) is yours.
+
+### Also done at the end of day 15
+
+The agent's chart version and image tag are now stored (`chart_version`, `image_tag`); the API reports `agentUpdateAvailable` when the agent's chart is older than `AGENT_CHART_VERSION`; the clusters page shows plugins, the badge and a Refresh button. R-049 verified (42/152). Server unit 561, e2e 230, web 49.
 
 ### Next
 

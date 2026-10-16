@@ -159,7 +159,7 @@ describe('agent streams (e2e, two replicas)', () => {
 
   describe('Hello', () => {
     it('is acknowledged with the server’s limits, and the cluster becomes CONNECTED with its details', async () => {
-      const { clusterId, cert } = await enrolledAgent();
+      const { callA, orgId, clusterId, cert } = await enrolledAgent();
       const stream = connect(portA, cert);
 
       const ack = (await stream.next()).helloAck;
@@ -176,9 +176,16 @@ describe('agent streams (e2e, two replicas)', () => {
       expect(cluster.k8sVersion).toBe('v1.31.0');
       expect(cluster.veleroPlugins).toEqual([{ name: 'velero.io/aws', kind: 'ObjectStore' }]);
       expect(cluster.agentPolicy).toMatchObject({ allowRestore: true, readOnly: false });
+      expect(cluster.chartVersion).toBe('0.0.1');
+      expect(cluster.imageTag).toBe('sha-abc');
       expect(cluster.protocolVersion).toBe(1);
       expect(cluster.lastSeenAt).not.toBeNull();
       expect(await streamsA.locate(clusterId)).toBe(streamsA.replicaId);
+
+      // The API tells the UI the agent's chart is older than this control plane's.
+      const shown = await callA('get', `/orgs/${orgId}/clusters/${clusterId}`).expect(200);
+      expect(shown.body.chartVersion).toBe('0.0.1');
+      expect(shown.body.agentUpdateAvailable).toBe(true);
       stream.cancel();
     });
 

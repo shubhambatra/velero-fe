@@ -172,6 +172,8 @@ export const hello = (overrides: Record<string, unknown> = {}) => ({
   hello: {
     protocolVersion: 1,
     agentVersion: '0.1.0',
+    chartVersion: '0.0.1',
+    imageTag: 'sha-abc',
     kubernetesVersion: 'v1.31.0',
     clusterFingerprint: 'f3a1c2d4-kube-system-uid-0001',
     velero: { serverVersion: 'v1.18.4', plugins: [{ name: 'velero.io/aws', kind: 'ObjectStore' }] },

@@ -196,6 +196,14 @@ export const envSchema = z.object({
     .transform((value) => value === 'true'),
   /** `host:port` shown to the operator in the generated install command. */
   GATEWAY_PUBLIC_ADDRESS: z.string().min(1).default('localhost:8443'),
+  /**
+   * The agent chart version this control plane ships with. An agent reporting an
+   * older chart is flagged "update available" in the UI (PLAN.md §5.7).
+   */
+  AGENT_CHART_VERSION: z
+    .string()
+    .regex(/^\d+\.\d+\.\d+/, 'must look like 1.2.3')
+    .default('0.1.0'),
   /** Where the agent's Helm chart is published; shown in the install command. */
   AGENT_CHART_REF: z.string().min(1).default('oci://ghcr.io/shubhambatra/charts/vfm-agent'),
 });

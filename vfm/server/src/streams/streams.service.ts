@@ -397,6 +397,8 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
           veleroVersion: hello.veleroVersion,
           veleroPlugins: hello.veleroPlugins,
           agentVersion: hello.agentVersion,
+          chartVersion: hello.chartVersion,
+          imageTag: hello.imageTag,
           protocolVersion: hello.protocolVersion,
           agentPolicy: hello.agentPolicy,
           capabilities: hello.capabilities,

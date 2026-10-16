@@ -508,6 +508,8 @@ model Cluster {
   veleroVersion   String? @map("velero_version")
   veleroPlugins   Json?   @map("velero_plugins")
   agentVersion    String? @map("agent_version")
+  chartVersion    String? @map("chart_version")
+  imageTag        String? @map("image_tag")
   protocolVersion Int?    @map("protocol_version")
   agentPolicy     Json?   @map("agent_policy")
   capabilities    Json?
