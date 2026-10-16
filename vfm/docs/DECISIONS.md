@@ -1619,3 +1619,57 @@ through the advanced settings; a missing source was `NOT_FOUND`; a delete left t
 ### Not verified
 
 Real Velero (B-2): that it accepts every generated spec. No UI for creating a restore yet.
+
+---
+
+## ADR-029 — The restore wizard and the namespace check (M4 day 24)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decisions
+
+- **Four steps, the same shape as the backup wizard.** Source (a backup or a schedule's latest; opened from a backup
+  page it arrives chosen) → scope (namespaces, `source:target` mapping, resources, selectors, cluster-scoped) → options
+  (existing-resource policy, volumes, node ports, status, timeouts, modifier, downloads, advanced) → review. The
+  equivalent `velero restore create …` command is on screen throughout. The pure `lib/restore-form.ts` holds the
+  validation, body, command and impact logic (35 tests); fields shared with the backup wizard moved to
+  `components/form-fields.tsx`.
+- **The impact summary needs a new, additive protocol command: `CheckNamespaces`** (proto field 26; result
+  `NamespaceReport`). The plan wants "which target namespaces exist now", the namespace inventory belongs to M5, and
+  listing every namespace to a user limited to some of them would disclose names. The command takes **the names the
+  wizard is about to write into**, the agent reads each with a single `get` (never a list; at most 100) and answers for
+  those names alone; the server first requires `restore:create` over every name asked about, so the check cannot be
+  used to learn whether another namespace exists. Allowed in read-only mode (it changes nothing). The result is kept in
+  the command row, bounded to 100 entries, with names length-capped.
+- **What the summary says** per target: _new_ (will be created), _exists_ (resources already there are left as they are
+  and missing ones added; with `update`, existing ones are changed to match), _being deleted_ (the restore would fail:
+  the button is disabled until it is gone), or _unknown_ (not yet answered, or the cluster could not be asked — the
+  restore may still go ahead, and _Check again_ is offered). A restore of **all** namespaces cannot list targets in
+  advance and says so rather than guess.
+- **Sudo.** The wizard asks for nothing itself; the request goes through `api()`, which opens the password dialog when
+  the server demands a recent sign-in. The review step says that may happen.
+- **Entry points.** _Restore from this backup_ (enabled for a completed or partially failed backup, disabled with the
+  reason otherwise or without `restore:create`) and _Restore_ on the restores list. The notification links to the new
+  restore.
+- **Test determinism.** Page tests wait up to four seconds (`asyncUtilTimeout`) instead of one: with the suite at 250
+  tests running in parallel a cold full-page render sometimes took just over a second, which made two tests flaky.
+
+### Deferred
+
+A "latest backup of this schedule" shortcut on the schedules list; a diff of what the restore would change inside an
+existing namespace (needs resource-level inventory, M5); approval before a restore (M6); the Activity tab.
+
+### Verified
+
+8 Go tests for the namespace check (only single reads, only the names asked, bounded, bad names refused), 35 form-library
+tests, 13 wizard and entry-point page tests, 9 server e2e tests (the asked names only, bounded answers, scoped users
+limited to their own namespaces, mutation check: removing the authorization made a test fail). Driven in Chrome against
+a real server and the real Go handlers: opened from a backup page the source was chosen; the impact table showed an
+existing, a new (renamed) and a being-deleted namespace as the cluster reports them and disabled the button for the
+last; after removing it the restore was created with the mapping and the notification linked to it.
+
+### Not verified
+
+Real Velero and a real API server (B-2). Narrow viewports and keyboard-only use. A namespace-limited user in the
+browser (tests only). The sudo prompt in this flow (shown for backup delete; the same `api()` path).

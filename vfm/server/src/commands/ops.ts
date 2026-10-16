@@ -33,6 +33,15 @@ const DEFINITIONS = {
   },
   /** `velero restore create`; the payload is the validated API body. */
   CREATE_RESTORE: { timeoutMs: 60_000, build: buildCreateRestore },
+  /** Which of the named namespaces exist now: the restore wizard's impact summary. */
+  CHECK_NAMESPACES: {
+    timeoutMs: 30_000,
+    build: (payload) => ({
+      checkNamespaces: {
+        names: Array.isArray(payload.names) ? payload.names.map((n) => String(n)) : [],
+      },
+    }),
+  },
   /** `velero restore delete`. */
   DELETE_RESTORE: {
     timeoutMs: 60_000,

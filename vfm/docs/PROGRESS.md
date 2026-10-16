@@ -9,6 +9,38 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M4 day 24: restore wizard and the namespace check
+
+Session 7, continued. CI green on day 23 (`39d5351`).
+
+### Done
+
+- Web: the restore wizard (source → scope with mapping → options → review with the CLI equivalent and an impact
+  summary), entry points on the backup page and the restores list, shared form fields (ADR-029).
+- Protocol: additive `CheckNamespaces` command and `NamespaceReport` result; agent `NamespaceChecker`; server
+  `POST …/restores/impact` and the `CHECK_NAMESPACES` command.
+
+### Test status
+
+Server unit **735**, e2e **393** (9 new); web **252** (48 new); Go all packages pass (8 new), golangci-lint 0,
+govulncheck clean, `buf lint` clean; lint, typecheck, build clean; OpenAPI regenerated. Requirements **55/152
+(36.2 %)** (R-070, R-106 notes updated).
+
+### Driven for real
+
+Chrome against a real server and the real Go handlers over mTLS gRPC (see ADR-029).
+
+### Not verified
+
+Real Velero (B-2); a namespace-limited user in the browser; narrow viewports and keyboard-only use.
+
+### Next
+
+M4 day 25 — schedules: `CreateSchedule`, `UpdateSchedule`, pause/unpause, `DeleteSchedule` and the schedule wizard with a
+cron builder, human-readable preview and next five run times (plan line 731).
+
+---
+
 ## 2026-10-16 — M4 day 23: restore create and delete
 
 Session 7, continued. CI green on day 22 (`2f2e109`).

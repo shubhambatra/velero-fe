@@ -693,7 +693,7 @@ make them obvious.
 | R-067 | `repo get` from `BackupRepository` inventory | 320 | M3 | ⬜ |
 | R-068 | `plugin get` via `ServerStatusRequest` | 321 | M2 | ⬜ |
 | R-069 | `version` from `Hello` + `RefreshServerStatus` | 322 | M2 | ⬜ |
-| R-070 | "Show CLI equivalent" toggle on every form | 327 | M4 | 🟡 the backup wizard has a live, copyable `velero backup create` preview (always shown, not a toggle); the restore, schedule and storage forms do not exist yet |
+| R-070 | "Show CLI equivalent" toggle on every form | 327 | M4 | 🟡 the backup and restore wizards have a live, copyable `velero …` preview (always shown, not a toggle); the schedule and storage forms do not exist yet |
 
 ### §7 Cluster status and logs (lines 331–354)
 
@@ -754,7 +754,7 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-106 | All 13 pages | 474–496 | M1–M6 | 🟡 login, MFA, org admin, add cluster, fleet overview, cluster overview, backup/restore/schedule/storage lists, backup/restore detail and the backup create wizard exist; the other wizards, log viewer, alerts and reports do not |
+| R-106 | All 13 pages | 474–496 | M1–M6 | 🟡 login, MFA, org admin, add cluster, fleet overview, cluster overview, backup/restore/schedule/storage lists, backup/restore detail and the backup create and restore wizards exist; the schedule wizard, log viewer, alerts and reports do not |
 | R-107 | UX rules: typed destructive confirmation plus sudo, command-status toasts, actions disabled-with-reason, user timezone with UTC on hover, dark/light, responsive to tablet, keyboard accessible, WCAG 2.1 AA, explanatory empty states | 500–505 | M1–M6 | 🟡 |
 
 ### §12 Security (lines 509–528)

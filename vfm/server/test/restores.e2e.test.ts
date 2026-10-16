@@ -102,7 +102,10 @@ describe('restore operations (e2e)', () => {
   const whole = { type: 'CLUSTER' };
   const only = (...namespaces: string[]) => ({ type: 'NAMESPACES', namespaces });
 
-  async function received<T extends 'createRestore' | 'deleteRestore'>(stream: OpenStream, arm: T) {
+  async function received<T extends 'createRestore' | 'deleteRestore' | 'checkNamespaces'>(
+    stream: OpenStream,
+    arm: T,
+  ) {
     for (let i = 0; i < 5; i += 1) {
       const command = (await stream.next()).command;
       if (command?.[arm] !== undefined) {
@@ -363,6 +366,113 @@ describe('restore operations (e2e)', () => {
       expect(JSON.parse(Buffer.from(op.advancedSpecJson).toString())).toEqual(
         advanced.advancedSpec,
       );
+      s.stream.cancel();
+    });
+  });
+
+  describe('the impact summary: which target namespaces exist now', () => {
+    it('asks the agent about exactly the names given and keeps its answer', async () => {
+      const s = await setup();
+      const res = await s
+        .call('post', `${s.base}/restores/impact`, { namespaces: ['shop', 'new-ns', 'shop'] })
+        .expect(202);
+      expect(res.body.op).toBe('CHECK_NAMESPACES');
+      const { id, op } = await received(s.stream, 'checkNamespaces');
+      expect(op.names).toEqual(['shop', 'new-ns']);
+
+      s.stream.send({
+        messageId: 'r',
+        result: {
+          commandId: id,
+          ok: true,
+          namespaces: {
+            namespaces: [
+              { name: 'shop', exists: true, terminating: false },
+              { name: 'new-ns', exists: false, terminating: false },
+            ],
+          },
+        },
+      });
+      const row = await eventually(
+        () =>
+          harness.prisma.unscoped('t', () =>
+            harness.prisma.command.findUniqueOrThrow({ where: { id } }),
+          ),
+        (c) => c.status === 'SUCCEEDED',
+      );
+      expect(row.result).toEqual({
+        namespaces: [
+          { name: 'shop', exists: true, terminating: false },
+          { name: 'new-ns', exists: false, terminating: false },
+        ],
+      });
+      s.stream.cancel();
+    });
+
+    it('bounds what an agent can put in the answer', async () => {
+      const s = await setup();
+      await s.call('post', `${s.base}/restores/impact`, { namespaces: ['shop'] }).expect(202);
+      const { id } = await received(s.stream, 'checkNamespaces');
+      s.stream.send({
+        messageId: 'r',
+        result: {
+          commandId: id,
+          ok: true,
+          namespaces: {
+            namespaces: Array.from({ length: 500 }, (_, i) => ({
+              name: `n${i.toString()}`,
+              exists: true,
+              terminating: false,
+            })),
+          },
+        },
+      });
+      const row = await eventually(
+        () =>
+          harness.prisma.unscoped('t', () =>
+            harness.prisma.command.findUniqueOrThrow({ where: { id } }),
+          ),
+        (c) => c.status === 'SUCCEEDED',
+      );
+      expect((row.result as { namespaces: unknown[] }).namespaces).toHaveLength(100);
+      s.stream.cancel();
+    });
+
+    it('lets a scoped restorer ask only about their own namespaces', async () => {
+      const s = await setup();
+      const dev = await member(s.call, s.orgId, s.agent, 'RESTORER', only('dev', 'qa'));
+      await dev
+        .call('post', `${s.base}/restores/impact`, { namespaces: ['dev', 'qa'] })
+        .expect(202);
+      expect((await received(s.stream, 'checkNamespaces')).op.names).toEqual(['dev', 'qa']);
+
+      // Asking about a namespace outside their scope would be a way to learn it exists.
+      await dev
+        .call('post', `${s.base}/restores/impact`, { namespaces: ['dev', 'prod'] })
+        .expect(403);
+      await dev.call('post', `${s.base}/restores/impact`, { namespaces: ['prod'] }).expect(403);
+      expect(await silent(s.stream)).toBe(true);
+      s.stream.cancel();
+    });
+
+    it.each([
+      ['no names', { namespaces: [] }],
+      ['the wildcard', { namespaces: ['*'] }],
+      ['a bad name', { namespaces: ['Bad'] }],
+      ['too many names', { namespaces: Array.from({ length: 101 }, (_, i) => `n${i.toString()}`) }],
+      ['an unknown field', { namespaces: ['a'], all: true }],
+    ])('refuses %s', async (_name, body) => {
+      const s = await setup();
+      await s.call('post', `${s.base}/restores/impact`, body).expect(422);
+      expect(await silent(s.stream)).toBe(true);
+      s.stream.cancel();
+    });
+
+    it('is not available to someone who may not restore', async () => {
+      const s = await setup();
+      const viewer = await member(s.call, s.orgId, s.agent, 'VIEWER', whole);
+      await viewer.call('post', `${s.base}/restores/impact`, { namespaces: ['shop'] }).expect(403);
+      expect(await silent(s.stream)).toBe(true);
       s.stream.cancel();
     });
   });

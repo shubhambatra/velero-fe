@@ -39,6 +39,11 @@ const maxNameLength = 63
 
 var objectName = regexp.MustCompile(`^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$`)
 
+// dnsLabel matches a namespace name.
+func dnsLabel() *regexp.Regexp {
+	return regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
+}
+
 // BackupHandler implements `CreateBackup`, `DeleteBackup` and `TriggerScheduleNow`.
 // Everything it creates carries the command id, so a re-delivered command finds
 // its object instead of making a second one (PLAN.md §5.4).

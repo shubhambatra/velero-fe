@@ -50,6 +50,9 @@ func TestDefaultAllowsOrdinaryWorkAndProtectsSystemNamespaces(t *testing.T) {
 func TestReadOnlyAllowsOnlyTheDiagnosticRefresh(t *testing.T) {
 	p := Default()
 	p.ReadOnly = true
+	if d := p.Check(&pb.Command{Op: &pb.Command_CheckNamespaces{}}); d != nil {
+		t.Errorf("checking whether namespaces exist must work read-only: %v", d)
+	}
 	if d := p.Check(&pb.Command{Op: &pb.Command_FetchDownload{}}); d != nil {
 		t.Errorf("reading a backup's logs must work read-only: %v", d)
 	}

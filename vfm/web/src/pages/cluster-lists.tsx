@@ -149,6 +149,30 @@ export function BackupsPage({ orgId, clusterId }: Props): ReactElement {
   );
 }
 
+function RestoreLink({ orgId, clusterId }: Props): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  if (access.level('restore:create') === 'none') {
+    return (
+      <div className="flex justify-end">
+        <Button disabled title={lacks('restore:create')}>
+          Restore
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-end">
+      <Link
+        to="/clusters/$clusterId/restores/new"
+        params={{ clusterId }}
+        className={buttonVariants({ variant: 'primary' })}
+      >
+        Restore
+      </Link>
+    </div>
+  );
+}
+
 export function RestoresPage({ orgId, clusterId }: Props): ReactElement {
   const columns: Column<RestoreRow>[] = [
     {
@@ -189,6 +213,7 @@ export function RestoresPage({ orgId, clusterId }: Props): ReactElement {
   ];
   return (
     <ClusterShell orgId={orgId} clusterId={clusterId} tab="restores">
+      <RestoreLink orgId={orgId} clusterId={clusterId} />
       <ResourceList<RestoreRow>
         orgId={orgId}
         clusterId={clusterId}

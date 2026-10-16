@@ -104,7 +104,14 @@ export interface Command {
     | FetchDownload
     | undefined;
   /** Create a ServerStatusRequest and report the processed status. */
-  refreshStatus?: RefreshServerStatus | undefined;
+  refreshStatus?:
+    | RefreshServerStatus
+    | undefined;
+  /**
+   * Report whether each named namespace exists. Read-only; answers for the names
+   * asked about and nothing else, so a caller learns nothing about other namespaces.
+   */
+  checkNamespaces?: CheckNamespaces | undefined;
 }
 
 export interface CreateBackup {
@@ -194,6 +201,11 @@ export interface FetchDownload {
 export interface RefreshServerStatus {
 }
 
+export interface CheckNamespaces {
+  /** At most 100 DNS-1123 label names. */
+  names: string[];
+}
+
 export interface CancelCommand {
   commandId: string;
 }
@@ -217,6 +229,7 @@ export interface CommandResult {
   serverStatus?: ServerStatus | undefined;
   created?: CreatedObject | undefined;
   download?: DownloadSummary | undefined;
+  namespaces?: NamespaceReport | undefined;
 }
 
 /**
@@ -227,6 +240,18 @@ export interface CreatedObject {
   kind: string;
   name: string;
   uid: string;
+}
+
+/** One entry per name asked about, in the order asked. */
+export interface NamespaceReport {
+  namespaces: NamespaceState[];
+}
+
+export interface NamespaceState {
+  name: string;
+  exists: boolean;
+  /** Exists but is being deleted: a restore into it will not work until it is gone. */
+  terminating: boolean;
 }
 
 export interface DownloadSummary {
@@ -268,6 +293,7 @@ function createBaseCommand(): Command {
     deleteVsl: undefined,
     fetchDownload: undefined,
     refreshStatus: undefined,
+    checkNamespaces: undefined,
   };
 }
 
@@ -329,6 +355,9 @@ export const Command: MessageFns<Command> = {
     }
     if (message.refreshStatus !== undefined) {
       RefreshServerStatus.encode(message.refreshStatus, writer.uint32(202).fork()).join();
+    }
+    if (message.checkNamespaces !== undefined) {
+      CheckNamespaces.encode(message.checkNamespaces, writer.uint32(210).fork()).join();
     }
     return writer;
   },
@@ -498,6 +527,14 @@ export const Command: MessageFns<Command> = {
             message.refreshStatus = RefreshServerStatus.decode(reader, reader.uint32());
             continue;
           }
+          case 26: {
+            if (tag !== 210) {
+              break;
+            }
+
+            message.checkNamespaces = CheckNamespaces.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -603,6 +640,11 @@ export const Command: MessageFns<Command> = {
         : isSet(object.refresh_status)
         ? RefreshServerStatus.fromJSON(object.refresh_status)
         : undefined,
+      checkNamespaces: isSet(object.checkNamespaces)
+        ? CheckNamespaces.fromJSON(object.checkNamespaces)
+        : isSet(object.check_namespaces)
+        ? CheckNamespaces.fromJSON(object.check_namespaces)
+        : undefined,
     };
   },
 
@@ -665,6 +707,9 @@ export const Command: MessageFns<Command> = {
     if (message.refreshStatus !== undefined) {
       obj.refreshStatus = RefreshServerStatus.toJSON(message.refreshStatus);
     }
+    if (message.checkNamespaces !== undefined) {
+      obj.checkNamespaces = CheckNamespaces.toJSON(message.checkNamespaces);
+    }
     return obj;
   },
 
@@ -723,6 +768,9 @@ export const Command: MessageFns<Command> = {
       : undefined;
     message.refreshStatus = (object.refreshStatus !== undefined && object.refreshStatus !== null)
       ? RefreshServerStatus.fromPartial(object.refreshStatus)
+      : undefined;
+    message.checkNamespaces = (object.checkNamespaces !== undefined && object.checkNamespaces !== null)
+      ? CheckNamespaces.fromPartial(object.checkNamespaces)
       : undefined;
     return message;
   },
@@ -2111,6 +2159,73 @@ export const RefreshServerStatus: MessageFns<RefreshServerStatus> = {
   },
 };
 
+function createBaseCheckNamespaces(): CheckNamespaces {
+  return { names: [] };
+}
+
+export const CheckNamespaces: MessageFns<CheckNamespaces> = {
+  encode(message: CheckNamespaces, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.names) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CheckNamespaces {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCheckNamespaces();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.names.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CheckNamespaces {
+    return { names: globalThis.Array.isArray(object?.names) ? object.names.map((e: any) => globalThis.String(e)) : [] };
+  },
+
+  toJSON(message: CheckNamespaces): unknown {
+    const obj: any = {};
+    if (message.names?.length) {
+      obj.names = message.names;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CheckNamespaces>): CheckNamespaces {
+    return CheckNamespaces.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CheckNamespaces>): CheckNamespaces {
+    const message = createBaseCheckNamespaces();
+    message.names = object.names?.map((e) => e) || [];
+    return message;
+  },
+};
+
 function createBaseCancelCommand(): CancelCommand {
   return { commandId: "" };
 }
@@ -2283,6 +2398,7 @@ function createBaseCommandResult(): CommandResult {
     serverStatus: undefined,
     created: undefined,
     download: undefined,
+    namespaces: undefined,
   };
 }
 
@@ -2311,6 +2427,9 @@ export const CommandResult: MessageFns<CommandResult> = {
     }
     if (message.download !== undefined) {
       DownloadSummary.encode(message.download, writer.uint32(98).fork()).join();
+    }
+    if (message.namespaces !== undefined) {
+      NamespaceReport.encode(message.namespaces, writer.uint32(106).fork()).join();
     }
     return writer;
   },
@@ -2392,6 +2511,14 @@ export const CommandResult: MessageFns<CommandResult> = {
             message.download = DownloadSummary.decode(reader, reader.uint32());
             continue;
           }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.namespaces = NamespaceReport.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -2434,6 +2561,7 @@ export const CommandResult: MessageFns<CommandResult> = {
         : undefined,
       created: isSet(object.created) ? CreatedObject.fromJSON(object.created) : undefined,
       download: isSet(object.download) ? DownloadSummary.fromJSON(object.download) : undefined,
+      namespaces: isSet(object.namespaces) ? NamespaceReport.fromJSON(object.namespaces) : undefined,
     };
   },
 
@@ -2463,6 +2591,9 @@ export const CommandResult: MessageFns<CommandResult> = {
     if (message.download !== undefined) {
       obj.download = DownloadSummary.toJSON(message.download);
     }
+    if (message.namespaces !== undefined) {
+      obj.namespaces = NamespaceReport.toJSON(message.namespaces);
+    }
     return obj;
   },
 
@@ -2484,6 +2615,9 @@ export const CommandResult: MessageFns<CommandResult> = {
       : undefined;
     message.download = (object.download !== undefined && object.download !== null)
       ? DownloadSummary.fromPartial(object.download)
+      : undefined;
+    message.namespaces = (object.namespaces !== undefined && object.namespaces !== null)
+      ? NamespaceReport.fromPartial(object.namespaces)
       : undefined;
     return message;
   },
@@ -2586,6 +2720,178 @@ export const CreatedObject: MessageFns<CreatedObject> = {
     message.kind = object.kind ?? "";
     message.name = object.name ?? "";
     message.uid = object.uid ?? "";
+    return message;
+  },
+};
+
+function createBaseNamespaceReport(): NamespaceReport {
+  return { namespaces: [] };
+}
+
+export const NamespaceReport: MessageFns<NamespaceReport> = {
+  encode(message: NamespaceReport, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.namespaces) {
+      NamespaceState.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NamespaceReport {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNamespaceReport();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.namespaces.push(NamespaceState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NamespaceReport {
+    return {
+      namespaces: globalThis.Array.isArray(object?.namespaces)
+        ? object.namespaces.map((e: any) => NamespaceState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: NamespaceReport): unknown {
+    const obj: any = {};
+    if (message.namespaces?.length) {
+      obj.namespaces = message.namespaces.map((e) => NamespaceState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NamespaceReport>): NamespaceReport {
+    return NamespaceReport.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NamespaceReport>): NamespaceReport {
+    const message = createBaseNamespaceReport();
+    message.namespaces = object.namespaces?.map((e) => NamespaceState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseNamespaceState(): NamespaceState {
+  return { name: "", exists: false, terminating: false };
+}
+
+export const NamespaceState: MessageFns<NamespaceState> = {
+  encode(message: NamespaceState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.exists !== false) {
+      writer.uint32(16).bool(message.exists);
+    }
+    if (message.terminating !== false) {
+      writer.uint32(24).bool(message.terminating);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NamespaceState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNamespaceState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.exists = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.terminating = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NamespaceState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      exists: isSet(object.exists) ? globalThis.Boolean(object.exists) : false,
+      terminating: isSet(object.terminating) ? globalThis.Boolean(object.terminating) : false,
+    };
+  },
+
+  toJSON(message: NamespaceState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.exists !== false) {
+      obj.exists = message.exists;
+    }
+    if (message.terminating !== false) {
+      obj.terminating = message.terminating;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NamespaceState>): NamespaceState {
+    return NamespaceState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NamespaceState>): NamespaceState {
+    const message = createBaseNamespaceState();
+    message.name = object.name ?? "";
+    message.exists = object.exists ?? false;
+    message.terminating = object.terminating ?? false;
     return message;
   },
 };

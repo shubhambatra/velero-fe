@@ -194,9 +194,9 @@ export function parseOrdered(text: string): { value: Record<string, string> } | 
 // ---------------------------------------------------------------------------
 // Validation
 
-const DNS_LABEL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
-const OBJECT_NAME = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/;
-const DURATION = /^(\d+(\.\d+)?(ms|s|m|h))+$/;
+export const DNS_LABEL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+export const OBJECT_NAME = /^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/;
+export const DURATION = /^(\d+(\.\d+)?(ms|s|m|h))+$/;
 
 export type Errors = Partial<Record<keyof BackupForm, string>>;
 

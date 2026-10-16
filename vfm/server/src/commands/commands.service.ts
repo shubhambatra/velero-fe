@@ -451,6 +451,14 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       detail = download.detail;
     } else if (result.ok && result.serverStatus !== undefined) {
       detail = sanitizeVeleroStatus(result.serverStatus);
+    } else if (result.ok && result.namespaces !== undefined) {
+      detail = {
+        namespaces: result.namespaces.namespaces.slice(0, 100).map((n) => ({
+          name: text(n.name).slice(0, 63),
+          exists: n.exists,
+          terminating: n.terminating,
+        })),
+      };
     } else if (result.ok && result.created !== undefined) {
       detail = {
         kind: text(result.created.kind).slice(0, 64),

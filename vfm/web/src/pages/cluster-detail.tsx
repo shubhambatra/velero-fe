@@ -9,6 +9,7 @@ import { useToasts } from '@/components/toast-context';
 import { Time } from '@/components/time';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorNote } from '@/components/ui/field';
 import { ApiProblem } from '@/lib/api';
@@ -118,6 +119,39 @@ interface Props {
  * Deleting a backup removes its data in object storage as well, so it asks for the
  * name to be typed and, through `api()`, for a recent re-authentication.
  */
+/** Starts the restore wizard with this backup chosen. */
+function RestoreFromBackup({
+  orgId,
+  clusterId,
+  name,
+  phase,
+}: Props & { phase: string | null }): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  const reason =
+    access.level('restore:create') === 'none'
+      ? lacks('restore:create')
+      : phase !== 'Completed' && phase !== 'PartiallyFailed'
+        ? 'Only a completed backup can be restored.'
+        : undefined;
+  if (reason !== undefined) {
+    return (
+      <Button disabled title={reason}>
+        Restore from this backup
+      </Button>
+    );
+  }
+  return (
+    <Link
+      to="/clusters/$clusterId/restores/new"
+      params={{ clusterId }}
+      search={{ backup: name }}
+      className={buttonVariants({ variant: 'primary' })}
+    >
+      Restore from this backup
+    </Link>
+  );
+}
+
 function DeleteBackup({
   orgId,
   clusterId,
@@ -298,12 +332,12 @@ export function BackupDetailPage({ orgId, clusterId, name }: Props): ReactElemen
                 ]}
               />
               <div className="flex flex-wrap gap-2">
-                <Button
-                  disabled
-                  title="Restoring from the UI arrives with the write operations (M4)."
-                >
-                  Restore from this backup
-                </Button>
+                <RestoreFromBackup
+                  orgId={orgId}
+                  clusterId={clusterId}
+                  name={b.name}
+                  phase={b.phase}
+                />
                 <DeleteBackup orgId={orgId} clusterId={clusterId} name={b.name} phase={b.phase} />
               </div>
             </CardContent>

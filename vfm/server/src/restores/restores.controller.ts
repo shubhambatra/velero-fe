@@ -9,6 +9,7 @@ import { RequiresSudo } from '../auth/sudo.guard';
 import { parseBody } from '../common/parse-body';
 import { orgIdParam } from '../orgs/orgs.dto';
 import { RequirePermission } from '../rbac/require-permission.decorator';
+import { AllowsApiToken } from '../tokens/api-token.decorator';
 import { RestoresService } from './restores.service';
 
 const nameParam = z
@@ -42,6 +43,31 @@ export class RestoresController {
     @Req() request: Request,
   ) {
     return this.restores.create(
+      parseBody(orgIdParam, orgId),
+      user.id,
+      parseBody(orgIdParam, clusterId),
+      body,
+      request.apiToken,
+    );
+  }
+
+  @Post('restores/impact')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @AllowsApiToken()
+  @RequirePermission('restore:create', { checkInHandler: true })
+  @ApiOperation({
+    summary: 'Which of these namespaces exist now (the restore wizard’s impact summary)',
+    description:
+      'The caller needs `restore:create` over every namespace named. Returns 202 with the command; its result lists, for each name asked about, whether the namespace exists.',
+  })
+  impact(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orgId') orgId: string,
+    @Param('clusterId') clusterId: string,
+    @Body() body: unknown,
+    @Req() request: Request,
+  ) {
+    return this.restores.impact(
       parseBody(orgIdParam, orgId),
       user.id,
       parseBody(orgIdParam, clusterId),

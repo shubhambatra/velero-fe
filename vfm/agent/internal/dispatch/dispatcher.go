@@ -63,6 +63,8 @@ func OpOf(cmd *pb.Command) Op {
 		return "fetch_download"
 	case *pb.Command_RefreshStatus:
 		return "refresh_status"
+	case *pb.Command_CheckNamespaces:
+		return "check_namespaces"
 	default:
 		return ""
 	}

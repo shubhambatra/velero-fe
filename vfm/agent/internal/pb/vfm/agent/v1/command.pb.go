@@ -101,6 +101,7 @@ type Command struct {
 	//	*Command_DeleteVsl
 	//	*Command_FetchDownload
 	//	*Command_RefreshStatus
+	//	*Command_CheckNamespaces
 	Op            isCommand_Op `protobuf_oneof:"op"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -308,6 +309,15 @@ func (x *Command) GetRefreshStatus() *RefreshServerStatus {
 	return nil
 }
 
+func (x *Command) GetCheckNamespaces() *CheckNamespaces {
+	if x != nil {
+		if x, ok := x.Op.(*Command_CheckNamespaces); ok {
+			return x.CheckNamespaces
+		}
+	}
+	return nil
+}
+
 type isCommand_Op interface {
 	isCommand_Op()
 }
@@ -380,6 +390,12 @@ type Command_RefreshStatus struct {
 	RefreshStatus *RefreshServerStatus `protobuf:"bytes,25,opt,name=refresh_status,json=refreshStatus,proto3,oneof"`
 }
 
+type Command_CheckNamespaces struct {
+	// Report whether each named namespace exists. Read-only; answers for the names
+	// asked about and nothing else, so a caller learns nothing about other namespaces.
+	CheckNamespaces *CheckNamespaces `protobuf:"bytes,26,opt,name=check_namespaces,json=checkNamespaces,proto3,oneof"`
+}
+
 func (*Command_CreateBackup) isCommand_Op() {}
 
 func (*Command_DeleteBackup) isCommand_Op() {}
@@ -411,6 +427,8 @@ func (*Command_DeleteVsl) isCommand_Op() {}
 func (*Command_FetchDownload) isCommand_Op() {}
 
 func (*Command_RefreshStatus) isCommand_Op() {}
+
+func (*Command_CheckNamespaces) isCommand_Op() {}
 
 type CreateBackup struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1242,6 +1260,51 @@ func (*RefreshServerStatus) Descriptor() ([]byte, []int) {
 	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{16}
 }
 
+type CheckNamespaces struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// At most 100 DNS-1123 label names.
+	Names         []string `protobuf:"bytes,1,rep,name=names,proto3" json:"names,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckNamespaces) Reset() {
+	*x = CheckNamespaces{}
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckNamespaces) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckNamespaces) ProtoMessage() {}
+
+func (x *CheckNamespaces) ProtoReflect() protoreflect.Message {
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckNamespaces.ProtoReflect.Descriptor instead.
+func (*CheckNamespaces) Descriptor() ([]byte, []int) {
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *CheckNamespaces) GetNames() []string {
+	if x != nil {
+		return x.Names
+	}
+	return nil
+}
+
 type CancelCommand struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CommandId     string                 `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
@@ -1251,7 +1314,7 @@ type CancelCommand struct {
 
 func (x *CancelCommand) Reset() {
 	*x = CancelCommand{}
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[17]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1326,7 @@ func (x *CancelCommand) String() string {
 func (*CancelCommand) ProtoMessage() {}
 
 func (x *CancelCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[17]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1339,7 @@ func (x *CancelCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelCommand.ProtoReflect.Descriptor instead.
 func (*CancelCommand) Descriptor() ([]byte, []int) {
-	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{17}
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CancelCommand) GetCommandId() string {
@@ -1296,7 +1359,7 @@ type CommandAck struct {
 
 func (x *CommandAck) Reset() {
 	*x = CommandAck{}
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[18]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1308,7 +1371,7 @@ func (x *CommandAck) String() string {
 func (*CommandAck) ProtoMessage() {}
 
 func (x *CommandAck) ProtoReflect() protoreflect.Message {
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[18]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1321,7 +1384,7 @@ func (x *CommandAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandAck.ProtoReflect.Descriptor instead.
 func (*CommandAck) Descriptor() ([]byte, []int) {
-	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{18}
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CommandAck) GetCommandId() string {
@@ -1353,6 +1416,7 @@ type CommandResult struct {
 	//	*CommandResult_ServerStatus
 	//	*CommandResult_Created
 	//	*CommandResult_Download
+	//	*CommandResult_Namespaces
 	Detail        isCommandResult_Detail `protobuf_oneof:"detail"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1360,7 +1424,7 @@ type CommandResult struct {
 
 func (x *CommandResult) Reset() {
 	*x = CommandResult{}
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[19]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1372,7 +1436,7 @@ func (x *CommandResult) String() string {
 func (*CommandResult) ProtoMessage() {}
 
 func (x *CommandResult) ProtoReflect() protoreflect.Message {
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[19]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1385,7 +1449,7 @@ func (x *CommandResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandResult.ProtoReflect.Descriptor instead.
 func (*CommandResult) Descriptor() ([]byte, []int) {
-	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{19}
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CommandResult) GetCommandId() string {
@@ -1457,6 +1521,15 @@ func (x *CommandResult) GetDownload() *DownloadSummary {
 	return nil
 }
 
+func (x *CommandResult) GetNamespaces() *NamespaceReport {
+	if x != nil {
+		if x, ok := x.Detail.(*CommandResult_Namespaces); ok {
+			return x.Namespaces
+		}
+	}
+	return nil
+}
+
 type isCommandResult_Detail interface {
 	isCommandResult_Detail()
 }
@@ -1473,11 +1546,17 @@ type CommandResult_Download struct {
 	Download *DownloadSummary `protobuf:"bytes,12,opt,name=download,proto3,oneof"`
 }
 
+type CommandResult_Namespaces struct {
+	Namespaces *NamespaceReport `protobuf:"bytes,13,opt,name=namespaces,proto3,oneof"`
+}
+
 func (*CommandResult_ServerStatus) isCommandResult_Detail() {}
 
 func (*CommandResult_Created) isCommandResult_Detail() {}
 
 func (*CommandResult_Download) isCommandResult_Detail() {}
+
+func (*CommandResult_Namespaces) isCommandResult_Detail() {}
 
 // What a create-style command produced, so the control plane can correlate the
 // inventory object with the command.
@@ -1492,7 +1571,7 @@ type CreatedObject struct {
 
 func (x *CreatedObject) Reset() {
 	*x = CreatedObject{}
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[20]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1504,7 +1583,7 @@ func (x *CreatedObject) String() string {
 func (*CreatedObject) ProtoMessage() {}
 
 func (x *CreatedObject) ProtoReflect() protoreflect.Message {
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[20]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1517,7 +1596,7 @@ func (x *CreatedObject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatedObject.ProtoReflect.Descriptor instead.
 func (*CreatedObject) Descriptor() ([]byte, []int) {
-	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{20}
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CreatedObject) GetKind() string {
@@ -1541,6 +1620,112 @@ func (x *CreatedObject) GetUid() string {
 	return ""
 }
 
+// One entry per name asked about, in the order asked.
+type NamespaceReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Namespaces    []*NamespaceState      `protobuf:"bytes,1,rep,name=namespaces,proto3" json:"namespaces,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NamespaceReport) Reset() {
+	*x = NamespaceReport{}
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NamespaceReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NamespaceReport) ProtoMessage() {}
+
+func (x *NamespaceReport) ProtoReflect() protoreflect.Message {
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NamespaceReport.ProtoReflect.Descriptor instead.
+func (*NamespaceReport) Descriptor() ([]byte, []int) {
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *NamespaceReport) GetNamespaces() []*NamespaceState {
+	if x != nil {
+		return x.Namespaces
+	}
+	return nil
+}
+
+type NamespaceState struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Name   string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Exists bool                   `protobuf:"varint,2,opt,name=exists,proto3" json:"exists,omitempty"`
+	// Exists but is being deleted: a restore into it will not work until it is gone.
+	Terminating   bool `protobuf:"varint,3,opt,name=terminating,proto3" json:"terminating,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NamespaceState) Reset() {
+	*x = NamespaceState{}
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NamespaceState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NamespaceState) ProtoMessage() {}
+
+func (x *NamespaceState) ProtoReflect() protoreflect.Message {
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NamespaceState.ProtoReflect.Descriptor instead.
+func (*NamespaceState) Descriptor() ([]byte, []int) {
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *NamespaceState) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NamespaceState) GetExists() bool {
+	if x != nil {
+		return x.Exists
+	}
+	return false
+}
+
+func (x *NamespaceState) GetTerminating() bool {
+	if x != nil {
+		return x.Terminating
+	}
+	return false
+}
+
 type DownloadSummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BytesSent     int64                  `protobuf:"varint,1,opt,name=bytes_sent,json=bytesSent,proto3" json:"bytes_sent,omitempty"`
@@ -1551,7 +1736,7 @@ type DownloadSummary struct {
 
 func (x *DownloadSummary) Reset() {
 	*x = DownloadSummary{}
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[21]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1563,7 +1748,7 @@ func (x *DownloadSummary) String() string {
 func (*DownloadSummary) ProtoMessage() {}
 
 func (x *DownloadSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[21]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1576,7 +1761,7 @@ func (x *DownloadSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadSummary.ProtoReflect.Descriptor instead.
 func (*DownloadSummary) Descriptor() ([]byte, []int) {
-	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{21}
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DownloadSummary) GetBytesSent() int64 {
@@ -1606,7 +1791,7 @@ type ServerStatus struct {
 
 func (x *ServerStatus) Reset() {
 	*x = ServerStatus{}
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[22]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1618,7 +1803,7 @@ func (x *ServerStatus) String() string {
 func (*ServerStatus) ProtoMessage() {}
 
 func (x *ServerStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[22]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1631,7 +1816,7 @@ func (x *ServerStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerStatus.ProtoReflect.Descriptor instead.
 func (*ServerStatus) Descriptor() ([]byte, []int) {
-	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{22}
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ServerStatus) GetServerVersion() string {
@@ -1665,7 +1850,7 @@ type PluginInfo struct {
 
 func (x *PluginInfo) Reset() {
 	*x = PluginInfo{}
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[23]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1677,7 +1862,7 @@ func (x *PluginInfo) String() string {
 func (*PluginInfo) ProtoMessage() {}
 
 func (x *PluginInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_vfm_agent_v1_command_proto_msgTypes[23]
+	mi := &file_vfm_agent_v1_command_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1690,7 +1875,7 @@ func (x *PluginInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PluginInfo.ProtoReflect.Descriptor instead.
 func (*PluginInfo) Descriptor() ([]byte, []int) {
-	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{23}
+	return file_vfm_agent_v1_command_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PluginInfo) GetName() string {
@@ -1711,8 +1896,7 @@ var File_vfm_agent_v1_command_proto protoreflect.FileDescriptor
 
 const file_vfm_agent_v1_command_proto_rawDesc = "" +
 	"\n" +
-	"\x1avfm/agent/v1/command.proto\x12\fvfm.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19vfm/agent/v1/common.proto\x1a\x19vfm/agent/v1/velero.proto\"\xb5\n" +
-	"\n" +
+	"\x1avfm/agent/v1/command.proto\x12\fvfm.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19vfm/agent/v1/common.proto\x1a\x19vfm/agent/v1/velero.proto\"\x81\v\n" +
 	"\aCommand\x12\x1d\n" +
 	"\n" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\x126\n" +
@@ -1738,7 +1922,8 @@ const file_vfm_agent_v1_command_proto_rawDesc = "" +
 	"\n" +
 	"delete_vsl\x18\x17 \x01(\v2*.vfm.agent.v1.DeleteVolumeSnapshotLocationH\x00R\tdeleteVsl\x12D\n" +
 	"\x0efetch_download\x18\x18 \x01(\v2\x1b.vfm.agent.v1.FetchDownloadH\x00R\rfetchDownload\x12J\n" +
-	"\x0erefresh_status\x18\x19 \x01(\v2!.vfm.agent.v1.RefreshServerStatusH\x00R\rrefreshStatusB\x04\n" +
+	"\x0erefresh_status\x18\x19 \x01(\v2!.vfm.agent.v1.RefreshServerStatusH\x00R\rrefreshStatus\x12J\n" +
+	"\x10check_namespaces\x18\x1a \x01(\v2\x1d.vfm.agent.v1.CheckNamespacesH\x00R\x0fcheckNamespacesB\x04\n" +
 	"\x02op\"~\n" +
 	"\fCreateBackup\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12,\n" +
@@ -1793,7 +1978,9 @@ const file_vfm_agent_v1_command_proto_rawDesc = "" +
 	"\vtarget_name\x18\x02 \x01(\tR\n" +
 	"targetName\x12\x1b\n" +
 	"\tmax_bytes\x18\x03 \x01(\x03R\bmaxBytes\"\x15\n" +
-	"\x13RefreshServerStatus\".\n" +
+	"\x13RefreshServerStatus\"'\n" +
+	"\x0fCheckNamespaces\x12\x14\n" +
+	"\x05names\x18\x01 \x03(\tR\x05names\".\n" +
 	"\rCancelCommand\x12\x1d\n" +
 	"\n" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\"`\n" +
@@ -1801,7 +1988,7 @@ const file_vfm_agent_v1_command_proto_rawDesc = "" +
 	"CommandAck\x12\x1d\n" +
 	"\n" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\x123\n" +
-	"\x05state\x18\x02 \x01(\x0e2\x1d.vfm.agent.v1.CommandAckStateR\x05state\"\x9b\x03\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x1d.vfm.agent.v1.CommandAckStateR\x05state\"\xdc\x03\n" +
 	"\rCommandResult\x12\x1d\n" +
 	"\n" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\x12\x0e\n" +
@@ -1814,12 +2001,23 @@ const file_vfm_agent_v1_command_proto_rawDesc = "" +
 	"\rserver_status\x18\n" +
 	" \x01(\v2\x1a.vfm.agent.v1.ServerStatusH\x00R\fserverStatus\x127\n" +
 	"\acreated\x18\v \x01(\v2\x1b.vfm.agent.v1.CreatedObjectH\x00R\acreated\x12;\n" +
-	"\bdownload\x18\f \x01(\v2\x1d.vfm.agent.v1.DownloadSummaryH\x00R\bdownloadB\b\n" +
+	"\bdownload\x18\f \x01(\v2\x1d.vfm.agent.v1.DownloadSummaryH\x00R\bdownload\x12?\n" +
+	"\n" +
+	"namespaces\x18\r \x01(\v2\x1d.vfm.agent.v1.NamespaceReportH\x00R\n" +
+	"namespacesB\b\n" +
 	"\x06detail\"I\n" +
 	"\rCreatedObject\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x10\n" +
 	"\x03uid\x18\x03 \x01(\tR\x03uid\"O\n" +
+	"\x0fNamespaceReport\x12<\n" +
+	"\n" +
+	"namespaces\x18\x01 \x03(\v2\x1c.vfm.agent.v1.NamespaceStateR\n" +
+	"namespaces\"^\n" +
+	"\x0eNamespaceState\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06exists\x18\x02 \x01(\bR\x06exists\x12 \n" +
+	"\vterminating\x18\x03 \x01(\bR\vterminating\"O\n" +
 	"\x0fDownloadSummary\x12\x1d\n" +
 	"\n" +
 	"bytes_sent\x18\x01 \x01(\x03R\tbytesSent\x12\x1d\n" +
@@ -1852,7 +2050,7 @@ func file_vfm_agent_v1_command_proto_rawDescGZIP() []byte {
 }
 
 var file_vfm_agent_v1_command_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vfm_agent_v1_command_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_vfm_agent_v1_command_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_vfm_agent_v1_command_proto_goTypes = []any{
 	(CommandAckState)(0),                    // 0: vfm.agent.v1.CommandAckState
 	(*Command)(nil),                         // 1: vfm.agent.v1.Command
@@ -1872,25 +2070,28 @@ var file_vfm_agent_v1_command_proto_goTypes = []any{
 	(*DeleteVolumeSnapshotLocation)(nil),    // 15: vfm.agent.v1.DeleteVolumeSnapshotLocation
 	(*FetchDownload)(nil),                   // 16: vfm.agent.v1.FetchDownload
 	(*RefreshServerStatus)(nil),             // 17: vfm.agent.v1.RefreshServerStatus
-	(*CancelCommand)(nil),                   // 18: vfm.agent.v1.CancelCommand
-	(*CommandAck)(nil),                      // 19: vfm.agent.v1.CommandAck
-	(*CommandResult)(nil),                   // 20: vfm.agent.v1.CommandResult
-	(*CreatedObject)(nil),                   // 21: vfm.agent.v1.CreatedObject
-	(*DownloadSummary)(nil),                 // 22: vfm.agent.v1.DownloadSummary
-	(*ServerStatus)(nil),                    // 23: vfm.agent.v1.ServerStatus
-	(*PluginInfo)(nil),                      // 24: vfm.agent.v1.PluginInfo
-	(*timestamppb.Timestamp)(nil),           // 25: google.protobuf.Timestamp
-	(*BackupSpec)(nil),                      // 26: vfm.agent.v1.BackupSpec
-	(*RestoreSpec)(nil),                     // 27: vfm.agent.v1.RestoreSpec
-	(*ScheduleSpec)(nil),                    // 28: vfm.agent.v1.ScheduleSpec
-	(*BackupStorageLocationSpec)(nil),       // 29: vfm.agent.v1.BackupStorageLocationSpec
-	(*CredentialSecret)(nil),                // 30: vfm.agent.v1.CredentialSecret
-	(*VolumeSnapshotLocationSpec)(nil),      // 31: vfm.agent.v1.VolumeSnapshotLocationSpec
-	(DownloadTargetKind)(0),                 // 32: vfm.agent.v1.DownloadTargetKind
-	(ErrorCode)(0),                          // 33: vfm.agent.v1.ErrorCode
+	(*CheckNamespaces)(nil),                 // 18: vfm.agent.v1.CheckNamespaces
+	(*CancelCommand)(nil),                   // 19: vfm.agent.v1.CancelCommand
+	(*CommandAck)(nil),                      // 20: vfm.agent.v1.CommandAck
+	(*CommandResult)(nil),                   // 21: vfm.agent.v1.CommandResult
+	(*CreatedObject)(nil),                   // 22: vfm.agent.v1.CreatedObject
+	(*NamespaceReport)(nil),                 // 23: vfm.agent.v1.NamespaceReport
+	(*NamespaceState)(nil),                  // 24: vfm.agent.v1.NamespaceState
+	(*DownloadSummary)(nil),                 // 25: vfm.agent.v1.DownloadSummary
+	(*ServerStatus)(nil),                    // 26: vfm.agent.v1.ServerStatus
+	(*PluginInfo)(nil),                      // 27: vfm.agent.v1.PluginInfo
+	(*timestamppb.Timestamp)(nil),           // 28: google.protobuf.Timestamp
+	(*BackupSpec)(nil),                      // 29: vfm.agent.v1.BackupSpec
+	(*RestoreSpec)(nil),                     // 30: vfm.agent.v1.RestoreSpec
+	(*ScheduleSpec)(nil),                    // 31: vfm.agent.v1.ScheduleSpec
+	(*BackupStorageLocationSpec)(nil),       // 32: vfm.agent.v1.BackupStorageLocationSpec
+	(*CredentialSecret)(nil),                // 33: vfm.agent.v1.CredentialSecret
+	(*VolumeSnapshotLocationSpec)(nil),      // 34: vfm.agent.v1.VolumeSnapshotLocationSpec
+	(DownloadTargetKind)(0),                 // 35: vfm.agent.v1.DownloadTargetKind
+	(ErrorCode)(0),                          // 36: vfm.agent.v1.ErrorCode
 }
 var file_vfm_agent_v1_command_proto_depIdxs = []int32{
-	25, // 0: vfm.agent.v1.Command.deadline:type_name -> google.protobuf.Timestamp
+	28, // 0: vfm.agent.v1.Command.deadline:type_name -> google.protobuf.Timestamp
 	2,  // 1: vfm.agent.v1.Command.create_backup:type_name -> vfm.agent.v1.CreateBackup
 	3,  // 2: vfm.agent.v1.Command.delete_backup:type_name -> vfm.agent.v1.DeleteBackup
 	4,  // 3: vfm.agent.v1.Command.create_restore:type_name -> vfm.agent.v1.CreateRestore
@@ -1907,28 +2108,31 @@ var file_vfm_agent_v1_command_proto_depIdxs = []int32{
 	15, // 14: vfm.agent.v1.Command.delete_vsl:type_name -> vfm.agent.v1.DeleteVolumeSnapshotLocation
 	16, // 15: vfm.agent.v1.Command.fetch_download:type_name -> vfm.agent.v1.FetchDownload
 	17, // 16: vfm.agent.v1.Command.refresh_status:type_name -> vfm.agent.v1.RefreshServerStatus
-	26, // 17: vfm.agent.v1.CreateBackup.spec:type_name -> vfm.agent.v1.BackupSpec
-	27, // 18: vfm.agent.v1.CreateRestore.spec:type_name -> vfm.agent.v1.RestoreSpec
-	28, // 19: vfm.agent.v1.CreateSchedule.spec:type_name -> vfm.agent.v1.ScheduleSpec
-	28, // 20: vfm.agent.v1.UpdateSchedule.spec:type_name -> vfm.agent.v1.ScheduleSpec
-	29, // 21: vfm.agent.v1.UpsertBackupStorageLocation.spec:type_name -> vfm.agent.v1.BackupStorageLocationSpec
-	30, // 22: vfm.agent.v1.UpsertBackupStorageLocation.credential:type_name -> vfm.agent.v1.CredentialSecret
-	31, // 23: vfm.agent.v1.UpsertVolumeSnapshotLocation.spec:type_name -> vfm.agent.v1.VolumeSnapshotLocationSpec
-	30, // 24: vfm.agent.v1.UpsertVolumeSnapshotLocation.credential:type_name -> vfm.agent.v1.CredentialSecret
-	32, // 25: vfm.agent.v1.FetchDownload.target_kind:type_name -> vfm.agent.v1.DownloadTargetKind
-	0,  // 26: vfm.agent.v1.CommandAck.state:type_name -> vfm.agent.v1.CommandAckState
-	33, // 27: vfm.agent.v1.CommandResult.error_code:type_name -> vfm.agent.v1.ErrorCode
-	25, // 28: vfm.agent.v1.CommandResult.finished_at:type_name -> google.protobuf.Timestamp
-	23, // 29: vfm.agent.v1.CommandResult.server_status:type_name -> vfm.agent.v1.ServerStatus
-	21, // 30: vfm.agent.v1.CommandResult.created:type_name -> vfm.agent.v1.CreatedObject
-	22, // 31: vfm.agent.v1.CommandResult.download:type_name -> vfm.agent.v1.DownloadSummary
-	24, // 32: vfm.agent.v1.ServerStatus.plugins:type_name -> vfm.agent.v1.PluginInfo
-	25, // 33: vfm.agent.v1.ServerStatus.processed_at:type_name -> google.protobuf.Timestamp
-	34, // [34:34] is the sub-list for method output_type
-	34, // [34:34] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	18, // 17: vfm.agent.v1.Command.check_namespaces:type_name -> vfm.agent.v1.CheckNamespaces
+	29, // 18: vfm.agent.v1.CreateBackup.spec:type_name -> vfm.agent.v1.BackupSpec
+	30, // 19: vfm.agent.v1.CreateRestore.spec:type_name -> vfm.agent.v1.RestoreSpec
+	31, // 20: vfm.agent.v1.CreateSchedule.spec:type_name -> vfm.agent.v1.ScheduleSpec
+	31, // 21: vfm.agent.v1.UpdateSchedule.spec:type_name -> vfm.agent.v1.ScheduleSpec
+	32, // 22: vfm.agent.v1.UpsertBackupStorageLocation.spec:type_name -> vfm.agent.v1.BackupStorageLocationSpec
+	33, // 23: vfm.agent.v1.UpsertBackupStorageLocation.credential:type_name -> vfm.agent.v1.CredentialSecret
+	34, // 24: vfm.agent.v1.UpsertVolumeSnapshotLocation.spec:type_name -> vfm.agent.v1.VolumeSnapshotLocationSpec
+	33, // 25: vfm.agent.v1.UpsertVolumeSnapshotLocation.credential:type_name -> vfm.agent.v1.CredentialSecret
+	35, // 26: vfm.agent.v1.FetchDownload.target_kind:type_name -> vfm.agent.v1.DownloadTargetKind
+	0,  // 27: vfm.agent.v1.CommandAck.state:type_name -> vfm.agent.v1.CommandAckState
+	36, // 28: vfm.agent.v1.CommandResult.error_code:type_name -> vfm.agent.v1.ErrorCode
+	28, // 29: vfm.agent.v1.CommandResult.finished_at:type_name -> google.protobuf.Timestamp
+	26, // 30: vfm.agent.v1.CommandResult.server_status:type_name -> vfm.agent.v1.ServerStatus
+	22, // 31: vfm.agent.v1.CommandResult.created:type_name -> vfm.agent.v1.CreatedObject
+	25, // 32: vfm.agent.v1.CommandResult.download:type_name -> vfm.agent.v1.DownloadSummary
+	23, // 33: vfm.agent.v1.CommandResult.namespaces:type_name -> vfm.agent.v1.NamespaceReport
+	24, // 34: vfm.agent.v1.NamespaceReport.namespaces:type_name -> vfm.agent.v1.NamespaceState
+	27, // 35: vfm.agent.v1.ServerStatus.plugins:type_name -> vfm.agent.v1.PluginInfo
+	28, // 36: vfm.agent.v1.ServerStatus.processed_at:type_name -> google.protobuf.Timestamp
+	37, // [37:37] is the sub-list for method output_type
+	37, // [37:37] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_vfm_agent_v1_command_proto_init() }
@@ -1955,11 +2159,13 @@ func file_vfm_agent_v1_command_proto_init() {
 		(*Command_DeleteVsl)(nil),
 		(*Command_FetchDownload)(nil),
 		(*Command_RefreshStatus)(nil),
+		(*Command_CheckNamespaces)(nil),
 	}
-	file_vfm_agent_v1_command_proto_msgTypes[19].OneofWrappers = []any{
+	file_vfm_agent_v1_command_proto_msgTypes[20].OneofWrappers = []any{
 		(*CommandResult_ServerStatus)(nil),
 		(*CommandResult_Created)(nil),
 		(*CommandResult_Download)(nil),
+		(*CommandResult_Namespaces)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1967,7 +2173,7 @@ func file_vfm_agent_v1_command_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vfm_agent_v1_command_proto_rawDesc), len(file_vfm_agent_v1_command_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   24,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

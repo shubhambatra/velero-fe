@@ -167,7 +167,7 @@ func mutating(cmd *pb.Command) bool {
 	switch cmd.GetOp().(type) {
 	// A DownloadRequest is a transient request object like a ServerStatusRequest: it
 	// changes nothing the owner cares about, and reading logs must work read-only.
-	case *pb.Command_RefreshStatus, *pb.Command_FetchDownload:
+	case *pb.Command_RefreshStatus, *pb.Command_FetchDownload, *pb.Command_CheckNamespaces:
 		return false
 	default:
 		return true

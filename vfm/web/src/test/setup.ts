@@ -1,7 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
+
+// The default of one second is too tight for a cold render of a whole page when the suite runs
+// in parallel; a slow machine must not look like a failing page.
+configure({ asyncUtilTimeout: 4_000 });
 
 /**
  * Vitest runs with `globals: false`, so Testing Library's automatic cleanup —

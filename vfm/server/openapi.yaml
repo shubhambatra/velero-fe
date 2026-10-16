@@ -1382,6 +1382,28 @@ paths:
       summary: Run a schedule now (velero backup create --from-schedule)
       tags:
         - backups
+  /orgs/{orgId}/clusters/{clusterId}/restores/impact:
+    post:
+      description: The caller needs `restore:create` over every namespace named. Returns 202 with the
+        command; its result lists, for each name asked about, whether the namespace exists.
+      operationId: RestoresController_impact
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Which of these namespaces exist now (the restore wizard’s impact summary)
+      tags:
+        - restores
   /orgs/{orgId}/clusters/{clusterId}/backups/{name}/logs:
     post:
       operationId: DownloadsController_fetchBackupLog

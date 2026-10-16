@@ -5,7 +5,12 @@ import { parseBody } from '../common/parse-body';
 import { coveredBy } from '../inventory/projections';
 import { PrismaService } from '../prisma/prisma.service';
 import { RbacService, type TokenLimit } from '../rbac/rbac.service';
-import { checkRestoreDurations, createRestoreBody, restoreCoverage } from './restore-request';
+import {
+  checkRestoreDurations,
+  createRestoreBody,
+  impactBody,
+  restoreCoverage,
+} from './restore-request';
 
 const MAX_ADVANCED_BYTES = 256 * 1024;
 
@@ -63,6 +68,36 @@ export class RestoresService {
       );
     }
     return this.commands.enqueue(orgId, clusterId, userId, 'CREATE_RESTORE', body);
+  }
+
+  /**
+   * Asks the agent which of the named namespaces exist now, for the wizard's impact
+   * summary. The caller must be allowed to restore into **every** name asked about, so
+   * this can never be used to find out whether some other namespace exists; the agent
+   * answers for those names alone.
+   */
+  async impact(
+    orgId: string,
+    userId: string,
+    clusterId: string,
+    rawBody: unknown,
+    token?: TokenLimit,
+  ): Promise<CommandView> {
+    const body = parseBody(impactBody, rawBody);
+    await this.rbac.require(
+      orgId,
+      userId,
+      {
+        clusterId,
+        permission: 'restore:create',
+        namespaces: [...new Set(body.namespaces)],
+        includesClusterScoped: false,
+      },
+      token,
+    );
+    return this.commands.enqueue(orgId, clusterId, userId, 'CHECK_NAMESPACES', {
+      names: [...new Set(body.namespaces)],
+    });
   }
 
   async delete(

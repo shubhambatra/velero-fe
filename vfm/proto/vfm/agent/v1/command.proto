@@ -36,6 +36,9 @@ message Command {
     FetchDownload fetch_download = 24;
     // Create a ServerStatusRequest and report the processed status.
     RefreshServerStatus refresh_status = 25;
+    // Report whether each named namespace exists. Read-only; answers for the names
+    // asked about and nothing else, so a caller learns nothing about other namespaces.
+    CheckNamespaces check_namespaces = 26;
   }
 }
 
@@ -127,6 +130,11 @@ message FetchDownload {
 
 message RefreshServerStatus {}
 
+message CheckNamespaces {
+  // At most 100 DNS-1123 label names.
+  repeated string names = 1;
+}
+
 message CancelCommand {
   string command_id = 1;
 }
@@ -157,6 +165,7 @@ message CommandResult {
     ServerStatus server_status = 10;
     CreatedObject created = 11;
     DownloadSummary download = 12;
+    NamespaceReport namespaces = 13;
   }
 }
 
@@ -166,6 +175,18 @@ message CreatedObject {
   string kind = 1;
   string name = 2;
   string uid = 3;
+}
+
+// One entry per name asked about, in the order asked.
+message NamespaceReport {
+  repeated NamespaceState namespaces = 1;
+}
+
+message NamespaceState {
+  string name = 1;
+  bool exists = 2;
+  // Exists but is being deleted: a restore into it will not work until it is gone.
+  bool terminating = 3;
 }
 
 message DownloadSummary {

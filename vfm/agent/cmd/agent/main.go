@@ -206,6 +206,7 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 		}
 		dispatcher.Register("create_restore", restoreOps.Create)
 		dispatcher.Register("delete_restore", restoreOps.Delete)
+		dispatcher.Register("check_namespaces", (&velero.NamespaceChecker{Client: kubeClient.Clientset()}).Check)
 		dispatcher.Register("fetch_download", (&velero.DownloadHandler{
 			Dynamic:   kubeClient.Dynamic(),
 			Namespace: cfg.VeleroNamespace,

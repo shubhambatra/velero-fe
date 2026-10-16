@@ -352,12 +352,20 @@ describe('detail pages', () => {
     );
   });
 
-  it('keeps "restore from this backup" visible but disabled, with the reason', async () => {
+  it('offers "restore from this backup" for a completed backup, and keeps it visible but disabled otherwise', async () => {
     server(() => detail);
+    const { unmount } = renderApp({ path: '/clusters/c1/backups/nightly-1' });
+    expect(await screen.findByRole('link', { name: 'Restore from this backup' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/restores/new?backup=nightly-1',
+    );
+    unmount();
+
+    server(() => ({ ...detail, summary: { ...detail.summary, phase: 'InProgress' } }));
     renderApp({ path: '/clusters/c1/backups/nightly-1' });
     const button = await screen.findByRole('button', { name: 'Restore from this backup' });
     expect(button).toBeDisabled();
-    expect(button.getAttribute('title')).toMatch(/M4/);
+    expect(button.getAttribute('title')).toMatch(/completed backup/);
   });
 
   it('answers "not found" the same way for a backup that is gone and one the caller may not see', async () => {

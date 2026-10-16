@@ -18,6 +18,7 @@ import { SsoPage } from '@/pages/admin/sso-page';
 import { TeamsPage } from '@/pages/admin/teams-page';
 
 import { BackupWizardPage } from '@/pages/backup-wizard';
+import { RestoreWizardPage } from '@/pages/restore-wizard';
 import { rootRoute } from './root-route';
 
 export const loginRoute = createRoute({
@@ -155,6 +156,9 @@ export const backupDetailRoute = clusterSubRoute(
   '/clusters/$clusterId/backups/$name',
   (o, c, n) => <BackupDetailPage orgId={o} clusterId={c} name={n} />,
 );
+export const newRestoreRoute = clusterSubRoute('/clusters/$clusterId/restores/new', (o, c) => (
+  <RestoreWizardPage orgId={o} clusterId={c} />
+));
 export const restoreDetailRoute = clusterSubRoute(
   '/clusters/$clusterId/restores/$name',
   (o, c, n) => <RestoreDetailPage orgId={o} clusterId={c} name={n} />,

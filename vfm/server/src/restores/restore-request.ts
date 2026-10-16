@@ -176,3 +176,13 @@ export function buildCreateRestore(payload: Record<string, unknown>): Partial<Co
     },
   };
 }
+
+/** The body of `POST …/restores/impact`: the namespaces a restore would write into. */
+export const impactBody = z
+  .object({
+    namespaces: z
+      .array(namespace.refine((n) => n !== '*', 'a namespace name'))
+      .min(1)
+      .max(100),
+  })
+  .strict();
