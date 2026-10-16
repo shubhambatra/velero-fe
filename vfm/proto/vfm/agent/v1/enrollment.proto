@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package vfm.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// PLAN.md §5.1. Enroll is authenticated by the one-time bootstrap token and is
+// the only RPC reachable without a client certificate.
+message EnrollRequest {
+  // 32 random bytes, base64url. Single use; the server stores only a hash.
+  string bootstrap_token = 1;
+  // PEM PKCS#10 CSR for an ECDSA P-256 key generated in the cluster. The
+  // subject and SAN in the CSR are ignored: the server sets the SAN to
+  // spiffe://vfm/cluster/{clusterId} itself.
+  bytes csr_pem = 2;
+  // UID of the kube-system namespace; detects one agent installed into two
+  // clusters.
+  string cluster_fingerprint = 3;
+  string agent_version = 4;
+  uint32 protocol_version = 5;
+}
+
+message EnrollResponse {
+  string cluster_id = 1;
+  // PEM leaf certificate, 7-day validity.
+  bytes certificate_pem = 2;
+  // PEM bundle of the internal CA, for pinning the server on later connects.
+  bytes ca_bundle_pem = 3;
+  google.protobuf.Timestamp not_after = 4;
+}
+
+// mTLS-authenticated with the current certificate (PLAN.md §5.1 step 5).
+message RenewCertificateRequest {
+  bytes csr_pem = 1;
+}
+
+message RenewCertificateResponse {
+  bytes certificate_pem = 1;
+  bytes ca_bundle_pem = 2;
+  google.protobuf.Timestamp not_after = 3;
+}

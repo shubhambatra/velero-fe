@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package vfm.agent.v1;
+
+// PLAN.md §5.6 / §7: log sessions stream from a pod's `pods/log` subresource.
+message StartLogSession {
+  string session_id = 1;
+  string namespace = 2;
+  string pod = 3;
+  string container = 4;
+  bool follow = 5;
+  int64 tail_lines = 6;
+  int64 since_seconds = 7;
+  bool timestamps = 8;
+  bool previous = 9;
+}
+
+message StopLogSession {
+  string session_id = 1;
+}
+
+// At most 64 KB of data per chunk. The same message carries the bytes of a
+// FetchDownload, keyed by command id.
+message LogChunk {
+  oneof origin {
+    string session_id = 1;
+    string command_id = 2;
+  }
+  // Starts at 0 and increases by one per chunk of an origin.
+  uint64 sequence = 3;
+  bytes data = 4;
+  // Last chunk of a FetchDownload; a log session ends with LogSessionEnded.
+  bool eof = 5;
+}
+
+enum LogSessionEndReason {
+  LOG_SESSION_END_REASON_UNSPECIFIED = 0;
+  LOG_SESSION_END_REASON_STOPPED = 1;
+  LOG_SESSION_END_REASON_POD_GONE = 2;
+  LOG_SESSION_END_REASON_TIMEOUT = 3;
+  LOG_SESSION_END_REASON_EVICTED_BY_LIMIT = 4;
+  LOG_SESSION_END_REASON_DENIED_BY_POLICY = 5;
+  LOG_SESSION_END_REASON_ERROR = 6;
+}
+
+message LogSessionEnded {
+  string session_id = 1;
+  LogSessionEndReason reason = 2;
+  string message = 3;
+}

@@ -9,6 +9,41 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M2 day 10: the agent protocol contract
+
+Session 7. Started M2 at the user's instruction ("continue with M2"), waiving the
+plan's ⛔ human checkpoint after M1; M0 is still open (ADR-010).
+
+### Done
+
+- Go 1.27.2 and buf 1.73.0 installed in user space (no root). **First compile of
+  the agent**: `go build`, `go vet`, `go test ./...` all clean; `go.sum`
+  committed (`fa86456`). Clears the compile half of B-1.
+- `proto/vfm/agent/v1/*.proto` (7 files): the whole M2–M5 surface — service,
+  envelopes, Hello/policy, 16 command ops, inventory, logs, error codes — with
+  Velero fields from the pinned v1.18.4 types (ADR-015).
+- `buf lint`, `buf build`, `buf format` clean; `buf generate` produced Go and
+  ts-proto stubs, committed; both compile (`go build ./...`, `tsc --noEmit`).
+- Contract tests on both generated sides: optional-bool unset vs false, one op
+  per command, no Secret kind, typed error codes, Hello/policy round trip.
+
+### Test status
+
+shared unchanged; server unit **425** (+5); go agent tests pass; lint,
+typecheck clean.
+
+### Deferred
+
+`golangci-lint` and `make` not installed; `buf breaking` has nothing on `main` to
+compare against until this branch merges; the Go agent has no gRPC client yet
+(day 12).
+
+### Next
+
+M2 day 11 — internal CA, enrollment RPCs, bootstrap tokens, add-cluster UI.
+
+---
+
 ## 2026-10-16 — M1 day 9 follow-up: the UI flows driven in a browser
 
 Session 6, continued.

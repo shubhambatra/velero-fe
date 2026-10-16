@@ -14,6 +14,9 @@ export default tseslint.config(
       '**/coverage/**',
       '**/*.generated.ts',
       'packages/shared/src/api/**',
+      // buf generate output (proto/buf.gen.yaml); regenerated, never hand-edited.
+      'server/src/gateway/pb/**',
+      'agent/internal/pb/**',
     ],
   },
   js.configs.recommended,

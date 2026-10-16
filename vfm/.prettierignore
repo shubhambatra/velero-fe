@@ -6,6 +6,8 @@ coverage
 *.generated.ts
 server/openapi.yaml
 packages/shared/src/api/
+server/src/gateway/pb/
+agent/internal/pb/
 
 # Vendored upstream Kubernetes manifests (snapshot controller, hostpath CSI).
 # Kept byte-identical to the release they were taken from so they can be

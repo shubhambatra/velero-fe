@@ -709,3 +709,62 @@ audit interceptor on all mutating routes".
 - No per-token rate limit or IP allow-list yet (M7).
 - Token use is audited by the middleware only for mutating routes, and none
   accept tokens yet; read use shows only as `last_used_at`.
+
+---
+
+## ADR-015 — The agent protocol contract (M2 day 10)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+`proto/vfm/agent/v1/` holds six files (`common`, `enrollment`, `velero`,
+`command`, `inventory`, `logs`, plus `gateway` for the service and envelopes).
+Velero specs (`BackupSpec`, `RestoreSpec`, `ScheduleSpec`, BSL/VSL specs, hooks,
+download kinds) were written field by field from the pinned
+`velero@v1.18.4` Go types read out of the module cache, not recalled.
+
+### Deviations from the plan's sketch (all deliberate)
+
+- `RenewRequest`/`RenewResponse` are `RenewCertificateRequest`/`...Response`:
+  `buf lint` STANDARD requires `<Rpc>Request`. Wire-irrelevant.
+- `AgentGateway` keeps its name; `SERVICE_SUFFIX` is waived on that service only
+  (inline `buf:lint:ignore`), as is the request/response naming on `Connect`,
+  whose messages are the stream envelopes `AgentMessage`/`ServerMessage`.
+- Velero's **deprecated** `defaultVolumesToRestic` is not exposed; its
+  replacement `defaultVolumesToFsBackup` is. Nothing the UI needs is lost.
+- Velero's `*bool` fields are proto3 `optional bool`, so "unset, let Velero
+  default" is distinguishable from `false`. A plain bool would silently turn
+  every omitted field into an explicit override (tested on both ends).
+- `BackupResourceHook` has only an `exec` arm in v1.18.4, so `ExecHook` is
+  flattened into `pre`/`post`.
+- `CreateBackup`/`CreateSchedule`/... take a `spec` message plus
+  `advanced_spec_json` (the one escape hatch, §5.2), not raw YAML.
+- Credentials cross the wire only as `CredentialSecret` on BSL/VSL upserts; every
+  other secret-bearing field is a `SecretKeyRef`. There is **no `ResourceKind`
+  for Secret**, so a snapshot cannot even name one (§5.3; tested).
+- Inventory objects are `ResourceItem{kind, ns, name, uid, resourceVersion,
+object_json}`. The JSON is the agent's sanitised view and is treated by the
+  server as semi-trusted input (size cap, schema-validated into extracted
+  columns in M3 day 17). Typing every synced kind as its own message would
+  triple the contract for no safety gain, because the server must validate
+  either way.
+- Added `CommandAck.state` (ACKED/RUNNING) to carry the §5.4 `ACKED → RUNNING`
+  step the sketch did not model, and `CreatedObject`/`DownloadSummary` result
+  details so the server can correlate a command to the object it produced.
+
+### Tooling
+
+`buf` 1.73.0 is installed through npm into `~/.local/buf` and Go 1.27.2 into
+`~/.local/go` (checksum-verified against go.dev), both without root. That clears
+the compile half of B-1: the agent builds, vets and its tests pass for the first
+time. `make` and `golangci-lint` are still absent. Generated stubs are
+committed (`agent/internal/pb`, `server/src/gateway/pb`) and excluded from
+eslint and prettier. New server dependencies: `@bufbuild/protobuf` 2.15.0 and
+`@grpc/grpc-js` 1.14.5, both over two weeks old.
+
+### Consequences
+
+`buf breaking` in CI compares against `main`, which has no `vfm/proto` yet; the
+first run is the real test of that job (recorded in PROGRESS.md).

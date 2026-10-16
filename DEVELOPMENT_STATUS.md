@@ -47,10 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **28 / 152 — 18.4 %** |
-| Requirements partial | 20 |
-| Requirements not started | 102 |
+| **Requirements verified** | **30 / 152 — 19.7 %** |
+| Requirements partial | 26 |
+| Requirements not started | 94 |
 | Requirements blocked | 2 |
+
+_Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
+which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
+and R-025, which are 🟡 there. Today adds R-033, R-034, R-035, R-045 → 30._
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
 R-025, R-103, R-105, R-113, R-127, R-152.
@@ -68,6 +72,8 @@ codes, org-enforced), **R-095** (sudo mode, 5-minute window, guard decorator),
 rotation), and **R-110** (every secret from the environment — `VFM_MASTER_KEY`
 is now required and validated, and no secret is committed). Nothing else met
 its acceptance criteria.
+
+Verified in session 7 (M2 day 10): **R-033**, **R-034**, **R-035**, **R-045** — the protocol messages, all 16 command ops and the error enum, as a proto contract with generated stubs round-tripped on both ends.
 
 Verified in session 4 (M1 day 6): **R-084** (every query on an org-owned model
 is org-scoped by a Prisma client extension, with tests that fail when a model is
@@ -100,7 +106,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
 | M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
-| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | not started |
+| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **day 10 done** (proto contract, ADR-015); day 11 next |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
 | M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
@@ -343,7 +349,7 @@ counts as zero in the progress figure.
 
 | ID | Requirement | Plan § | What exists | What is missing |
 |---|---|---|---|---|
-| R-021 | Agent stack and skeleton | §4.1, §16 d3 | Go module, config, slog JSON, health/metrics server, kube client, Lease leader election | **not compiled or tested — Go is not installed** (blocker B-1) |
+| R-021 | Agent stack and skeleton | §4.1, §16 d3 | Go module, config, slog JSON, health/metrics server, kube client, Lease leader election | compiles, vets and tests pass as of 2026-10-16 (B-1 partly cleared); not yet linted with golangci-lint |
 | R-022 | Control-plane stack | §4.2, §16 d3 | NestJS app, zod-validated config, pino, Prisma 7 + pg adapter, Redis client, security headers, metrics listener | argon2/otplib/openid-client/BullMQ/gRPC arrive in M1–M2 |
 | R-023 | Web stack | §4.3, §16 d3 | React 19 + Vite shell, TanStack Router/Query, Tailwind + shadcn primitives, theme, error boundary, API client | virtualized ANSI log viewer (M5), recharts (M6), SSE client (M3) |
 | R-024 | Velero compatibility handling | §4.4 | pin + support window + version parsing (verified) | capability map and version-gated UI (M2/M3) |
@@ -426,7 +432,7 @@ description of the Velero API.
 
 ## 7. Blockers
 
-### B-1 — Go toolchain absent (affects R-021, R-132, R-006, and all of M2+)
+### B-1 — Go toolchain: **partly cleared** 2026-10-16 (Go 1.27.2 and buf 1.73.0 now installed in user space; `make` and `golangci-lint` still absent)
 
 `go`, `make`, `buf` and `golangci-lint` are not installed on this machine. The
 owner elected to install them. Until then the agent's Go sources are **written
@@ -557,6 +563,7 @@ reports success.
 | 30 | `3bf5069` | `feat(auth): API tokens, audit actor for tokens and the M1 web UI for M1 day 9` | ✅ pushed — own CI run superseded |
 | 31 | `aa2e1f3` | `feat(web): API token page, create-organization page, and the day 9 record` | ✅ pushed — own CI run superseded |
 | 32 | `f647bf1` | `docs(vfm): correct the day 9 record now that the token page exists` | ✅ pushed — **CI green on this SHA**, all five jobs (includes 30–31) |
+| 33 | `fa86456` | `build(agent): resolve go.sum; the agent now compiles, vets and passes its tests` | ✅ pushed with day 10 (see PROGRESS.md) |
 | 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
 | 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
 | 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
@@ -620,7 +627,7 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-021 | Agent stack as specified, distroless non-root read-only image | 126–135 | M0/M2 | ⛔ B-1 (written, never compiled) |
+| R-021 | Agent stack as specified, distroless non-root read-only image | 126–135 | M0/M2 | 🟡 compiles, vets, tests pass (2026-10-16); distroless image not built, golangci-lint absent |
 | R-022 | Control-plane stack as specified | 137–148 | M0–M2 | 🟡 |
 | R-023 | Web stack as specified | 150–156 | M0/M3/M5 | 🟡 |
 | R-024 | Velero support window, version detection, capability map, e2e on primary and oldest | 158–162 | M0/M2/M3 | 🟡 |
@@ -636,10 +643,10 @@ make them obvious.
 | R-029 | Internal CA signs a 7-day client certificate with SAN `spiffe://vfm/cluster/{id}` | 181 | M2 | ⬜ |
 | R-030 | Certificate renewed at 2/3 of lifetime via `RenewCertificate`, authenticated by the current cert | 182 | M2 | ⬜ |
 | R-031 | Revocation: deny-list by serial checked on connect; open streams closed immediately | 183 | M2 | ⬜ |
-| R-032 | `AgentGateway` service with `Enroll`, `RenewCertificate`, `Connect` | 188–192 | M2 | ⬜ |
-| R-033 | `AgentMessage` payloads: Hello, Heartbeat, CommandAck, CommandResult, InventorySnapshot, ResourceEvents, LogChunk, LogSessionEnded | 194–207 | M2 | ⬜ |
-| R-034 | `ServerMessage` payloads: HelloAck, Command, CancelCommand, StartLogSession, StopLogSession, RequestResync | 209–219 | M2 | ⬜ |
-| R-035 | `Command` with all 16 operations | 221–243 | M2 | ⬜ |
+| R-032 | `AgentGateway` service with `Enroll`, `RenewCertificate`, `Connect` | 188–192 | M2 | 🟡 service defined and generated; no server or agent implementation yet |
+| R-033 | `AgentMessage` payloads: Hello, Heartbeat, CommandAck, CommandResult, InventorySnapshot, ResourceEvents, LogChunk, LogSessionEnded | 194–207 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
+| R-034 | `ServerMessage` payloads: HelloAck, Command, CancelCommand, StartLogSession, StopLogSession, RequestResync | 209–219 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
+| R-035 | `Command` with all 16 operations | 221–243 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-036 | `advanced_spec_json` escape hatch, merged then validated agent-side against the Velero type with unknown-field rejection, gated on `advanced:write` | 246 | M4 | ⬜ |
 | R-037 | Inventory snapshot chunked to ≤ 1 MB with snapshot id and sequence; atomic replace on the last chunk | 250 | M3 | ⬜ |
 | R-038 | Informer deltas batched and debounced: max 2 s, max 500 items | 251 | M3 | ⬜ |
@@ -649,10 +656,10 @@ make them obvious.
 | R-042 | Command lifecycle state machine exactly as §5.4, including TIMED_OUT and CANCELLED | 258–263 | M2 | ⬜ |
 | R-043 | Agent idempotency: LRU of the last 10 000 command ids with results, persisted to a ConfigMap every 30 s; duplicates replay the cached result | 266 | M2 | ⬜ |
 | R-044 | Created CRs labelled `vfm.io/command-id`, `vfm.io/requested-by` and annotated `vfm.io/managed=true`; existing object with that label short-circuits creation | 267 | M2/M4 | ⬜ |
-| R-045 | Error-code enum exactly as listed | 268 | M2 | ⬜ |
+| R-045 | Error-code enum exactly as listed | 268 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-046 | Agent policy ConfigMap enforced before execution and reported in `Hello` so the UI can explain disabled actions | 270–281 | M2 | ⬜ |
 | R-047 | Limits: 4 MB gRPC, 64 KB log chunks, 10 concurrent log sessions, 30 min hard / 60 s idle timeouts, 5 000 buffered events then forced resync | 283–288 | M2/M5 | ⬜ |
-| R-048 | `protocol_version` with N and N−1 support; `buf breaking` in CI against main | 292 | M2 | ⬜ |
+| R-048 | `protocol_version` with N and N−1 support; `buf breaking` in CI against main | 292 | M2 | 🟡 `protocol_version` in Hello; `buf breaking` wired in CI, untested until main has a proto |
 | R-049 | Agent chart version and image tag reported; UI shows "update available" | 293 | M2 | ⬜ |
 
 ### §6 Velero CLI coverage (lines 297–327)
@@ -786,7 +793,7 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-132 | Agent unit tests: command→CR mapping per op, policy, idempotency, redaction, capability gating | 587 | M2+ | ⛔ B-1 (written, never executed) |
+| R-132 | Agent unit tests: command→CR mapping per op, policy, idempotency, redaction, capability gating | 587 | M2+ | 🟡 existing config/health/leader tests pass; per-op/policy/idempotency tests arrive with M2 |
 | R-133 | Agent integration via envtest with Velero CRDs, including the DownloadRequest flow | 588 | M3 | ⬜ |
 | R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 355 unit + 121 e2e + 121 shared; RBAC (66 cases) and org isolation covered; command state machine, alert rules arrive with their features |
 | R-135 | Server integration via Testcontainers plus an in-process fake agent over real gRPC: enrollment, mTLS, reconnect, re-delivery, revocation, SSE fan-out across two instances | 590 | M2 | ⬜ |

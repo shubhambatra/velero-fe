@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package vfm.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// PLAN.md §5.3. Secrets are never synced; the agent drops them before this
+// layer and the server rejects an item of kind SECRET (it has no enum value).
+enum ResourceKind {
+  RESOURCE_KIND_UNSPECIFIED = 0;
+  RESOURCE_KIND_BACKUP = 1;
+  RESOURCE_KIND_RESTORE = 2;
+  RESOURCE_KIND_SCHEDULE = 3;
+  RESOURCE_KIND_BACKUP_STORAGE_LOCATION = 4;
+  RESOURCE_KIND_VOLUME_SNAPSHOT_LOCATION = 5;
+  RESOURCE_KIND_BACKUP_REPOSITORY = 6;
+  RESOURCE_KIND_POD_VOLUME_BACKUP = 7;
+  RESOURCE_KIND_POD_VOLUME_RESTORE = 8;
+  RESOURCE_KIND_DATA_UPLOAD = 9;
+  RESOURCE_KIND_DATA_DOWNLOAD = 10;
+  RESOURCE_KIND_DELETE_BACKUP_REQUEST = 11;
+  RESOURCE_KIND_NODE = 12;
+  RESOURCE_KIND_NAMESPACE = 13;
+  // Summary only (PLAN.md §7.1): name, namespace, phase, node, restarts, owner.
+  RESOURCE_KIND_POD = 14;
+  RESOURCE_KIND_PERSISTENT_VOLUME_CLAIM = 15;
+  RESOURCE_KIND_EVENT = 16;
+}
+
+// One synced object. `object_json` is the object as the agent chooses to expose
+// it (managedFields and last-applied annotations stripped; Pods reduced to the
+// summary). The server treats it as semi-trusted input: size-capped and parsed
+// into extracted columns against a schema, never stored or rendered blindly.
+message ResourceItem {
+  ResourceKind kind = 1;
+  // Empty for cluster-scoped kinds.
+  string namespace = 2;
+  string name = 3;
+  string uid = 4;
+  string resource_version = 5;
+  google.protobuf.Timestamp creation_timestamp = 6;
+  bytes object_json = 7;
+}
+
+// A full-state chunk. The server replaces the cluster's inventory atomically
+// when the chunk with `last = true` arrives for the snapshot_id; an incomplete
+// snapshot is discarded on disconnect. Each chunk is at most 1 MB.
+message InventorySnapshot {
+  string snapshot_id = 1;
+  // 0-based, contiguous within a snapshot_id.
+  uint32 sequence = 2;
+  bool last = 3;
+  repeated ResourceItem items = 4;
+  google.protobuf.Timestamp taken_at = 5;
+}
+
+enum ResourceEventType {
+  RESOURCE_EVENT_TYPE_UNSPECIFIED = 0;
+  RESOURCE_EVENT_TYPE_UPSERT = 1;
+  RESOURCE_EVENT_TYPE_DELETE = 2;
+}
+
+message ResourceEvent {
+  ResourceEventType type = 1;
+  // For DELETE only kind/namespace/name/uid are required.
+  ResourceItem item = 2;
+}
+
+// Debounced deltas: at most 2 s apart, at most 500 events per message.
+message ResourceEvents {
+  // The snapshot these deltas apply on top of; the server ignores deltas whose
+  // snapshot it has not fully received.
+  string snapshot_id = 1;
+  uint64 batch_sequence = 2;
+  repeated ResourceEvent events = 3;
+}
