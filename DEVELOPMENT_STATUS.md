@@ -34,23 +34,23 @@ unfinished work as done.
 
 ### Status vocabulary
 
-| Symbol | Meaning |
-|---|---|
-| ✅ verified | implemented, acceptance criteria met, verification ran and passed |
-| 🟡 partial | some implementation exists; acceptance criteria not yet fully met |
-| ⬜ not started | no implementation |
-| ⛔ blocked | cannot proceed; blocker named in section 7 |
+| Symbol         | Meaning                                                           |
+| -------------- | ----------------------------------------------------------------- |
+| ✅ verified    | implemented, acceptance criteria met, verification ran and passed |
+| 🟡 partial     | some implementation exists; acceptance criteria not yet fully met |
+| ⬜ not started | no implementation                                                 |
+| ⛔ blocked     | cannot proceed; blocker named in section 7                        |
 
 ---
 
 ## 2. Current progress
 
-| Measure | Value |
-|---|---|
-| **Requirements verified** | **55 / 152 — 36.2 %** |
-| Requirements partial | 34 |
-| Requirements not started | 61 |
-| Requirements blocked | 2 |
+| Measure                   | Value                 |
+| ------------------------- | --------------------- |
+| **Requirements verified** | **58 / 152 — 38.2 %** |
+| Requirements partial      | 34                    |
+| Requirements not started  | 58                    |
+| Requirements blocked      | 2                     |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
 which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
@@ -102,17 +102,17 @@ tokens; clusters and channels are still to come.
 **Milestone view** (task completion, shown for orientation only — not the
 progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1.
 
-| Milestone | Plan lines | State |
-|---|---|---|
-| M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
-| M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
-| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–15 built and verified in parts** (ADR-015…020); exit criteria NOT met — no cluster install (B-2); ⛔ human checkpoint pending |
-| M3 — Read-only Velero visibility (days 16–20) | 696–713 | **days 16–18 done** (agent inventory sync ADR-021; ingest and event stream ADR-022; fleet and cluster overview ADR-023); day 19 next |
-| M4 — Velero write operations (days 21–27) | 717–740 | not started |
-| M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
-| M6 — Alerts, reports, approvals (days 32–35) | 762–776 | not started |
-| M7 — Hardening, scale, security (days 36–40) | 780–797 | not started |
-| M8 — Packaging, docs, release (days 41–44) | 801–815 | not started |
+| Milestone                                     | Plan lines | State                                                                                                                                   |
+| --------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 — Foundation (days 1–3)                    | 616–633    | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1                                  |
+| M1 — Identity, orgs, RBAC (days 4–9)          | 637–662    | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next**                                                             |
+| M2 — Agent protocol, enrollment (days 10–15)  | 666–692    | **days 10–15 built and verified in parts** (ADR-015…020); exit criteria NOT met — no cluster install (B-2); ⛔ human checkpoint pending |
+| M3 — Read-only Velero visibility (days 16–20) | 696–713    | **days 16–18 done** (agent inventory sync ADR-021; ingest and event stream ADR-022; fleet and cluster overview ADR-023); day 19 next    |
+| M4 — Velero write operations (days 21–27)     | 717–740    | not started                                                                                                                             |
+| M5 — Cluster live view and logs (days 28–31)  | 744–758    | not started                                                                                                                             |
+| M6 — Alerts, reports, approvals (days 32–35)  | 762–776    | not started                                                                                                                             |
+| M7 — Hardening, scale, security (days 36–40)  | 780–797    | not started                                                                                                                             |
+| M8 — Packaging, docs, release (days 41–44)    | 801–815    | not started                                                                                                                             |
 
 ---
 
@@ -149,8 +149,8 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 - **Detail:** the single chokepoint required before logging, before writing
   `commands.payload`, and before writing audit details. Key-substring matching,
   recursive and structure-preserving, with an allow-list so secret
-  *references* (`secretName`, `secretKeyRef`) stay visible as diagnostics while
-  secret *values* never do. Buffers are summarised, cycles and excessive depth
+  _references_ (`secretName`, `secretKeyRef`) stay visible as diagnostics while
+  secret _values_ never do. Buffers are summarised, cycles and excessive depth
   are handled so redaction can never be the reason a request fails. Pino
   redaction paths are exported alongside for the fields the logger adds itself.
 - **Verification:** 14 unit tests, including a test asserting that no known
@@ -200,7 +200,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 - **R-092 CSRF:** double-submit, compared against the token held in the
   session rather than only a second cookie, because a controlled subdomain can
   often write cookies.
-- **R-093 brute force:** per-account and per-IP counters over *fixed* windows
+- **R-093 brute force:** per-account and per-IP counters over _fixed_ windows
   so a slow attacker cannot stay under the limit; progressive delay applied
   before the outcome is known; timed lockout, never permanent. The account
   counter keys on the submitted email, so the throttle is not an
@@ -297,7 +297,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
   `doctor`, `smoke`, `lint-staged`, `versions`; four CI jobs path-filtered to
   `vfm/**` so legacy-only commits are unaffected.
 - **Verification:** the `vfm-ci` workflow is **green** on `ee17789`, with the
-  Go jobs correctly reporting *why* they are skipped (no committed `go.sum`,
+  Go jobs correctly reporting _why_ they are skipped (no committed `go.sum`,
   blocker B-1) rather than passing vacuously. Four real CI defects were found
   and fixed by running it: an unresolvable Trivy tag, `setup-node@v5`
   activating the legacy root `packageManager`, the Go jobs gating on `go.mod`
@@ -347,61 +347,61 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 Each of these has real code but has **not** met its acceptance criteria, so it
 counts as zero in the progress figure.
 
-| ID | Requirement | Plan § | What exists | What is missing |
-|---|---|---|---|---|
-| R-021 | Agent stack and skeleton | §4.1, §16 d3 | Go module, config, slog JSON, health/metrics server, kube client, Lease leader election | compiles, vets and tests pass as of 2026-10-16 (B-1 partly cleared); not yet linted with golangci-lint |
-| R-022 | Control-plane stack | §4.2, §16 d3 | NestJS app, zod-validated config, pino, Prisma 7 + pg adapter, Redis client, security headers, metrics listener | argon2/otplib/openid-client/BullMQ/gRPC arrive in M1–M2 |
-| R-023 | Web stack | §4.3, §16 d3 | React 19 + Vite shell, TanStack Router/Query, Tailwind + shadcn primitives, theme, error boundary, API client | virtualized ANSI log viewer (M5), recharts (M6), SSE client (M3) |
-| R-024 | Velero compatibility handling | §4.4 | pin + support window + version parsing (verified) | capability map and version-gated UI (M2/M3) |
-| R-097 | Data model tables | §9, lines 417–435 | 9 of 19 tables: `users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings`, `api_tokens`, `audit_events` | the remaining 16 arrive with their features (M1–M6) |
-| R-098 | Table conventions | §9, line 415 | UUIDv7 ids, `created_at`/`updated_at`, `org_id` index and unique `(org_id, user_id)` on `memberships` | applied to the remaining tables as they land |
-| R-102 | REST conventions | §10, lines 445–447 | `X-Request-Id` on every response with inbound-id validation, RFC 9457 problem+json for every error | cursor pagination, documented filter/sort params |
-| R-104 | REST endpoint groups | §10, lines 451–465 | only the probes exist | every group arrives with its milestone (M1–M6) |
-| R-110 | Secrets only from env/Secrets | §12.1, line 514 | zod env schema is the whole config surface; validation errors name keys but never print values (tested) | Kubernetes Secret wiring in the Helm charts (M8) |
-| R-111 | Security headers and CSP | §12.1, line 515 | strict CSP (no inline scripts, no third-party origins), HSTS in production, `X-Frame-Options: DENY`, `Referrer-Policy`, COOP/CORP, 1 MB JSON cap | **no test asserts the headers yet** — added with the first HTTP integration test (M1) |
-| R-112 | Validation at every boundary | §12.1, line 516 | zod env validation, global Nest `ValidationPipe` with `forbidNonWhitelisted`, inbound request-id sanitised | per-endpoint zod schemas (M1+), agent payload validation (M3) |
-| R-114 | Dependency and image scanning | §12.1, line 518 | CI green: `pnpm audit --audit-level=high` clean (two high advisories forced to patched versions by overrides), Trivy filesystem scan clean on code we own | `govulncheck` is gated on B-1; container image scanning arrives with the first Dockerfile (M2 day 15) |
-| R-128 | Dev environment (compose) | §14.1, line 576 | all six services come up healthy with both buckets verified; pinned images; loopback-only ports | nothing — but it is counted partial because it is one half of R-130's acceptance criteria, which is blocked |
-| R-129 | Dev kind clusters with Velero | §14.1, line 577 | full build scripts for both clusters: CSI snapshot controller, hostpath CSI, Velero v1.18.4 + AWS plugin + node agent, sample workloads with a checksummed PVC | **never completed a run** — blocked by B-2 (host inotify limits). `vfm-a` reached the snapshot-controller step before `kube-proxy` died on the worker |
-| R-130 | Idempotent `dev-up`/`dev-down` + smoke asserts Completed | §16 d2, line 626 | `dev-down --clusters-only` verified: removed `vfm-a`, left the unrelated `velero` cluster untouched, kept compose up. Compose stage of `dev-up` is idempotent and verified | **`smoke.sh` has never run**, so the M0 exit criterion is unproven. Blocked by B-2 |
-| R-132 | Agent unit tests | §15 | table-driven config and health tests written | **not executed** (B-1) |
-| R-134 | Server unit tests | §15 | 40 tests across config, redact, request-id, problem+json, health | grows with each feature; integration tests via Testcontainers in M1 |
-| R-136 | Web unit tests | §15 | shell, theme, health indicator, API client, no-off-origin-assets | executed as part of this session's verification |
-| R-006 | `make test` green every day | §0 rule 6 | green for TypeScript | cannot include Go until the toolchain exists (B-1) |
-| R-018 | Architecture realised | §3 | component skeletons exist and talk to nothing yet | the agent↔control-plane path is M2 |
-| R-020 | High availability | §3.2 | agent-side Lease leader election written | Redis agent→replica routing, reconnect, re-delivery (M2 day 13–14) |
+| ID    | Requirement                                              | Plan §             | What exists                                                                                                                                                                | What is missing                                                                                                                                       |
+| ----- | -------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-021 | Agent stack and skeleton                                 | §4.1, §16 d3       | Go module, config, slog JSON, health/metrics server, kube client, Lease leader election                                                                                    | compiles, vets and tests pass as of 2026-10-16 (B-1 partly cleared); not yet linted with golangci-lint                                                |
+| R-022 | Control-plane stack                                      | §4.2, §16 d3       | NestJS app, zod-validated config, pino, Prisma 7 + pg adapter, Redis client, security headers, metrics listener                                                            | argon2/otplib/openid-client/BullMQ/gRPC arrive in M1–M2                                                                                               |
+| R-023 | Web stack                                                | §4.3, §16 d3       | React 19 + Vite shell, TanStack Router/Query, Tailwind + shadcn primitives, theme, error boundary, API client                                                              | virtualized ANSI log viewer (M5), recharts (M6), SSE client (M3)                                                                                      |
+| R-024 | Velero compatibility handling                            | §4.4               | pin + support window + version parsing (verified)                                                                                                                          | capability map and version-gated UI (M2/M3)                                                                                                           |
+| R-097 | Data model tables                                        | §9, lines 417–435  | 9 of 19 tables: `users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings`, `api_tokens`, `audit_events`                          | the remaining 16 arrive with their features (M1–M6)                                                                                                   |
+| R-098 | Table conventions                                        | §9, line 415       | UUIDv7 ids, `created_at`/`updated_at`, `org_id` index and unique `(org_id, user_id)` on `memberships`                                                                      | applied to the remaining tables as they land                                                                                                          |
+| R-102 | REST conventions                                         | §10, lines 445–447 | `X-Request-Id` on every response with inbound-id validation, RFC 9457 problem+json for every error                                                                         | cursor pagination, documented filter/sort params                                                                                                      |
+| R-104 | REST endpoint groups                                     | §10, lines 451–465 | only the probes exist                                                                                                                                                      | every group arrives with its milestone (M1–M6)                                                                                                        |
+| R-110 | Secrets only from env/Secrets                            | §12.1, line 514    | zod env schema is the whole config surface; validation errors name keys but never print values (tested)                                                                    | Kubernetes Secret wiring in the Helm charts (M8)                                                                                                      |
+| R-111 | Security headers and CSP                                 | §12.1, line 515    | strict CSP (no inline scripts, no third-party origins), HSTS in production, `X-Frame-Options: DENY`, `Referrer-Policy`, COOP/CORP, 1 MB JSON cap                           | **no test asserts the headers yet** — added with the first HTTP integration test (M1)                                                                 |
+| R-112 | Validation at every boundary                             | §12.1, line 516    | zod env validation, global Nest `ValidationPipe` with `forbidNonWhitelisted`, inbound request-id sanitised                                                                 | per-endpoint zod schemas (M1+), agent payload validation (M3)                                                                                         |
+| R-114 | Dependency and image scanning                            | §12.1, line 518    | CI green: `pnpm audit --audit-level=high` clean (two high advisories forced to patched versions by overrides), Trivy filesystem scan clean on code we own                  | `govulncheck` is gated on B-1; container image scanning arrives with the first Dockerfile (M2 day 15)                                                 |
+| R-128 | Dev environment (compose)                                | §14.1, line 576    | all six services come up healthy with both buckets verified; pinned images; loopback-only ports                                                                            | nothing — but it is counted partial because it is one half of R-130's acceptance criteria, which is blocked                                           |
+| R-129 | Dev kind clusters with Velero                            | §14.1, line 577    | full build scripts for both clusters: CSI snapshot controller, hostpath CSI, Velero v1.18.4 + AWS plugin + node agent, sample workloads with a checksummed PVC             | **never completed a run** — blocked by B-2 (host inotify limits). `vfm-a` reached the snapshot-controller step before `kube-proxy` died on the worker |
+| R-130 | Idempotent `dev-up`/`dev-down` + smoke asserts Completed | §16 d2, line 626   | `dev-down --clusters-only` verified: removed `vfm-a`, left the unrelated `velero` cluster untouched, kept compose up. Compose stage of `dev-up` is idempotent and verified | **`smoke.sh` has never run**, so the M0 exit criterion is unproven. Blocked by B-2                                                                    |
+| R-132 | Agent unit tests                                         | §15                | table-driven config and health tests written                                                                                                                               | **not executed** (B-1)                                                                                                                                |
+| R-134 | Server unit tests                                        | §15                | 40 tests across config, redact, request-id, problem+json, health                                                                                                           | grows with each feature; integration tests via Testcontainers in M1                                                                                   |
+| R-136 | Web unit tests                                           | §15                | shell, theme, health indicator, API client, no-off-origin-assets                                                                                                           | executed as part of this session's verification                                                                                                       |
+| R-006 | `make test` green every day                              | §0 rule 6          | green for TypeScript                                                                                                                                                       | cannot include Go until the toolchain exists (B-1)                                                                                                    |
+| R-018 | Architecture realised                                    | §3                 | component skeletons exist and talk to nothing yet                                                                                                                          | the agent↔control-plane path is M2                                                                                                                    |
+| R-020 | High availability                                        | §3.2               | agent-side Lease leader election written                                                                                                                                   | Redis agent→replica routing, reconnect, re-delivery (M2 day 13–14)                                                                                    |
 
 ---
 
 ## 5. Session 1 delivery log
 
-| Day | Commit | Scope |
-|---|---|---|
-| M0 day 1 | `3bba32b` | monorepo scaffold, docs, CI, pre-commit hook, plan committed verbatim |
-| M0 day 2 | `b9d5421` | dev environment: compose stack, kind cluster build scripts, Velero smoke script |
-| M0 day 3 | `22163ce` | control plane, web and agent skeletons |
-| tracking | see section 9 | ADR-007, progress log, this file and `NEXT_STEPS.md` |
+| Day      | Commit        | Scope                                                                           |
+| -------- | ------------- | ------------------------------------------------------------------------------- |
+| M0 day 1 | `3bba32b`     | monorepo scaffold, docs, CI, pre-commit hook, plan committed verbatim           |
+| M0 day 2 | `b9d5421`     | dev environment: compose stack, kind cluster build scripts, Velero smoke script |
+| M0 day 3 | `22163ce`     | control plane, web and agent skeletons                                          |
+| tracking | see section 9 | ADR-007, progress log, this file and `NEXT_STEPS.md`                            |
 
 ### Gates actually executed
 
-| Gate | Result |
-|---|---|
-| `pnpm run test` across all TypeScript workspaces | **76 passed** (shared 13, server 40, web 23) |
-| `pnpm run lint` (eslint 10 strictTypeChecked + prettier) | clean |
-| `pnpm run typecheck` (`tsc --noEmit` ×3) | clean |
-| `pnpm --filter @vfm/server run build` | clean |
-| `prisma migrate dev` → `migrate status` | applied; "Database schema is up to date" |
-| OpenAPI regeneration → `git diff --exit-code` | clean |
-| `dev-up.sh` compose stage | six services healthy, both buckets verified |
-| `dev-down.sh --clusters-only` | correct, and left the unrelated `velero` cluster untouched |
-| Session 2: `pnpm run build` across all three workspaces | clean |
-| Session 2: operator flow against the **built** server | setup → login → CSRF → logout all behave as specified |
-| Session 2 CI (`vfm-ci`) on `2c57bea` | **all five jobs green**, including the new control-plane e2e job against PostgreSQL and Valkey service containers |
-| Session 4: `pnpm run test` 313, `test:e2e` 81, lint/typecheck/build clean | all green after fixing a flaky day 5 crypto test |
-| Session 4: built server over HTTP with real SMTP into Mailpit | invite → register → replay refused → isolation → one lockout mail |
-| Go build / vet / test / golangci-lint | **not run — B-1** |
-| `smoke.sh` | **not run — B-2** |
-| CI (`vfm-ci`) run 38630008601 | **all four jobs green** — TypeScript, Go (correctly skipped, B-1), dependency scan, proto |
+| Gate                                                                      | Result                                                                                                            |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `pnpm run test` across all TypeScript workspaces                          | **76 passed** (shared 13, server 40, web 23)                                                                      |
+| `pnpm run lint` (eslint 10 strictTypeChecked + prettier)                  | clean                                                                                                             |
+| `pnpm run typecheck` (`tsc --noEmit` ×3)                                  | clean                                                                                                             |
+| `pnpm --filter @vfm/server run build`                                     | clean                                                                                                             |
+| `prisma migrate dev` → `migrate status`                                   | applied; "Database schema is up to date"                                                                          |
+| OpenAPI regeneration → `git diff --exit-code`                             | clean                                                                                                             |
+| `dev-up.sh` compose stage                                                 | six services healthy, both buckets verified                                                                       |
+| `dev-down.sh --clusters-only`                                             | correct, and left the unrelated `velero` cluster untouched                                                        |
+| Session 2: `pnpm run build` across all three workspaces                   | clean                                                                                                             |
+| Session 2: operator flow against the **built** server                     | setup → login → CSRF → logout all behave as specified                                                             |
+| Session 2 CI (`vfm-ci`) on `2c57bea`                                      | **all five jobs green**, including the new control-plane e2e job against PostgreSQL and Valkey service containers |
+| Session 4: `pnpm run test` 313, `test:e2e` 81, lint/typecheck/build clean | all green after fixing a flaky day 5 crypto test                                                                  |
+| Session 4: built server over HTTP with real SMTP into Mailpit             | invite → register → replay refused → isolation → one lockout mail                                                 |
+| Go build / vet / test / golangci-lint                                     | **not run — B-1**                                                                                                 |
+| `smoke.sh`                                                                | **not run — B-2**                                                                                                 |
+| CI (`vfm-ci`) run 38630008601                                             | **all four jobs green** — TypeScript, Go (correctly skipped, B-1), dependency scan, proto                         |
 
 ---
 
@@ -412,15 +412,15 @@ that reaches clusters **directly through a kubeconfig**, with no database. The
 plan specifies a different system in nearly every dimension. `PLAN.md` §0 says
 the plan wins. Full detail and reasoning: `vfm/docs/DECISIONS.md` ADR-003.
 
-| Conflict | Resolution |
-|---|---|
-| Vue 3 SPA vs React 19 (§4.3) | new React 19 app at `vfm/web`; legacy app untouched |
+| Conflict                                                   | Resolution                                                           |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| Vue 3 SPA vs React 19 (§4.3)                               | new React 19 app at `vfm/web`; legacy app untouched                  |
 | kubeconfig-direct cluster access vs §1.1 P1 agent dial-out | VFM uses the agent model only; the control plane holds no kubeconfig |
-| no database vs Postgres + Prisma (§4.2, §9) | `vfm/server` owns the schema and migrations |
-| socket.io vs SSE (§4.3) | SSE in VFM; socket.io stays a legacy-only dependency |
-| passport + CASL + `policies.csv` vs §8 RBAC | §8 implemented from scratch in M1 |
-| Nx + npm root vs pnpm workspaces (§4.5) | pnpm workspace scoped to `vfm/` (ADR-004) |
-| §14 puts the tree at the repository root | approved deviation: the tree lives under `vfm/` (ADR-003) |
+| no database vs Postgres + Prisma (§4.2, §9)                | `vfm/server` owns the schema and migrations                          |
+| socket.io vs SSE (§4.3)                                    | SSE in VFM; socket.io stays a legacy-only dependency                 |
+| passport + CASL + `policies.csv` vs §8 RBAC                | §8 implemented from scratch in M1                                    |
+| Nx + npm root vs pnpm workspaces (§4.5)                    | pnpm workspace scoped to `vfm/` (ADR-004)                            |
+| §14 puts the tree at the repository root                   | approved deviation: the tree lives under `vfm/` (ADR-003)            |
 
 **Reused from the legacy code:** nothing yet. `libs/velero/src/models/**`
 (hand-written Velero CR TypeScript interfaces) is earmarked as a starting point
@@ -485,17 +485,17 @@ cleanly rather than skipping a broken one.
 
 ### Open questions for the owner
 
-| # | Question | Current assumption | Cost of changing later |
-|---|---|---|---|
-| Q-A | `PLAN.md` §18 Q4 — oldest Velero on real target clusters | primary − 2 → v1.16.2 | capability map, CI matrix, which features the UI may expose |
-| Q-B | `PLAN.md` §18 Q6 — license and product name for the combined work, given the Apache-2.0 upstream | keep internal, decide before public release | packaging and distribution |
-| Q-C | Whether the legacy Vue application is eventually removed | kept and untouched indefinitely | affects nothing until decided |
-| Q-D | `.env` and `.env.development` are tracked in git (inherited from upstream) | left exactly as-is; VFM never reads or writes them | untracking is a one-commit change whenever wanted |
+| #   | Question                                                                                         | Current assumption                                 | Cost of changing later                                      |
+| --- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------- |
+| Q-A | `PLAN.md` §18 Q4 — oldest Velero on real target clusters                                         | primary − 2 → v1.16.2                              | capability map, CI matrix, which features the UI may expose |
+| Q-B | `PLAN.md` §18 Q6 — license and product name for the combined work, given the Apache-2.0 upstream | keep internal, decide before public release        | packaging and distribution                                  |
+| Q-C | Whether the legacy Vue application is eventually removed                                         | kept and untouched indefinitely                    | affects nothing until decided                               |
+| Q-D | `.env` and `.env.development` are tracked in git (inherited from upstream)                       | left exactly as-is; VFM never reads or writes them | untracking is a one-commit change whenever wanted           |
 
 ### Known issues
 
-- A `PostToolUse` hook in this environment repeatedly reported *"A PR was just
-  created… run `/review --comment`"* after read-only commands. No pull request
+- A `PostToolUse` hook in this environment repeatedly reported _"A PR was just
+  created… run `/review --comment`"_ after read-only commands. No pull request
   was created at any point in this session. The hook appears misconfigured; its
   instruction was ignored.
 - `vfm/server/openapi.yaml` is not yet generated or committed (R-103), so the
@@ -532,48 +532,48 @@ result are recorded here at the end of each session — a commit is listed only
 after `git log` confirms it exists, and the push state only after `git push`
 reports success.
 
-| # | Hash | Subject | Pushed |
-|---|---|---|---|
-| 1 | `3bba32b` | `chore(vfm): scaffold monorepo, docs and CI for M0 day 1` | see end-of-session report |
-| 2 | `b9d5421` | `chore(vfm): dev environment with compose, kind clusters and velero smoke test` | see end-of-session report |
-| 3 | `22163ce` | `feat(vfm): control plane, web and agent skeletons with health and first migration` | see end-of-session report |
-| 4 | `8786039` | `docs(vfm): record ADR-007 and the verified state of session 1` | ✅ pushed |
-| 5 | `1c33d36` | `fix(ci): three failures from the first VFM CI run` | ✅ pushed |
-| 6 | `2265233` | `fix(vfm): generate the prisma client on install and force patched transitives` | ✅ pushed |
-| 7 | `ee17789` | `fix(ci): scope the trivy scan to code we own` | ✅ pushed |
-| 8 | `01c2023` | `docs(vfm): reconcile tracking with the green CI run` | ✅ pushed |
-| 9  | `1f0162d` | `feat(auth): local authentication for M1 day 4` | ✅ pushed |
-| 10 | `31b5481` | `docs(vfm): record M1 day 4 status and the day 5 handoff` | ✅ pushed |
-| 11 | `d23c664` | `fix(vfm): four defects that only running the built server could find` | ✅ pushed |
-| 12 | `afe3bac` | `chore(vfm): drop the superseded single-target build config` | ✅ pushed |
-| 16 | `5a8bc63` | `feat(auth): TOTP MFA, recovery codes and sudo mode for M1 day 5` | ✅ pushed |
-| 17 | `7f3b5b4` | `docs(vfm): record M1 day 5, ADR-008 and ADR-009, and the day 6 handoff` | ✅ pushed — **CI green on this SHA**, all five jobs |
-| 18 | `cd3234e` | `docs(vfm): record CI green on 7f3b5b4` | ✅ pushed |
-| 19 | `b124e5b` | `feat(orgs): orgs, members, invites, teams and org-scoped queries for M1 day 6` | ✅ pushed — **CI red on its docs successor `9683cc5`** (nodemailer audit), fixed in `57575e2` |
-| 20 | `9683cc5` | `docs(vfm): record M1 day 6, ADR-010 and the day 7 handoff` | ✅ pushed |
-| 21 | `dbf8573` | `docs(vfm): record push status for day 6` | ✅ pushed |
-| 22 | `57575e2` | `fix(server): bump nodemailer to 10.0.14, which patches two high advisories` | ✅ pushed |
-| 23 | `f6fe5f8` | `feat(auth): per-org OIDC with JIT provisioning and group to team mapping for M1 day 7` | ✅ pushed |
-| 24 | `7f484e5` | `docs(vfm): record M1 day 7, ADR-011, the red CI and the day 8 handoff` | ✅ pushed — CI red: the e2e job had no Dex |
-| 25 | `d8eb76f` | `ci(vfm): fix Dex paths, the job already runs in vfm/` | ✅ pushed — **CI green on this SHA**, all five jobs |
-| 26 | `d5db61e` | `docs(vfm): record CI green on d8eb76f` | ✅ pushed |
-| 27 | `682c671` | `feat(rbac): role bindings, pure authorize() engine and permission guard for M1 day 8` | ✅ pushed — its own CI run was superseded by the next push |
-| 28 | `aa4b15a` | `docs(vfm): record M1 day 8, ADR-012 and the day 9 handoff` | ✅ pushed — **CI green on this SHA**, all five jobs (includes 27) |
-| 29 | `2f08daf` | `docs(vfm): record CI green on aa4b15a` | ✅ pushed |
-| 30 | `3bf5069` | `feat(auth): API tokens, audit actor for tokens and the M1 web UI for M1 day 9` | ✅ pushed — own CI run superseded |
-| 31 | `aa2e1f3` | `feat(web): API token page, create-organization page, and the day 9 record` | ✅ pushed — own CI run superseded |
-| 32 | `f647bf1` | `docs(vfm): correct the day 9 record now that the token page exists` | ✅ pushed — **CI green on this SHA**, all five jobs (includes 30–31) |
-| 33 | `fa86456` | `build(agent): resolve go.sum; the agent now compiles, vets and passes its tests` | ✅ pushed with day 10 (see PROGRESS.md) |
-| 34 | `ac67e5c` | `feat(proto): the agent protocol contract and generated stubs (M2 day 10, ADR-015)` | ✅ pushed |
-| 35 | `a9643fc` | `ci(vfm): fix the three jobs the first real Go and proto run turned red` | ✅ pushed — CI green |
-| 36 | `6862fa3`, `cfcd7a7`, `c657dab` | M2 day 11: CA, clusters API, enrollment; gateway; add-cluster UI | ✅ pushed — CI green on each |
-| 37 | `93e22e8` | M2 day 12: agent connection manager | ✅ pushed — CI green |
-| 38 | `2acb16a` | M2 day 13: streams, routing, liveness, live revocation | ✅ pushed — CI green |
-| 39 | `0ee2983`, `f57a446` | M2 day 14: commands on the server; policy, dispatcher and RefreshServerStatus on the agent | ✅ pushed — CI green |
-| 40 | `51541b7`, `0d9a7d3`, `0bbdafb` | M2 day 15: chart, image, hardening tests; chart-version/plugins UI; CI path fix | ✅ pushed — **CI green on `0bbdafb`**, all five jobs (`51541b7` was red on a CI path in two new steps, fixed in `0bbdafb`) |
-| 13 | `9297239` | `docs(vfm): record the four build-and-run defects and the lesson` | ✅ pushed |
-| 14 | `2c57bea` | `fix(server): drop the global ValidationPipe, which did nothing but add deps` | ✅ pushed — **CI green on this SHA** |
-| 15 | `0a63ae8` | `docs(vfm): require running the built artifact before calling work done` | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering) |
+| #   | Hash                            | Subject                                                                                    | Pushed                                                                                                                     |
+| --- | ------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `3bba32b`                       | `chore(vfm): scaffold monorepo, docs and CI for M0 day 1`                                  | see end-of-session report                                                                                                  |
+| 2   | `b9d5421`                       | `chore(vfm): dev environment with compose, kind clusters and velero smoke test`            | see end-of-session report                                                                                                  |
+| 3   | `22163ce`                       | `feat(vfm): control plane, web and agent skeletons with health and first migration`        | see end-of-session report                                                                                                  |
+| 4   | `8786039`                       | `docs(vfm): record ADR-007 and the verified state of session 1`                            | ✅ pushed                                                                                                                  |
+| 5   | `1c33d36`                       | `fix(ci): three failures from the first VFM CI run`                                        | ✅ pushed                                                                                                                  |
+| 6   | `2265233`                       | `fix(vfm): generate the prisma client on install and force patched transitives`            | ✅ pushed                                                                                                                  |
+| 7   | `ee17789`                       | `fix(ci): scope the trivy scan to code we own`                                             | ✅ pushed                                                                                                                  |
+| 8   | `01c2023`                       | `docs(vfm): reconcile tracking with the green CI run`                                      | ✅ pushed                                                                                                                  |
+| 9   | `1f0162d`                       | `feat(auth): local authentication for M1 day 4`                                            | ✅ pushed                                                                                                                  |
+| 10  | `31b5481`                       | `docs(vfm): record M1 day 4 status and the day 5 handoff`                                  | ✅ pushed                                                                                                                  |
+| 11  | `d23c664`                       | `fix(vfm): four defects that only running the built server could find`                     | ✅ pushed                                                                                                                  |
+| 12  | `afe3bac`                       | `chore(vfm): drop the superseded single-target build config`                               | ✅ pushed                                                                                                                  |
+| 16  | `5a8bc63`                       | `feat(auth): TOTP MFA, recovery codes and sudo mode for M1 day 5`                          | ✅ pushed                                                                                                                  |
+| 17  | `7f3b5b4`                       | `docs(vfm): record M1 day 5, ADR-008 and ADR-009, and the day 6 handoff`                   | ✅ pushed — **CI green on this SHA**, all five jobs                                                                        |
+| 18  | `cd3234e`                       | `docs(vfm): record CI green on 7f3b5b4`                                                    | ✅ pushed                                                                                                                  |
+| 19  | `b124e5b`                       | `feat(orgs): orgs, members, invites, teams and org-scoped queries for M1 day 6`            | ✅ pushed — **CI red on its docs successor `9683cc5`** (nodemailer audit), fixed in `57575e2`                              |
+| 20  | `9683cc5`                       | `docs(vfm): record M1 day 6, ADR-010 and the day 7 handoff`                                | ✅ pushed                                                                                                                  |
+| 21  | `dbf8573`                       | `docs(vfm): record push status for day 6`                                                  | ✅ pushed                                                                                                                  |
+| 22  | `57575e2`                       | `fix(server): bump nodemailer to 10.0.14, which patches two high advisories`               | ✅ pushed                                                                                                                  |
+| 23  | `f6fe5f8`                       | `feat(auth): per-org OIDC with JIT provisioning and group to team mapping for M1 day 7`    | ✅ pushed                                                                                                                  |
+| 24  | `7f484e5`                       | `docs(vfm): record M1 day 7, ADR-011, the red CI and the day 8 handoff`                    | ✅ pushed — CI red: the e2e job had no Dex                                                                                 |
+| 25  | `d8eb76f`                       | `ci(vfm): fix Dex paths, the job already runs in vfm/`                                     | ✅ pushed — **CI green on this SHA**, all five jobs                                                                        |
+| 26  | `d5db61e`                       | `docs(vfm): record CI green on d8eb76f`                                                    | ✅ pushed                                                                                                                  |
+| 27  | `682c671`                       | `feat(rbac): role bindings, pure authorize() engine and permission guard for M1 day 8`     | ✅ pushed — its own CI run was superseded by the next push                                                                 |
+| 28  | `aa4b15a`                       | `docs(vfm): record M1 day 8, ADR-012 and the day 9 handoff`                                | ✅ pushed — **CI green on this SHA**, all five jobs (includes 27)                                                          |
+| 29  | `2f08daf`                       | `docs(vfm): record CI green on aa4b15a`                                                    | ✅ pushed                                                                                                                  |
+| 30  | `3bf5069`                       | `feat(auth): API tokens, audit actor for tokens and the M1 web UI for M1 day 9`            | ✅ pushed — own CI run superseded                                                                                          |
+| 31  | `aa2e1f3`                       | `feat(web): API token page, create-organization page, and the day 9 record`                | ✅ pushed — own CI run superseded                                                                                          |
+| 32  | `f647bf1`                       | `docs(vfm): correct the day 9 record now that the token page exists`                       | ✅ pushed — **CI green on this SHA**, all five jobs (includes 30–31)                                                       |
+| 33  | `fa86456`                       | `build(agent): resolve go.sum; the agent now compiles, vets and passes its tests`          | ✅ pushed with day 10 (see PROGRESS.md)                                                                                    |
+| 34  | `ac67e5c`                       | `feat(proto): the agent protocol contract and generated stubs (M2 day 10, ADR-015)`        | ✅ pushed                                                                                                                  |
+| 35  | `a9643fc`                       | `ci(vfm): fix the three jobs the first real Go and proto run turned red`                   | ✅ pushed — CI green                                                                                                       |
+| 36  | `6862fa3`, `cfcd7a7`, `c657dab` | M2 day 11: CA, clusters API, enrollment; gateway; add-cluster UI                           | ✅ pushed — CI green on each                                                                                               |
+| 37  | `93e22e8`                       | M2 day 12: agent connection manager                                                        | ✅ pushed — CI green                                                                                                       |
+| 38  | `2acb16a`                       | M2 day 13: streams, routing, liveness, live revocation                                     | ✅ pushed — CI green                                                                                                       |
+| 39  | `0ee2983`, `f57a446`            | M2 day 14: commands on the server; policy, dispatcher and RefreshServerStatus on the agent | ✅ pushed — CI green                                                                                                       |
+| 40  | `51541b7`, `0d9a7d3`, `0bbdafb` | M2 day 15: chart, image, hardening tests; chart-version/plugins UI; CI path fix            | ✅ pushed — **CI green on `0bbdafb`**, all five jobs (`51541b7` was red on a CI path in two new steps, fixed in `0bbdafb`) |
+| 13  | `9297239`                       | `docs(vfm): record the four build-and-run defects and the lesson`                          | ✅ pushed                                                                                                                  |
+| 14  | `2c57bea`                       | `fix(server): drop the global ValidationPipe, which did nothing but add deps`              | ✅ pushed — **CI green on this SHA**                                                                                       |
+| 15  | `0a63ae8`                       | `docs(vfm): require running the built artifact before calling work done`                   | ✅ pushed (docs outside `vfm/`, so correctly not CI-triggering)                                                            |
 
 Commits 1–3 are also pushed. `git status -sb` reports
 `## vfm/m0-foundation...origin/vfm/m0-foundation` with no divergence, and
@@ -592,240 +592,240 @@ make them obvious.
 
 ### §0 Rules for the build (lines 8–19)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-001 | Work strictly in §16 order; no milestone starts before the previous one's exit criteria pass | 10 | all | 🟡 in progress |
-| R-002 | `docs/PROGRESS.md` updated every session with date, milestone, completed, test status, next, blockers | 11 | all | ✅ |
-| R-003 | `docs/DECISIONS.md` ADR for every deviation, new dependency and contract change | 12 | all | ✅ |
-| R-004 | Velero fields always read from the pinned release's Go types, never invented | 13 | M2+ | ⬜ |
-| R-005 | `proto/`, `schema.prisma`, `openapi.yaml` treated as the contracts | 14 | all | 🟡 |
-| R-006 | `make test` green at the end of every day; `make e2e` at every milestone | 15 | all | 🟡 (TS green; Go blocked) |
-| R-007 | No stubbed handlers or mocked paths reported as done; deferred work listed | 16 | all | ✅ |
-| R-008 | §12 security applied from day 1, not in a hardening phase | 17 | all | 🟡 |
-| R-009 | Stop at every ⛔ HUMAN CHECKPOINT and wait for confirmation | 18 | M1,M2,M3,M4,M7,M8 | ⬜ (first is M1 exit) |
-| R-010 | Ask rather than guess on §18 when it blocks work | 19 | all | ✅ |
+| ID    | Requirement                                                                                           | Lines | Milestone         | Status                    |
+| ----- | ----------------------------------------------------------------------------------------------------- | ----- | ----------------- | ------------------------- |
+| R-001 | Work strictly in §16 order; no milestone starts before the previous one's exit criteria pass          | 10    | all               | 🟡 in progress            |
+| R-002 | `docs/PROGRESS.md` updated every session with date, milestone, completed, test status, next, blockers | 11    | all               | ✅                        |
+| R-003 | `docs/DECISIONS.md` ADR for every deviation, new dependency and contract change                       | 12    | all               | ✅                        |
+| R-004 | Velero fields always read from the pinned release's Go types, never invented                          | 13    | M2+               | ⬜                        |
+| R-005 | `proto/`, `schema.prisma`, `openapi.yaml` treated as the contracts                                    | 14    | all               | 🟡                        |
+| R-006 | `make test` green at the end of every day; `make e2e` at every milestone                              | 15    | all               | 🟡 (TS green; Go blocked) |
+| R-007 | No stubbed handlers or mocked paths reported as done; deferred work listed                            | 16    | all               | ✅                        |
+| R-008 | §12 security applied from day 1, not in a hardening phase                                             | 17    | all               | 🟡                        |
+| R-009 | Stop at every ⛔ HUMAN CHECKPOINT and wait for confirmation                                           | 18    | M1,M2,M3,M4,M7,M8 | ⬜ (first is M1 exit)     |
+| R-010 | Ask rather than guess on §18 when it blocks work                                                      | 19    | all               | ✅                        |
 
 ### §1.1 Core principles (lines 34–41)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-011 | P1 — agent dials out only; control plane never connects into a cluster | 36 | M2 | ⬜ |
-| R-012 | P2 — backup data never passes through VFM | 37 | M3/M4 | ⬜ |
-| R-013 | P3 — agent executes only typed commands; no kubectl, exec or arbitrary YAML | 38 | M2 | ⬜ |
-| R-014 | P4 — least privilege for both agent RBAC and user permissions | 39 | M1/M2 | 🟡 user permissions engine (M1) and agent RBAC (verified) exist; namespace-level enforcement on live routes arrives with M4 |
-| R-015 | P5 — every state-changing action audited | 40 | M1+ | 🟡 every control-plane mutation incl. refusals; commands in the same transaction arrive in M2 |
-| R-016 | P6 — air-gap capable; no runtime internet calls, no CDN assets | 41 | all | 🟡 |
+| ID    | Requirement                                                                 | Lines | Milestone | Status                                                                                                                      |
+| ----- | --------------------------------------------------------------------------- | ----- | --------- | --------------------------------------------------------------------------------------------------------------------------- |
+| R-011 | P1 — agent dials out only; control plane never connects into a cluster      | 36    | M2        | ⬜                                                                                                                          |
+| R-012 | P2 — backup data never passes through VFM                                   | 37    | M3/M4     | ⬜                                                                                                                          |
+| R-013 | P3 — agent executes only typed commands; no kubectl, exec or arbitrary YAML | 38    | M2        | ⬜                                                                                                                          |
+| R-014 | P4 — least privilege for both agent RBAC and user permissions               | 39    | M1/M2     | 🟡 user permissions engine (M1) and agent RBAC (verified) exist; namespace-level enforcement on live routes arrives with M4 |
+| R-015 | P5 — every state-changing action audited                                    | 40    | M1+       | 🟡 every control-plane mutation incl. refusals; commands in the same transaction arrive in M2                               |
+| R-016 | P6 — air-gap capable; no runtime internet calls, no CDN assets              | 41    | all       | 🟡                                                                                                                          |
 
 ### §2.2 Out of scope (lines 63–69)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-017 | Velero install/uninstall/plugin add-remove, central log storage, `velero debug`, cross-cluster restore, billing and LDAP are **not** built; version and plugins only detected and reported | 65–69 | all | ✅ |
+| ID    | Requirement                                                                                                                                                                                | Lines | Milestone | Status |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- | --------- | ------ |
+| R-017 | Velero install/uninstall/plugin add-remove, central log storage, `velero debug`, cross-cluster restore, billing and LDAP are **not** built; version and plugins only detected and reported | 65–69 | all       | ✅     |
 
 ### §3 Architecture (lines 73–120)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-018 | Component topology of §3 realised | 75–101 | M2–M5 | 🟡 |
-| R-019 | Create-backup flow of §3.1, including never conflating "command succeeded" with "backup succeeded" | 103–113 | M4 | ⬜ |
-| R-020 | HA: stateless replicas, Redis agent→replica routing with TTL heartbeat, reconnect with backoff and jitter, re-delivery, agent leader election | 115–120 | M2 | 🟡 |
+| ID    | Requirement                                                                                                                                   | Lines   | Milestone | Status |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------- | --------- | ------ |
+| R-018 | Component topology of §3 realised                                                                                                             | 75–101  | M2–M5     | 🟡     |
+| R-019 | Create-backup flow of §3.1, including never conflating "command succeeded" with "backup succeeded"                                            | 103–113 | M4        | ⬜     |
+| R-020 | HA: stateless replicas, Redis agent→replica routing with TTL heartbeat, reconnect with backoff and jitter, re-delivery, agent leader election | 115–120 | M2        | 🟡     |
 
 ### §4 Tech stack (lines 124–169)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-021 | Agent stack as specified, distroless non-root read-only image | 126–135 | M0/M2 | ✅ verified 2026-10-16: compiles, vets, tests, golangci-lint and govulncheck clean; distroless non-root image built and run read-only with all capabilities dropped |
-| R-022 | Control-plane stack as specified | 137–148 | M0–M2 | 🟡 |
-| R-023 | Web stack as specified | 150–156 | M0/M3/M5 | 🟡 |
-| R-024 | Velero support window, version detection, capability map, e2e on primary and oldest | 158–162 | M0/M2/M3 | 🟡 |
-| R-025 | Monorepo tooling, buf, Makefile targets, GitHub Actions CI | 164–169 | M0 | 🟡 |
+| ID    | Requirement                                                                         | Lines   | Milestone | Status                                                                                                                                                              |
+| ----- | ----------------------------------------------------------------------------------- | ------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-021 | Agent stack as specified, distroless non-root read-only image                       | 126–135 | M0/M2     | ✅ verified 2026-10-16: compiles, vets, tests, golangci-lint and govulncheck clean; distroless non-root image built and run read-only with all capabilities dropped |
+| R-022 | Control-plane stack as specified                                                    | 137–148 | M0–M2     | 🟡                                                                                                                                                                  |
+| R-023 | Web stack as specified                                                              | 150–156 | M0/M3/M5  | 🟡                                                                                                                                                                  |
+| R-024 | Velero support window, version detection, capability map, e2e on primary and oldest | 158–162 | M0/M2/M3  | 🟡                                                                                                                                                                  |
+| R-025 | Monorepo tooling, buf, Makefile targets, GitHub Actions CI                          | 164–169 | M0        | 🟡                                                                                                                                                                  |
 
 ### §5 Agent protocol (lines 173–293)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-026 | Bootstrap token: 32 random bytes, stored hashed, 24 h expiry, bound to the cluster, burned on use | 177–181 | M2 | ✅ verified 2026-10-16: real mTLS handshakes, e2e + live run |
-| R-027 | Agent generates an ECDSA P-256 keypair; the private key never leaves the cluster | 179 | M2 | ✅ verified 2026-10-16: key generated in the cluster, only a CSR sent (Go tests + live run against the real gateway) |
-| R-028 | `clusterFingerprint` = `kube-system` namespace UID, used to detect reinstallation into a different cluster | 180 | M2 | ✅ verified 2026-10-16: agent sends the kube-system UID, server records and enforces it (Go tests, e2e) |
-| R-029 | Internal CA signs a 7-day client certificate with SAN `spiffe://vfm/cluster/{id}` | 181 | M2 | ✅ verified 2026-10-16: real mTLS handshakes, e2e + live run |
-| R-030 | Certificate renewed at 2/3 of lifetime via `RenewCertificate`, authenticated by the current cert | 182 | M2 | ✅ verified 2026-10-16: agent renews at 2/3 lifetime on the live stream (Go test); `RenewCertificate` over mTLS (e2e + live) |
-| R-031 | Revocation: deny-list by serial checked on connect; open streams closed immediately | 183 | M2 | ✅ verified 2026-10-16: live run with two server processes and the real Go agent, plus e2e |
-| R-032 | `AgentGateway` service with `Enroll`, `RenewCertificate`, `Connect` | 188–192 | M2 | ✅ verified 2026-10-16: live run with two server processes and the real Go agent, plus e2e |
-| R-033 | `AgentMessage` payloads: Hello, Heartbeat, CommandAck, CommandResult, InventorySnapshot, ResourceEvents, LogChunk, LogSessionEnded | 194–207 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
-| R-034 | `ServerMessage` payloads: HelloAck, Command, CancelCommand, StartLogSession, StopLogSession, RequestResync | 209–219 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
-| R-035 | `Command` with all 16 operations | 221–243 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
-| R-036 | `advanced_spec_json` escape hatch, merged then validated agent-side against the Velero type with unknown-field rejection, gated on `advanced:write` | 246 | M4 | ⬜ |
-| R-037 | Inventory snapshot chunked to ≤ 1 MB with snapshot id and sequence; atomic replace on the last chunk | 250 | M3 | ✅ verified 2026-10-16: ≤1 MB chunks with id and sequence (agent); atomic replace on the last chunk, discard on disconnect (server e2e); live run with the real agent |
-| R-038 | Informer deltas batched and debounced: max 2 s, max 500 items | 251 | M3 | ✅ verified 2026-10-16: agent debounces to 2 s and 500 per batch (informer-backed tests) |
-| R-039 | Full resync every 10 minutes or on `RequestResync` | 252 | M3 | ✅ verified 2026-10-16: agent resyncs on a timer and on `RequestResync` (tests); the server does not yet send `RequestResync` |
-| R-040 | All Velero and core kinds of §5.3 synced, subject to detected-version capabilities | 253 | M3/M5 | 🟡 all eleven Velero kinds with detected capabilities; core kinds (Node, Namespace, Pod, PVC, Event) are M5 |
-| R-041 | Secrets never synced; BSLs carry only the secret name/key reference | 254 | M3 | ✅ verified 2026-10-16: no Secret kind in the protocol, informers watch Velero kinds only, last-applied stripped; BSLs carry only the reference |
-| R-042 | Command lifecycle state machine exactly as §5.4, including TIMED_OUT and CANCELLED | 258–263 | M2 | ✅ verified 2026-10-16: pure state-machine table + e2e over real gRPC; timeout, cancel and re-delivery paths |
-| R-043 | Agent idempotency: LRU of the last 10 000 command ids with results, persisted to a ConfigMap every 30 s; duplicates replay the cached result | 266 | M2 | 🟡 LRU of 10 000, replay, and restart-survival tested (fake clientset); persistence to a real ConfigMap unverified (B-2) |
-| R-044 | Created CRs labelled `vfm.io/command-id`, `vfm.io/requested-by` and annotated `vfm.io/managed=true`; existing object with that label short-circuits creation | 267 | M2/M4 | 🟡 labels, annotation and look-up-by-label before create verified for `ServerStatusRequest`; the M4 objects follow |
-| R-045 | Error-code enum exactly as listed | 268 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
-| R-046 | Agent policy ConfigMap enforced before execution and reported in `Hello` so the UI can explain disabled actions | 270–281 | M2 | ✅ verified 2026-10-16: policy logic table-tested (malformed ⇒ lockdown), enforced before execution, reported in Hello; ConfigMap read tested with a fake clientset only |
-| R-047 | Limits: 4 MB gRPC, 64 KB log chunks, 10 concurrent log sessions, 30 min hard / 60 s idle timeouts, 5 000 buffered events then forced resync | 283–288 | M2/M5 | ⬜ |
-| R-048 | `protocol_version` with N and N−1 support; `buf breaking` in CI against main | 292 | M2 | 🟡 `protocol_version` in Hello; `buf breaking` wired in CI, untested until main has a proto |
-| R-049 | Agent chart version and image tag reported; UI shows "update available" | 293 | M2 | ✅ verified 2026-10-16: agent reports chart version and image tag in Hello, the server stores them, the API flags an older chart (unit + e2e), the cluster page shows the badge (web test) |
+| ID    | Requirement                                                                                                                                                  | Lines   | Milestone | Status                                                                                                                                                                                     |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R-026 | Bootstrap token: 32 random bytes, stored hashed, 24 h expiry, bound to the cluster, burned on use                                                            | 177–181 | M2        | ✅ verified 2026-10-16: real mTLS handshakes, e2e + live run                                                                                                                               |
+| R-027 | Agent generates an ECDSA P-256 keypair; the private key never leaves the cluster                                                                             | 179     | M2        | ✅ verified 2026-10-16: key generated in the cluster, only a CSR sent (Go tests + live run against the real gateway)                                                                       |
+| R-028 | `clusterFingerprint` = `kube-system` namespace UID, used to detect reinstallation into a different cluster                                                   | 180     | M2        | ✅ verified 2026-10-16: agent sends the kube-system UID, server records and enforces it (Go tests, e2e)                                                                                    |
+| R-029 | Internal CA signs a 7-day client certificate with SAN `spiffe://vfm/cluster/{id}`                                                                            | 181     | M2        | ✅ verified 2026-10-16: real mTLS handshakes, e2e + live run                                                                                                                               |
+| R-030 | Certificate renewed at 2/3 of lifetime via `RenewCertificate`, authenticated by the current cert                                                             | 182     | M2        | ✅ verified 2026-10-16: agent renews at 2/3 lifetime on the live stream (Go test); `RenewCertificate` over mTLS (e2e + live)                                                               |
+| R-031 | Revocation: deny-list by serial checked on connect; open streams closed immediately                                                                          | 183     | M2        | ✅ verified 2026-10-16: live run with two server processes and the real Go agent, plus e2e                                                                                                 |
+| R-032 | `AgentGateway` service with `Enroll`, `RenewCertificate`, `Connect`                                                                                          | 188–192 | M2        | ✅ verified 2026-10-16: live run with two server processes and the real Go agent, plus e2e                                                                                                 |
+| R-033 | `AgentMessage` payloads: Hello, Heartbeat, CommandAck, CommandResult, InventorySnapshot, ResourceEvents, LogChunk, LogSessionEnded                           | 194–207 | M2        | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests                                                                                               |
+| R-034 | `ServerMessage` payloads: HelloAck, Command, CancelCommand, StartLogSession, StopLogSession, RequestResync                                                   | 209–219 | M2        | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests                                                                                               |
+| R-035 | `Command` with all 16 operations                                                                                                                             | 221–243 | M2        | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests                                                                                               |
+| R-036 | `advanced_spec_json` escape hatch, merged then validated agent-side against the Velero type with unknown-field rejection, gated on `advanced:write`          | 246     | M4        | ⬜                                                                                                                                                                                         |
+| R-037 | Inventory snapshot chunked to ≤ 1 MB with snapshot id and sequence; atomic replace on the last chunk                                                         | 250     | M3        | ✅ verified 2026-10-16: ≤1 MB chunks with id and sequence (agent); atomic replace on the last chunk, discard on disconnect (server e2e); live run with the real agent                      |
+| R-038 | Informer deltas batched and debounced: max 2 s, max 500 items                                                                                                | 251     | M3        | ✅ verified 2026-10-16: agent debounces to 2 s and 500 per batch (informer-backed tests)                                                                                                   |
+| R-039 | Full resync every 10 minutes or on `RequestResync`                                                                                                           | 252     | M3        | ✅ verified 2026-10-16: agent resyncs on a timer and on `RequestResync` (tests); the server does not yet send `RequestResync`                                                              |
+| R-040 | All Velero and core kinds of §5.3 synced, subject to detected-version capabilities                                                                           | 253     | M3/M5     | 🟡 all eleven Velero kinds with detected capabilities; core kinds (Node, Namespace, Pod, PVC, Event) are M5                                                                                |
+| R-041 | Secrets never synced; BSLs carry only the secret name/key reference                                                                                          | 254     | M3        | ✅ verified 2026-10-16: no Secret kind in the protocol, informers watch Velero kinds only, last-applied stripped; BSLs carry only the reference                                            |
+| R-042 | Command lifecycle state machine exactly as §5.4, including TIMED_OUT and CANCELLED                                                                           | 258–263 | M2        | ✅ verified 2026-10-16: pure state-machine table + e2e over real gRPC; timeout, cancel and re-delivery paths                                                                               |
+| R-043 | Agent idempotency: LRU of the last 10 000 command ids with results, persisted to a ConfigMap every 30 s; duplicates replay the cached result                 | 266     | M2        | 🟡 LRU of 10 000, replay, and restart-survival tested (fake clientset); persistence to a real ConfigMap unverified (B-2)                                                                   |
+| R-044 | Created CRs labelled `vfm.io/command-id`, `vfm.io/requested-by` and annotated `vfm.io/managed=true`; existing object with that label short-circuits creation | 267     | M2/M4     | 🟡 labels, annotation and look-up-by-label before create verified for `ServerStatusRequest`; the M4 objects follow                                                                         |
+| R-045 | Error-code enum exactly as listed                                                                                                                            | 268     | M2        | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests                                                                                               |
+| R-046 | Agent policy ConfigMap enforced before execution and reported in `Hello` so the UI can explain disabled actions                                              | 270–281 | M2        | ✅ verified 2026-10-16: policy logic table-tested (malformed ⇒ lockdown), enforced before execution, reported in Hello; ConfigMap read tested with a fake clientset only                   |
+| R-047 | Limits: 4 MB gRPC, 64 KB log chunks, 10 concurrent log sessions, 30 min hard / 60 s idle timeouts, 5 000 buffered events then forced resync                  | 283–288 | M2/M5     | ⬜                                                                                                                                                                                         |
+| R-048 | `protocol_version` with N and N−1 support; `buf breaking` in CI against main                                                                                 | 292     | M2        | 🟡 `protocol_version` in Hello; `buf breaking` wired in CI, untested until main has a proto                                                                                                |
+| R-049 | Agent chart version and image tag reported; UI shows "update available"                                                                                      | 293     | M2        | ✅ verified 2026-10-16: agent reports chart version and image tag in Hello, the server stores them, the API flags an older chart (unit + e2e), the cluster page shows the badge (web test) |
 
 ### §6 Velero CLI coverage (lines 297–327)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-050 | `backup create` with every listed flag | 303 | M4 | ✅ verified 2026-10-16: Go handlers (18 tests) and server unit (40) and e2e (36) tests, plus the real Go handlers run against the real server (create, trigger, delete). Not verified against real Velero (B-2); the UI wizard is day 22. `--wait` is the UI following the command |
-| R-051 | `backup create --from-schedule` via `TriggerScheduleNow` | 304 | M4 | ✅ verified 2026-10-16: Go handlers (18 tests) and server unit (40) and e2e (36) tests, plus the real Go handlers run against the real server (create, trigger, delete). Not verified against real Velero (B-2); the UI wizard is day 22 |
-| R-052 | `backup get` / `describe` | 305 | M3 | ⬜ |
-| R-053 | `backup describe --details`: resource list, volume info, item operations, results, PVB/DataUpload | 306 | M3 | 🟡 all five parts and PVB/DataUpload are served and shown (day 19–20); only results and resource list were driven in a browser, and nothing against real Velero |
-| R-054 | `backup logs` streamed, gunzipped, rendered and downloadable | 307 | M3 | ✅ verified 2026-10-16: Go handler (16 tests) and TS pipeline (23 e2e) plus the real Go handler against the real server; driven in Chrome over a fake object store. Not verified against real Velero (B-2) |
-| R-055 | `backup download` **not proxied**: presigned URL only, gated on `backup:download` and the org setting (default off) | 308 | M4 | ⬜ |
-| R-056 | `backup delete` via `DeleteBackupRequest` | 309 | M4 | ✅ verified 2026-10-16: Go handlers (18 tests) and server unit (40) and e2e (36) tests, plus the real Go handlers run against the real server (create, trigger, delete). Not verified against real Velero (B-2); the UI wizard is day 22 |
-| R-057 | `restore create` with every listed flag | 310 | M4 | ✅ verified 2026-10-16: Go handlers (11 tests), server unit (29) and e2e (30) tests, plus the real Go handlers run against the real server. Not verified against real Velero (B-2); the UI is day 24 |
-| R-058 | `restore get` / `describe` / `--details` | 311 | M3 | 🟡 detail page and its files exist (day 19–20); not driven against real Velero |
-| R-059 | `restore logs` | 312 | M3 | ✅ verified 2026-10-16: Go handler (16 tests) and TS pipeline (23 e2e) plus the real Go handler against the real server; driven in Chrome over a fake object store. Not verified against real Velero (B-2) |
-| R-060 | `restore delete` | 313 | M4 | ✅ verified 2026-10-16: Go handlers (11 tests), server unit (29) and e2e (30) tests, plus the real Go handlers run against the real server. Not verified against real Velero (B-2); the UI is day 24 |
-| R-061 | `schedule create` with cron, backup-template flags, owner references, paused | 314 | M4 | ⬜ |
-| R-062 | `schedule get` / `describe` | 315 | M3 | ⬜ |
-| R-063 | `schedule pause` / `unpause` | 316 | M4 | ⬜ |
-| R-064 | `schedule delete` | 317 | M4 | ⬜ |
-| R-065 | `backup-location` create/set/get/delete with default, credentials, access mode, validation frequency; credentials sent once and never stored by the control plane | 318 | M4 | ⬜ |
-| R-066 | `snapshot-location` create/set/get/delete | 319 | M4 | ⬜ |
-| R-067 | `repo get` from `BackupRepository` inventory | 320 | M3 | ⬜ |
-| R-068 | `plugin get` via `ServerStatusRequest` | 321 | M2 | ⬜ |
-| R-069 | `version` from `Hello` + `RefreshServerStatus` | 322 | M2 | ⬜ |
-| R-070 | "Show CLI equivalent" toggle on every form | 327 | M4 | 🟡 the backup and restore wizards have a live, copyable `velero …` preview (always shown, not a toggle); the schedule and storage forms do not exist yet |
+| ID    | Requirement                                                                                                                                                       | Lines | Milestone | Status                                                                                                                                                                                                                                                                             |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-050 | `backup create` with every listed flag                                                                                                                            | 303   | M4        | ✅ verified 2026-10-16: Go handlers (18 tests) and server unit (40) and e2e (36) tests, plus the real Go handlers run against the real server (create, trigger, delete). Not verified against real Velero (B-2); the UI wizard is day 22. `--wait` is the UI following the command |
+| R-051 | `backup create --from-schedule` via `TriggerScheduleNow`                                                                                                          | 304   | M4        | ✅ verified 2026-10-16: Go handlers (18 tests) and server unit (40) and e2e (36) tests, plus the real Go handlers run against the real server (create, trigger, delete). Not verified against real Velero (B-2); the UI wizard is day 22                                           |
+| R-052 | `backup get` / `describe`                                                                                                                                         | 305   | M3        | ⬜                                                                                                                                                                                                                                                                                 |
+| R-053 | `backup describe --details`: resource list, volume info, item operations, results, PVB/DataUpload                                                                 | 306   | M3        | 🟡 all five parts and PVB/DataUpload are served and shown (day 19–20); only results and resource list were driven in a browser, and nothing against real Velero                                                                                                                    |
+| R-054 | `backup logs` streamed, gunzipped, rendered and downloadable                                                                                                      | 307   | M3        | ✅ verified 2026-10-16: Go handler (16 tests) and TS pipeline (23 e2e) plus the real Go handler against the real server; driven in Chrome over a fake object store. Not verified against real Velero (B-2)                                                                         |
+| R-055 | `backup download` **not proxied**: presigned URL only, gated on `backup:download` and the org setting (default off)                                               | 308   | M4        | ⬜                                                                                                                                                                                                                                                                                 |
+| R-056 | `backup delete` via `DeleteBackupRequest`                                                                                                                         | 309   | M4        | ✅ verified 2026-10-16: Go handlers (18 tests) and server unit (40) and e2e (36) tests, plus the real Go handlers run against the real server (create, trigger, delete). Not verified against real Velero (B-2); the UI wizard is day 22                                           |
+| R-057 | `restore create` with every listed flag                                                                                                                           | 310   | M4        | ✅ verified 2026-10-16: Go handlers (11 tests), server unit (29) and e2e (30) tests, plus the real Go handlers run against the real server. Not verified against real Velero (B-2); the UI is day 24                                                                               |
+| R-058 | `restore get` / `describe` / `--details`                                                                                                                          | 311   | M3        | 🟡 detail page and its files exist (day 19–20); not driven against real Velero                                                                                                                                                                                                     |
+| R-059 | `restore logs`                                                                                                                                                    | 312   | M3        | ✅ verified 2026-10-16: Go handler (16 tests) and TS pipeline (23 e2e) plus the real Go handler against the real server; driven in Chrome over a fake object store. Not verified against real Velero (B-2)                                                                         |
+| R-060 | `restore delete`                                                                                                                                                  | 313   | M4        | ✅ verified 2026-10-16: Go handlers (11 tests), server unit (29) and e2e (30) tests, plus the real Go handlers run against the real server. Not verified against real Velero (B-2); the UI is day 24                                                                               |
+| R-061 | `schedule create` with cron, backup-template flags, owner references, paused                                                                                      | 314   | M4        | ✅ verified 2026-10-16: Go handlers (9 tests), server unit (31) and e2e (27) tests, web page tests (18), plus the real Go handlers run against the real server and driven in Chrome (create, edit keeping hooks, pause, delete). Not verified against real Velero (B-2)            |
+| R-062 | `schedule get` / `describe`                                                                                                                                       | 315   | M3        | ⬜                                                                                                                                                                                                                                                                                 |
+| R-063 | `schedule pause` / `unpause`                                                                                                                                      | 316   | M4        | ✅ verified 2026-10-16: Go handlers (9 tests), server unit (31) and e2e (27) tests, web page tests (18), plus the real Go handlers run against the real server and driven in Chrome (create, edit keeping hooks, pause, delete). Not verified against real Velero (B-2)            |
+| R-064 | `schedule delete`                                                                                                                                                 | 317   | M4        | ✅ verified 2026-10-16: Go handlers (9 tests), server unit (31) and e2e (27) tests, web page tests (18), plus the real Go handlers run against the real server and driven in Chrome (create, edit keeping hooks, pause, delete). Not verified against real Velero (B-2)            |
+| R-065 | `backup-location` create/set/get/delete with default, credentials, access mode, validation frequency; credentials sent once and never stored by the control plane | 318   | M4        | ⬜                                                                                                                                                                                                                                                                                 |
+| R-066 | `snapshot-location` create/set/get/delete                                                                                                                         | 319   | M4        | ⬜                                                                                                                                                                                                                                                                                 |
+| R-067 | `repo get` from `BackupRepository` inventory                                                                                                                      | 320   | M3        | ⬜                                                                                                                                                                                                                                                                                 |
+| R-068 | `plugin get` via `ServerStatusRequest`                                                                                                                            | 321   | M2        | ⬜                                                                                                                                                                                                                                                                                 |
+| R-069 | `version` from `Hello` + `RefreshServerStatus`                                                                                                                    | 322   | M2        | ⬜                                                                                                                                                                                                                                                                                 |
+| R-070 | "Show CLI equivalent" toggle on every form                                                                                                                        | 327   | M4        | 🟡 the backup and restore wizards have a live, copyable `velero …` preview (always shown, not a toggle); the schedule wizard has one too; the storage forms do not exist yet                                                                                                       |
 
 ### §7 Cluster status and logs (lines 331–354)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-071 | Cluster live view: connection, heartbeat, k8s and Velero versions, plugins, BSL availability, agent version and policy | 335 | M3 | ⬜ |
-| R-072 | Node fields as listed | 336 | M5 | ⬜ |
-| R-073 | Namespaces with "last successful backup covering this namespace", computed by the control plane | 337 | M5 | ⬜ |
-| R-074 | Pod summaries only, strict field allow-list, **no env vars, specs or annotations** | 338 | M5 | ⬜ |
-| R-075 | PVC fields as listed | 339 | M5 | ⬜ |
-| R-076 | Events: warnings plus anything involving velero.io objects, last 1 hour | 340 | M5 | ⬜ |
-| R-077 | `WatchScope` mode past 20 000 pods, implemented as a config switch from the start | 342 | M5 | ⬜ |
-| R-078 | Live log tail: session API, agent `pods/log` follow, SSE fan-out, nothing written to Postgres | 344–348 | M5 | ⬜ |
-| R-079 | Every log-session start audited: who viewed which container, when | 349 | M5 | ⬜ |
-| R-080 | Velero server and node-agent log shortcuts | 353 | M5 | ⬜ |
-| R-081 | Per-backup/restore logs via `DownloadRequest`, fetched from inside the cluster | 354 | M3 | ⬜ |
-| R-082 | Log cache for 7 days (configurable), access behind `backup:logs` | 354 | M3 | ⬜ |
+| ID    | Requirement                                                                                                            | Lines   | Milestone | Status |
+| ----- | ---------------------------------------------------------------------------------------------------------------------- | ------- | --------- | ------ |
+| R-071 | Cluster live view: connection, heartbeat, k8s and Velero versions, plugins, BSL availability, agent version and policy | 335     | M3        | ⬜     |
+| R-072 | Node fields as listed                                                                                                  | 336     | M5        | ⬜     |
+| R-073 | Namespaces with "last successful backup covering this namespace", computed by the control plane                        | 337     | M5        | ⬜     |
+| R-074 | Pod summaries only, strict field allow-list, **no env vars, specs or annotations**                                     | 338     | M5        | ⬜     |
+| R-075 | PVC fields as listed                                                                                                   | 339     | M5        | ⬜     |
+| R-076 | Events: warnings plus anything involving velero.io objects, last 1 hour                                                | 340     | M5        | ⬜     |
+| R-077 | `WatchScope` mode past 20 000 pods, implemented as a config switch from the start                                      | 342     | M5        | ⬜     |
+| R-078 | Live log tail: session API, agent `pods/log` follow, SSE fan-out, nothing written to Postgres                          | 344–348 | M5        | ⬜     |
+| R-079 | Every log-session start audited: who viewed which container, when                                                      | 349     | M5        | ⬜     |
+| R-080 | Velero server and node-agent log shortcuts                                                                             | 353     | M5        | ⬜     |
+| R-081 | Per-backup/restore logs via `DownloadRequest`, fetched from inside the cluster                                         | 354     | M3        | ⬜     |
+| R-082 | Log cache for 7 days (configurable), access behind `backup:logs`                                                       | 354     | M3        | ⬜     |
 
 ### §8 Identity, organizations, RBAC (lines 358–409)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-083 | Identity model: platform admin, orgs, members, teams, clusters, role bindings, channels, API tokens | 362–372 | M1 | 🟡 platform admin, users, orgs, members, teams and role bindings exist; API tokens are day 9, clusters M2 |
-| R-084 | Every query filtered by `org_id`, enforced by a Prisma extension, with a test that fails if any repository query lacks org scoping | 374 | M1 | ✅ `src/prisma/org-scope.ts`; 111 unit tests incl. every org-owned model × operation, plus 30 e2e |
-| R-085 | Four built-in roles with the exact permission matrix, stored as data not code | 376–393 | M1 | ✅ `packages/shared/src/rbac.ts` (`BUILT_IN_ROLES`), pinned row by row to §8.2 by test; `role_bindings.role` is a string key so custom roles need no migration |
-| R-086 | Org Owner/Admin implicitly Cluster Admin on all org clusters | 393 | M1 | ✅ `authorize()` org-role branch; e2e: an owner manages bindings with none of their own |
-| R-087 | Namespace-scoping rule: every included namespace in scope (after mapping), no cluster-scoped resources, wildcards only for whole-cluster bindings; exhaustively unit-tested | 395 | M1 | ✅ 66 table-driven cases; restore counts source and mapped target; mutation-checked (ADR-012) |
-| R-088 | Local auth: argon2id, 12-char minimum, breached-password check against a bundled list with no external calls | 399 | M1 | ✅ |
-| R-089 | TOTP MFA with 10 hashed recovery codes, enforceable per org | 399 | M1 | ✅ |
-| R-090 | OIDC per org: issuer, client, group claim, group→team mapping, JIT provisioning, multiple providers | 400 | M1 | ✅ `src/oidc/**`; 20 e2e against Dex incl. replay, login-CSRF, tampered state, PKCE mismatch, link/refuse rules; built server verified (ADR-011) |
-| R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere | 401 | M1 | ✅ |
-| R-092 | CSRF double-submit token on all state-changing REST calls | 402 | M1 | ✅ |
-| R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email | 403 | M1 | ✅ including the notification email (day 6; e2e asserts exactly one mail to a real account, none for an unknown address; seen arriving in Mailpit) |
-| R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset | 404 | M1 | ✅ `src/tokens/**`, 16 e2e tests + 7 engine tests; opt-in per route (ADR-014); `/tokens` page, driven in a browser incl. the sudo dialog |
-| R-095 | Sudo mode: re-authentication within 5 minutes for restore create, any delete, storage write, cluster delete and role-binding changes | 405 | M1 | ✅ the window and guard; the operations it protects arrive with them in M2–M6 |
-| R-096 | Optional restore approval, default off, approver must differ from requester, both actions audited | 407–409 | M6 | ⬜ |
+| ID    | Requirement                                                                                                                                                                 | Lines   | Milestone | Status                                                                                                                                                         |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-083 | Identity model: platform admin, orgs, members, teams, clusters, role bindings, channels, API tokens                                                                         | 362–372 | M1        | 🟡 platform admin, users, orgs, members, teams and role bindings exist; API tokens are day 9, clusters M2                                                      |
+| R-084 | Every query filtered by `org_id`, enforced by a Prisma extension, with a test that fails if any repository query lacks org scoping                                          | 374     | M1        | ✅ `src/prisma/org-scope.ts`; 111 unit tests incl. every org-owned model × operation, plus 30 e2e                                                              |
+| R-085 | Four built-in roles with the exact permission matrix, stored as data not code                                                                                               | 376–393 | M1        | ✅ `packages/shared/src/rbac.ts` (`BUILT_IN_ROLES`), pinned row by row to §8.2 by test; `role_bindings.role` is a string key so custom roles need no migration |
+| R-086 | Org Owner/Admin implicitly Cluster Admin on all org clusters                                                                                                                | 393     | M1        | ✅ `authorize()` org-role branch; e2e: an owner manages bindings with none of their own                                                                        |
+| R-087 | Namespace-scoping rule: every included namespace in scope (after mapping), no cluster-scoped resources, wildcards only for whole-cluster bindings; exhaustively unit-tested | 395     | M1        | ✅ 66 table-driven cases; restore counts source and mapped target; mutation-checked (ADR-012)                                                                  |
+| R-088 | Local auth: argon2id, 12-char minimum, breached-password check against a bundled list with no external calls                                                                | 399     | M1        | ✅                                                                                                                                                             |
+| R-089 | TOTP MFA with 10 hashed recovery codes, enforceable per org                                                                                                                 | 399     | M1        | ✅                                                                                                                                                             |
+| R-090 | OIDC per org: issuer, client, group claim, group→team mapping, JIT provisioning, multiple providers                                                                         | 400     | M1        | ✅ `src/oidc/**`; 20 e2e against Dex incl. replay, login-CSRF, tampered state, PKCE mismatch, link/refuse rules; built server verified (ADR-011)               |
+| R-091 | Sessions: httpOnly/Secure/SameSite=Lax cookie, Redis-backed, 12 h absolute and 1 h idle, rotate on privilege change, sign out everywhere                                    | 401     | M1        | ✅                                                                                                                                                             |
+| R-092 | CSRF double-submit token on all state-changing REST calls                                                                                                                   | 402     | M1        | ✅                                                                                                                                                             |
+| R-093 | Brute-force protection: per-IP and per-account limits, progressive delay, lockout notification email                                                                        | 403     | M1        | ✅ including the notification email (day 6; e2e asserts exactly one mail to a real account, none for an unknown address; seen arriving in Mailpit)             |
+| R-094 | API tokens: `vfm_` prefix, shown once, stored hashed, optional expiry, optional reduced permissions and cluster subset                                                      | 404     | M1        | ✅ `src/tokens/**`, 16 e2e tests + 7 engine tests; opt-in per route (ADR-014); `/tokens` page, driven in a browser incl. the sudo dialog                       |
+| R-095 | Sudo mode: re-authentication within 5 minutes for restore create, any delete, storage write, cluster delete and role-binding changes                                        | 405     | M1        | ✅ the window and guard; the operations it protects arrive with them in M2–M6                                                                                  |
+| R-096 | Optional restore approval, default off, approver must differ from requester, both actions audited                                                                           | 407–409 | M6        | ⬜                                                                                                                                                             |
 
 ### §9 Data model (lines 413–439)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-097 | All 19 tables with the specified columns | 417–435 | M1–M6 | 🟡 9 of 19 (`users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings`, `api_tokens`, `audit_events`; `role_bindings.cluster_id` has no FK until M2, ADR-012), plus `mfa_recovery_codes` and `invites`, which §9 does not list (ADR-008, ADR-010) |
-| R-098 | UUIDv7 ids, `created_at`/`updated_at` everywhere, `org_id` with an index on every org-owned table | 415 | M1–M6 | 🟡 |
-| R-099 | AES-256-GCM envelope encryption for `*_encrypted` columns, key id stored with each ciphertext, `VFM_MASTER_KEY` from env, rotation supported | 437 | M1 | ✅ |
-| R-100 | `audit_events` append-only: UPDATE/DELETE revoked from the application DB role, separate role for retention | 432 | M1 | ✅ trigger-enforced (the owner role can otherwise always UPDATE), NOLOGIN `vfm_audit_retention`; UPDATE, DELETE, deleteMany and TRUNCATE proven refused (ADR-013) |
-| R-101 | Daily retention jobs for inventory events, log cache, commands (180 d) and audit (org setting, default 400 d) with optional export before delete | 439 | M6 | ⬜ |
+| ID    | Requirement                                                                                                                                      | Lines   | Milestone | Status                                                                                                                                                                                                                                                                                     |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R-097 | All 19 tables with the specified columns                                                                                                         | 417–435 | M1–M6     | 🟡 9 of 19 (`users`, `organizations`, `memberships`, `teams`, `team_members`, `oidc_providers`, `role_bindings`, `api_tokens`, `audit_events`; `role_bindings.cluster_id` has no FK until M2, ADR-012), plus `mfa_recovery_codes` and `invites`, which §9 does not list (ADR-008, ADR-010) |
+| R-098 | UUIDv7 ids, `created_at`/`updated_at` everywhere, `org_id` with an index on every org-owned table                                                | 415     | M1–M6     | 🟡                                                                                                                                                                                                                                                                                         |
+| R-099 | AES-256-GCM envelope encryption for `*_encrypted` columns, key id stored with each ciphertext, `VFM_MASTER_KEY` from env, rotation supported     | 437     | M1        | ✅                                                                                                                                                                                                                                                                                         |
+| R-100 | `audit_events` append-only: UPDATE/DELETE revoked from the application DB role, separate role for retention                                      | 432     | M1        | ✅ trigger-enforced (the owner role can otherwise always UPDATE), NOLOGIN `vfm_audit_retention`; UPDATE, DELETE, deleteMany and TRUNCATE proven refused (ADR-013)                                                                                                                          |
+| R-101 | Daily retention jobs for inventory events, log cache, commands (180 d) and audit (org setting, default 400 d) with optional export before delete | 439     | M6        | ⬜                                                                                                                                                                                                                                                                                         |
 
 ### §10 REST API (lines 443–466)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-102 | `/api/v1`, cursor pagination (max 200), documented filters and sorts, `X-Request-Id`, RFC 9457 problem+json | 445–447 | M1+ | 🟡 cursor pagination and filters on the Velero lists (day 19); other lists pending |
-| R-103 | OpenAPI 3.1 generated from decorators, committed as `server/openapi.yaml`, web client types generated from it | 445 | M0/M1 | ✅ (generation + committed contract verified in sync; generating *web types* from it is M1) |
-| R-104 | All endpoint groups of §10 implemented | 451–465 | M1–M6 | 🟡 auth, orgs, teams, SSO, tokens, audit, role bindings, clusters, commands, inventory, fleet, overview, the stream, and Velero lists/detail exist; writes, logs, alerts, reports do not |
-| R-105 | `/healthz`, `/readyz` (DB + Redis), `/metrics` on a separate port, not publicly exposed | 466 | M0 | ✅ |
+| ID    | Requirement                                                                                                   | Lines   | Milestone | Status                                                                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------- | ------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-102 | `/api/v1`, cursor pagination (max 200), documented filters and sorts, `X-Request-Id`, RFC 9457 problem+json   | 445–447 | M1+       | 🟡 cursor pagination and filters on the Velero lists (day 19); other lists pending                                                                                                       |
+| R-103 | OpenAPI 3.1 generated from decorators, committed as `server/openapi.yaml`, web client types generated from it | 445     | M0/M1     | ✅ (generation + committed contract verified in sync; generating _web types_ from it is M1)                                                                                              |
+| R-104 | All endpoint groups of §10 implemented                                                                        | 451–465 | M1–M6     | 🟡 auth, orgs, teams, SSO, tokens, audit, role bindings, clusters, commands, inventory, fleet, overview, the stream, and Velero lists/detail exist; writes, logs, alerts, reports do not |
+| R-105 | `/healthz`, `/readyz` (DB + Redis), `/metrics` on a separate port, not publicly exposed                       | 466     | M0        | ✅                                                                                                                                                                                       |
 
 ### §11 Web UI (lines 472–505)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-106 | All 13 pages | 474–496 | M1–M6 | 🟡 login, MFA, org admin, add cluster, fleet overview, cluster overview, backup/restore/schedule/storage lists, backup/restore detail and the backup create and restore wizards exist; the schedule wizard, log viewer, alerts and reports do not |
-| R-107 | UX rules: typed destructive confirmation plus sudo, command-status toasts, actions disabled-with-reason, user timezone with UTC on hover, dark/light, responsive to tablet, keyboard accessible, WCAG 2.1 AA, explanatory empty states | 500–505 | M1–M6 | 🟡 |
+| ID    | Requirement                                                                                                                                                                                                                            | Lines   | Milestone | Status                                                                                                                                                                                                                                     |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R-106 | All 13 pages                                                                                                                                                                                                                           | 474–496 | M1–M6     | 🟡 login, MFA, org admin, add cluster, fleet overview, cluster overview, backup/restore/schedule/storage lists, backup/restore detail and the backup create, restore and schedule wizards exist; the log viewer, alerts and reports do not |
+| R-107 | UX rules: typed destructive confirmation plus sudo, command-status toasts, actions disabled-with-reason, user timezone with UTC on hover, dark/light, responsive to tablet, keyboard accessible, WCAG 2.1 AA, explanatory empty states | 500–505 | M1–M6     | 🟡                                                                                                                                                                                                                                         |
 
 ### §12 Security (lines 509–528)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-108 | TLS everywhere; mTLS required for `Connect` and `RenewCertificate` | 512 | M2 | ✅ verified 2026-10-16: mTLS required for `Connect` and `RenewCertificate` (real handshakes in e2e, live runs); server TLS from the internal CA, agent pins it |
-| R-109 | Internal CA key encrypted with `VFM_MASTER_KEY`; CA rotation with overlap via `HelloAck` | 513 | M2 | 🟡 the CA key is envelope-encrypted with `VFM_MASTER_KEY` (verified); CA rotation with overlap via `HelloAck` is not built |
-| R-110 | All secrets from env or Kubernetes Secrets, never from committed config | 514 | all | ✅ for the control plane; the Helm Secret wiring lands in M8 |
-| R-111 | Strict CSP, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy` | 515 | M0 | 🟡 |
-| R-112 | Validation at every boundary; the agent treated as semi-trusted; everything escaped in the UI; JSON sizes capped | 516 | all | ✅ for the REST boundary (zod per route via `parseBody`) and the agent boundary (Hello, command results and inventory are validated, bounded and cleaned; an item cannot claim another object's identity) |
-| R-113 | Central `redact()` before logging, before `commands.payload`, before audit details, with credential-field tests | 517 | M0 | ✅ |
-| R-114 | `pnpm audit`, `govulncheck` and Trivy in CI, failing on high/critical | 518 | M0 | 🟡 |
-| R-115 | Containers non-root, read-only root filesystem, all capabilities dropped, seccomp RuntimeDefault | 519 | M2/M8 | ⬜ |
-| R-116 | Agent RBAC exactly §12.2 — no cluster-wide secret read, no exec, no wildcards — verified by rendering the chart and diffing the rules | 521–525 | M2 | ✅ verified 2026-10-16: `test/chart` renders the chart and diffs the rules against §12.2; three mutations each failed it |
-| R-117 | `docs/THREAT_MODEL.md` (STRIDE per component) with every mitigation verified by a test or a documented manual check | 527–528 | M7 | ⬜ |
+| ID    | Requirement                                                                                                                           | Lines   | Milestone | Status                                                                                                                                                                                                    |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------- | ------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-108 | TLS everywhere; mTLS required for `Connect` and `RenewCertificate`                                                                    | 512     | M2        | ✅ verified 2026-10-16: mTLS required for `Connect` and `RenewCertificate` (real handshakes in e2e, live runs); server TLS from the internal CA, agent pins it                                            |
+| R-109 | Internal CA key encrypted with `VFM_MASTER_KEY`; CA rotation with overlap via `HelloAck`                                              | 513     | M2        | 🟡 the CA key is envelope-encrypted with `VFM_MASTER_KEY` (verified); CA rotation with overlap via `HelloAck` is not built                                                                                |
+| R-110 | All secrets from env or Kubernetes Secrets, never from committed config                                                               | 514     | all       | ✅ for the control plane; the Helm Secret wiring lands in M8                                                                                                                                              |
+| R-111 | Strict CSP, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy`                                                                          | 515     | M0        | 🟡                                                                                                                                                                                                        |
+| R-112 | Validation at every boundary; the agent treated as semi-trusted; everything escaped in the UI; JSON sizes capped                      | 516     | all       | ✅ for the REST boundary (zod per route via `parseBody`) and the agent boundary (Hello, command results and inventory are validated, bounded and cleaned; an item cannot claim another object's identity) |
+| R-113 | Central `redact()` before logging, before `commands.payload`, before audit details, with credential-field tests                       | 517     | M0        | ✅                                                                                                                                                                                                        |
+| R-114 | `pnpm audit`, `govulncheck` and Trivy in CI, failing on high/critical                                                                 | 518     | M0        | 🟡                                                                                                                                                                                                        |
+| R-115 | Containers non-root, read-only root filesystem, all capabilities dropped, seccomp RuntimeDefault                                      | 519     | M2/M8     | ⬜                                                                                                                                                                                                        |
+| R-116 | Agent RBAC exactly §12.2 — no cluster-wide secret read, no exec, no wildcards — verified by rendering the chart and diffing the rules | 521–525 | M2        | ✅ verified 2026-10-16: `test/chart` renders the chart and diffs the rules against §12.2; three mutations each failed it                                                                                  |
+| R-117 | `docs/THREAT_MODEL.md` (STRIDE per component) with every mitigation verified by a test or a documented manual check                   | 527–528 | M7        | ⬜                                                                                                                                                                                                        |
 
 ### §13 Non-functional requirements (lines 532–545)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-118 | Scale: 200 clusters, 100 concurrent users, 50 k Velero objects, 20 k pods per cluster | 536 | M7 | ⬜ |
-| R-119 | Latency: list p95 < 300 ms, command to agent < 1 s p95, resource event to browser < 3 s p95 | 537 | M7 | ⬜ |
-| R-120 | Agent footprint < 100 MiB and < 100 m CPU steady state on a 5 k-pod cluster | 538 | M7 | ⬜ |
-| R-121 | Survive loss of one replica with no lost commands; agents reconnect within 60 s | 539 | M2/M7 | ⬜ |
-| R-122 | Documented backup procedure for VFM's own database, including a Velero schedule example | 540 | M8 | ⬜ |
-| R-123 | Zero-downtime rolling upgrade; migrations backward compatible for one release (expand → migrate → contract) | 541 | M8 | ⬜ |
-| R-124 | The listed Prometheus metrics plus a Grafana dashboard JSON | 542 | M7 | ⬜ |
-| R-125 | `docs/AIRGAP.md`, image list, chart packaging, registry overrides, verified by an e2e run with egress blocked | 543 | M8 | ⬜ |
-| R-126 | `tools/fake-agent` load simulator proving the §13 targets | 545 | M7 | ⬜ |
+| ID    | Requirement                                                                                                   | Lines | Milestone | Status |
+| ----- | ------------------------------------------------------------------------------------------------------------- | ----- | --------- | ------ |
+| R-118 | Scale: 200 clusters, 100 concurrent users, 50 k Velero objects, 20 k pods per cluster                         | 536   | M7        | ⬜     |
+| R-119 | Latency: list p95 < 300 ms, command to agent < 1 s p95, resource event to browser < 3 s p95                   | 537   | M7        | ⬜     |
+| R-120 | Agent footprint < 100 MiB and < 100 m CPU steady state on a 5 k-pod cluster                                   | 538   | M7        | ⬜     |
+| R-121 | Survive loss of one replica with no lost commands; agents reconnect within 60 s                               | 539   | M2/M7     | ⬜     |
+| R-122 | Documented backup procedure for VFM's own database, including a Velero schedule example                       | 540   | M8        | ⬜     |
+| R-123 | Zero-downtime rolling upgrade; migrations backward compatible for one release (expand → migrate → contract)   | 541   | M8        | ⬜     |
+| R-124 | The listed Prometheus metrics plus a Grafana dashboard JSON                                                   | 542   | M7        | ⬜     |
+| R-125 | `docs/AIRGAP.md`, image list, chart packaging, registry overrides, verified by an e2e run with egress blocked | 543   | M8        | ⬜     |
+| R-126 | `tools/fake-agent` load simulator proving the §13 targets                                                     | 545   | M7        | ⬜     |
 
 ### §14 Repository and dev environment (lines 549–579)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-127 | Repository layout of §14 | 551–573 | M0 | ✅ |
-| R-128 | Dev compose: Postgres, Redis, MinIO with two buckets, Mailpit, mock OIDC provider | 576 | M0 | 🟡 |
-| R-129 | Two kind clusters with Velero at primary, AWS plugin against MinIO, CSI snapshot controller, hostpath CSI, node-agent, sample workloads including a PVC with known data | 577 | M0 | ⛔ B-2 |
-| R-130 | `make dev-up` / `dev-down` idempotent; smoke script asserts `velero backup create` reaches Completed on each cluster | 626 | M0 | ⛔ B-2 |
-| R-131 | Seed script: platform admin, two orgs, a user per built-in role, both clusters enrolled | 579 | M1 | ⬜ (needs M1 tables) |
+| ID    | Requirement                                                                                                                                                             | Lines   | Milestone | Status               |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | --------- | -------------------- |
+| R-127 | Repository layout of §14                                                                                                                                                | 551–573 | M0        | ✅                   |
+| R-128 | Dev compose: Postgres, Redis, MinIO with two buckets, Mailpit, mock OIDC provider                                                                                       | 576     | M0        | 🟡                   |
+| R-129 | Two kind clusters with Velero at primary, AWS plugin against MinIO, CSI snapshot controller, hostpath CSI, node-agent, sample workloads including a PVC with known data | 577     | M0        | ⛔ B-2               |
+| R-130 | `make dev-up` / `dev-down` idempotent; smoke script asserts `velero backup create` reaches Completed on each cluster                                                    | 626     | M0        | ⛔ B-2               |
+| R-131 | Seed script: platform admin, two orgs, a user per built-in role, both clusters enrolled                                                                                 | 579     | M1        | ⬜ (needs M1 tables) |
 
 ### §15 Testing strategy (lines 583–608)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-132 | Agent unit tests: command→CR mapping per op, policy, idempotency, redaction, capability gating | 587 | M2+ | 🟡 existing config/health/leader tests pass; per-op/policy/idempotency tests arrive with M2 |
-| R-133 | Agent integration via envtest with Velero CRDs, including the DownloadRequest flow | 588 | M3 | ⬜ |
-| R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 355 unit + 121 e2e + 121 shared; RBAC (66 cases) and org isolation covered; command state machine, alert rules arrive with their features |
-| R-135 | Server integration via Testcontainers plus an in-process fake agent over real gRPC: enrollment, mTLS, reconnect, re-delivery, revocation, SSE fan-out across two instances | 590 | M2 | ✅ verified 2026-10-16: in-process fake agent over real gRPC/mTLS covers enrollment, mTLS, reconnect, re-delivery, revocation and SSE fan-out across two replicas |
-| R-136 | Web unit tests: form→payload mapping, CLI-equivalent generator, permission-disabled states | 591 | M3+ | 🟡 |
-| R-137 | Playwright e2e against kind, MinIO and Velero | 592 | M2+ | ⬜ |
-| R-138 | Security tests: cross-org access on every endpoint generated from OpenAPI, scope enforcement, CSRF, rate limits, agent cannot report for another cluster | 593 | M7 | ⬜ |
-| R-139 | Load tests against the §13 targets | 594 | M7 | ⬜ |
-| R-140 | Golden path 1 — enroll cluster, connected within 30 s | 597 | M2 | ⬜ |
-| R-141 | Golden path 2 — backup namespace `demo` with FS backup, Completed, logs viewable, details show the PVC | 598 | M4 | ⬜ |
-| R-142 | Golden path 3 — delete namespace, restore, pod running and PVC checksum matches | 599 | M4 | ⬜ |
-| R-143 | Golden path 4 — restore with namespace mapping `demo → demo-restored` | 600 | M4 | ⬜ |
-| R-144 | Golden path 5 — 5-minute schedule produces a backup, pause stops it, unpause resumes | 601 | M4 | ⬜ |
-| R-145 | Golden path 6 — BSL with credentials becomes Available; credentials never visible in API, DB or logs (grep test) | 602 | M4 | ⬜ |
-| R-146 | Golden path 7 — scoped Operator denied a backup of `kube-system` and of all namespaces | 603 | M4 | ⬜ |
-| R-147 | Golden path 8 — agent killed mid-command, restarts, command completes exactly once | 604 | M2 | ⬜ |
-| R-148 | Golden path 9 — replica killed, agent reconnects, commands continue | 605 | M2 | ⬜ |
-| R-149 | Golden path 10 — `readOnly: true` policy disables mutating actions in the UI and the agent rejects them | 606 | M4 | ⬜ |
-| R-150 | Golden path 11 — cluster disabled closes the stream and refuses reconnection | 607 | M2 | ⬜ |
-| R-151 | Golden path 12 — failed-backup alert fires to a webhook and resolves when fixed | 608 | M6 | ⬜ |
+| ID    | Requirement                                                                                                                                                                | Lines | Milestone | Status                                                                                                                                                            |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-132 | Agent unit tests: command→CR mapping per op, policy, idempotency, redaction, capability gating                                                                             | 587   | M2+       | 🟡 existing config/health/leader tests pass; per-op/policy/idempotency tests arrive with M2                                                                       |
+| R-133 | Agent integration via envtest with Velero CRDs, including the DownloadRequest flow                                                                                         | 588   | M3        | ⬜                                                                                                                                                                |
+| R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules                                              | 589   | M1+       | 🟡 355 unit + 121 e2e + 121 shared; RBAC (66 cases) and org isolation covered; command state machine, alert rules arrive with their features                      |
+| R-135 | Server integration via Testcontainers plus an in-process fake agent over real gRPC: enrollment, mTLS, reconnect, re-delivery, revocation, SSE fan-out across two instances | 590   | M2        | ✅ verified 2026-10-16: in-process fake agent over real gRPC/mTLS covers enrollment, mTLS, reconnect, re-delivery, revocation and SSE fan-out across two replicas |
+| R-136 | Web unit tests: form→payload mapping, CLI-equivalent generator, permission-disabled states                                                                                 | 591   | M3+       | 🟡                                                                                                                                                                |
+| R-137 | Playwright e2e against kind, MinIO and Velero                                                                                                                              | 592   | M2+       | ⬜                                                                                                                                                                |
+| R-138 | Security tests: cross-org access on every endpoint generated from OpenAPI, scope enforcement, CSRF, rate limits, agent cannot report for another cluster                   | 593   | M7        | ⬜                                                                                                                                                                |
+| R-139 | Load tests against the §13 targets                                                                                                                                         | 594   | M7        | ⬜                                                                                                                                                                |
+| R-140 | Golden path 1 — enroll cluster, connected within 30 s                                                                                                                      | 597   | M2        | ⬜                                                                                                                                                                |
+| R-141 | Golden path 2 — backup namespace `demo` with FS backup, Completed, logs viewable, details show the PVC                                                                     | 598   | M4        | ⬜                                                                                                                                                                |
+| R-142 | Golden path 3 — delete namespace, restore, pod running and PVC checksum matches                                                                                            | 599   | M4        | ⬜                                                                                                                                                                |
+| R-143 | Golden path 4 — restore with namespace mapping `demo → demo-restored`                                                                                                      | 600   | M4        | ⬜                                                                                                                                                                |
+| R-144 | Golden path 5 — 5-minute schedule produces a backup, pause stops it, unpause resumes                                                                                       | 601   | M4        | ⬜                                                                                                                                                                |
+| R-145 | Golden path 6 — BSL with credentials becomes Available; credentials never visible in API, DB or logs (grep test)                                                           | 602   | M4        | ⬜                                                                                                                                                                |
+| R-146 | Golden path 7 — scoped Operator denied a backup of `kube-system` and of all namespaces                                                                                     | 603   | M4        | ⬜                                                                                                                                                                |
+| R-147 | Golden path 8 — agent killed mid-command, restarts, command completes exactly once                                                                                         | 604   | M2        | ⬜                                                                                                                                                                |
+| R-148 | Golden path 9 — replica killed, agent reconnects, commands continue                                                                                                        | 605   | M2        | ⬜                                                                                                                                                                |
+| R-149 | Golden path 10 — `readOnly: true` policy disables mutating actions in the UI and the agent rejects them                                                                    | 606   | M4        | ⬜                                                                                                                                                                |
+| R-150 | Golden path 11 — cluster disabled closes the stream and refuses reconnection                                                                                               | 607   | M2        | ⬜                                                                                                                                                                |
+| R-151 | Golden path 12 — failed-backup alert fires to a webhook and resolves when fixed                                                                                            | 608   | M6        | ⬜                                                                                                                                                                |
 
 ### §18 Open questions (lines 838–848)
 
-| ID | Requirement | Lines | Milestone | Status |
-|---|---|---|---|---|
-| R-152 | All seven questions recorded with the applied default and the cost of changing it | 840–848 | M0 | ✅ |
+| ID    | Requirement                                                                       | Lines   | Milestone | Status |
+| ----- | --------------------------------------------------------------------------------- | ------- | --------- | ------ |
+| R-152 | All seven questions recorded with the applied default and the cost of changing it | 840–848 | M0        | ✅     |
 
 > §17's production-readiness checklist is a view over these requirements, not an
 > extra set, so it is not double-counted. It is tracked separately in

@@ -15,24 +15,13 @@ import {
   toCli,
   validate,
   type BackupForm,
-  type ClusterScoped,
-  type Tri,
 } from '@/lib/backup-form';
 import { api, errorMessage } from '@/lib/client';
 import { cn } from '@/lib/cn';
-import { Area, CopyButton, Select, Text } from '@/components/form-fields';
+import { TemplateFields, type NamedList } from '@/components/backup-fields';
+import { CopyButton } from '@/components/form-fields';
 
 const STEPS = ['What to back up', 'Storage and volumes', 'Options', 'Review'] as const;
-
-interface NamedList {
-  items: { name: string; isDefault?: boolean }[];
-}
-
-const TRI: { value: Tri; label: string }[] = [
-  { value: 'default', label: 'Velero’s default' },
-  { value: 'yes', label: 'Yes' },
-  { value: 'no', label: 'No' },
-];
 
 // ---------------------------------------------------------------------------
 
@@ -69,11 +58,6 @@ export function BackupWizardPage({
 
   const ctx = { limitedToNamespaces: limited, mayUseAdvanced };
   const errors = validate(form, ctx);
-  const set =
-    <K extends keyof BackupForm>(key: K) =>
-    (value: BackupForm[K]) => {
-      setForm((f) => ({ ...f, [key]: value }));
-    };
   const shown = (key: keyof BackupForm): string | undefined => {
     const owner = Object.entries(STEP_FIELDS).find(([, keys]) => keys.includes(key));
     return owner !== undefined && (attempted.has(Number(owner[0])) || step === 3)
@@ -138,14 +122,6 @@ export function BackupWizardPage({
     </Link>
   );
 
-  const locationOptions = (list: NamedList | undefined, none: string) => [
-    { value: '', label: none },
-    ...(list?.items ?? []).map((l) => ({
-      value: l.name,
-      label: l.isDefault === true ? `${l.name} (default)` : l.name,
-    })),
-  ];
-
   return (
     <ClusterShell
       orgId={orgId}
@@ -200,225 +176,19 @@ export function BackupWizardPage({
                 )}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                {step === 0 && (
-                  <>
-                    <Text
-                      label="Name"
-                      hint="Optional. Leave empty and the agent names it backup- followed by the time."
-                      error={shown('name')}
-                      value={form.name}
-                      onChange={set('name')}
-                    />
-                    <Text
-                      label="Namespaces to include"
-                      hint={
-                        limited
-                          ? 'Comma-separated, for example shop,cart.'
-                          : 'Comma-separated. Empty means all namespaces.'
-                      }
-                      error={shown('namespaces')}
-                      value={form.namespaces}
-                      onChange={set('namespaces')}
-                    />
-                    <Text
-                      label="Namespaces to exclude"
-                      error={shown('excludeNamespaces')}
-                      value={form.excludeNamespaces}
-                      onChange={set('excludeNamespaces')}
-                    />
-                    <Text
-                      label="Resources to include"
-                      hint="For example pods,deployments. Empty means all."
-                      value={form.includeResources}
-                      onChange={set('includeResources')}
-                    />
-                    <Text
-                      label="Resources to exclude"
-                      value={form.excludeResources}
-                      onChange={set('excludeResources')}
-                    />
-                    <Select
-                      label="Cluster-scoped resources"
-                      hint={
-                        limited
-                          ? 'Not available with your access.'
-                          : 'Velero’s default adds the cluster-scoped objects the selected resources need.'
-                      }
-                      error={shown('clusterScoped')}
-                      value={form.clusterScoped}
-                      disabled={limited}
-                      onChange={(v) => {
-                        setForm((f) => ({ ...f, clusterScoped: v as ClusterScoped }));
-                      }}
-                      options={
-                        limited
-                          ? [{ value: 'no', label: 'No' }]
-                          : [
-                              { value: 'auto', label: 'Velero’s default' },
-                              { value: 'no', label: 'No' },
-                              { value: 'yes', label: 'Yes, include them' },
-                            ]
-                      }
-                    />
-                    <Text
-                      label="Label selector"
-                      hint="Only resources with these labels, for example app=web,tier in (a,b)."
-                      error={shown('selector')}
-                      value={form.selector}
-                      onChange={set('selector')}
-                    />
-                    <Area
-                      label="Alternative label selectors"
-                      hint="One per line. A resource matching any line is included."
-                      error={shown('orSelectors')}
-                      value={form.orSelectors}
-                      onChange={set('orSelectors')}
-                      rows={2}
-                    />
-                    <details className="rounded-md border border-control p-2">
-                      <summary className="cursor-pointer text-sm font-medium">
-                        More resource filters
-                      </summary>
-                      <div className="mt-2 flex flex-col gap-3">
-                        <Text
-                          label="Cluster-scoped resources to include"
-                          error={shown('includeClusterScopedResources')}
-                          value={form.includeClusterScopedResources}
-                          onChange={set('includeClusterScopedResources')}
-                          disabled={limited}
-                        />
-                        <Text
-                          label="Cluster-scoped resources to exclude"
-                          value={form.excludeClusterScopedResources}
-                          onChange={set('excludeClusterScopedResources')}
-                          disabled={limited}
-                        />
-                        <Text
-                          label="Namespaced resources to include"
-                          value={form.includeNamespaceScopedResources}
-                          onChange={set('includeNamespaceScopedResources')}
-                        />
-                        <Text
-                          label="Namespaced resources to exclude"
-                          value={form.excludeNamespaceScopedResources}
-                          onChange={set('excludeNamespaceScopedResources')}
-                        />
-                      </div>
-                    </details>
-                  </>
-                )}
-
-                {step === 1 && (
-                  <>
-                    <Select
-                      label="Storage location"
-                      hint="Where the backup is kept."
-                      value={form.storageLocation}
-                      onChange={set('storageLocation')}
-                      options={locationOptions(backupLocations.data, 'Velero’s default')}
-                    />
-                    <Text
-                      label="Volume snapshot locations"
-                      hint={
-                        snapshotLocations.data !== undefined &&
-                        snapshotLocations.data.items.length > 0
-                          ? `Comma-separated. Available: ${snapshotLocations.data.items.map((l) => l.name).join(', ')}.`
-                          : 'Comma-separated.'
-                      }
-                      error={shown('snapshotLocations')}
-                      value={form.snapshotLocations}
-                      onChange={set('snapshotLocations')}
-                    />
-                    <Select
-                      label="Snapshot volumes"
-                      value={form.snapshotVolumes}
-                      onChange={(v) => {
-                        set('snapshotVolumes')(v as Tri);
-                      }}
-                      options={TRI}
-                    />
-                    <Select
-                      label="Back up volumes with the file-system backup by default"
-                      value={form.defaultVolumesToFsBackup}
-                      onChange={(v) => {
-                        set('defaultVolumesToFsBackup')(v as Tri);
-                      }}
-                      options={TRI}
-                    />
-                    <Select
-                      label="Move snapshot data to the backup storage"
-                      value={form.snapshotMoveData}
-                      onChange={(v) => {
-                        set('snapshotMoveData')(v as Tri);
-                      }}
-                      options={TRI}
-                    />
-                    <Text
-                      label="Data mover"
-                      hint="Empty means Velero’s built-in data mover."
-                      value={form.dataMover}
-                      onChange={set('dataMover')}
-                    />
-                  </>
-                )}
-
-                {step === 2 && (
-                  <>
-                    <Text
-                      label="Keep for"
-                      hint="A duration such as 720h (30 days). Empty means Velero’s default."
-                      error={shown('ttl')}
-                      value={form.ttl}
-                      onChange={set('ttl')}
-                    />
-                    <Text
-                      label="Item operation timeout"
-                      error={shown('itemOperationTimeout')}
-                      value={form.itemOperationTimeout}
-                      onChange={set('itemOperationTimeout')}
-                    />
-                    <Text
-                      label="CSI snapshot timeout"
-                      error={shown('csiSnapshotTimeout')}
-                      value={form.csiSnapshotTimeout}
-                      onChange={set('csiSnapshotTimeout')}
-                    />
-                    <Text
-                      label="Resource policy ConfigMap"
-                      hint="The name of a ConfigMap in Velero’s namespace."
-                      error={shown('resourcePolicy')}
-                      value={form.resourcePolicy}
-                      onChange={set('resourcePolicy')}
-                    />
-                    <Text
-                      label="Ordered resources"
-                      hint="For example pods=shop/a,shop/b;persistentvolumes=pv1"
-                      error={shown('orderedResources')}
-                      value={form.orderedResources}
-                      onChange={set('orderedResources')}
-                    />
-                    <Text
-                      label="Parallel file uploads"
-                      hint="1 to 64. Empty means Velero’s default."
-                      error={shown('parallelFilesUpload')}
-                      value={form.parallelFilesUpload}
-                      onChange={set('parallelFilesUpload')}
-                    />
-                    <Area
-                      label="Advanced settings (JSON)"
-                      hint={
-                        mayUseAdvanced
-                          ? 'Merged onto the backup spec and checked against Velero’s. For example hooks.'
-                          : 'Only administrators of the whole cluster may use this.'
-                      }
-                      error={shown('advanced')}
-                      value={form.advanced}
-                      onChange={set('advanced')}
-                      disabled={!mayUseAdvanced}
-                      rows={5}
-                      mono
-                    />
-                  </>
+                {step <= 2 && (
+                  <TemplateFields
+                    step={step as 0 | 1 | 2}
+                    form={form}
+                    setForm={setForm}
+                    shown={shown}
+                    limited={limited}
+                    mayUseAdvanced={mayUseAdvanced}
+                    backupLocations={backupLocations.data}
+                    snapshotLocations={snapshotLocations.data}
+                    withName
+                    advancedTarget="backup spec"
+                  />
                 )}
 
                 {step === 3 && (

@@ -7,6 +7,7 @@ import { SetupPage } from '@/pages/setup-page';
 import { CreateOrgPage } from '@/pages/admin/create-org-page';
 import { InvitePage } from '@/pages/invite-page';
 import { BackupDetailPage, RestoreDetailPage } from '@/pages/cluster-detail';
+import { ScheduleWizardPage } from '@/pages/schedule-wizard';
 import { BackupsPage, RestoresPage, SchedulesPage, StoragePage } from '@/pages/cluster-lists';
 import { ClusterPage } from '@/pages/cluster-page';
 import { ClustersPage } from '@/pages/clusters-page';
@@ -146,6 +147,13 @@ export const restoresRoute = clusterSubRoute('/clusters/$clusterId/restores', (o
 export const schedulesRoute = clusterSubRoute('/clusters/$clusterId/schedules', (o, c) => (
   <SchedulesPage orgId={o} clusterId={c} />
 ));
+export const newScheduleRoute = clusterSubRoute('/clusters/$clusterId/schedules/new', (o, c) => (
+  <ScheduleWizardPage orgId={o} clusterId={c} />
+));
+export const editScheduleRoute = clusterSubRoute(
+  '/clusters/$clusterId/schedules/$name/edit',
+  (o, c, n) => <ScheduleWizardPage orgId={o} clusterId={c} name={n} />,
+);
 export const storageRoute = clusterSubRoute('/clusters/$clusterId/storage', (o, c) => (
   <StoragePage orgId={o} clusterId={c} />
 ));

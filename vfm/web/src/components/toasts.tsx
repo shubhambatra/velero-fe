@@ -151,6 +151,9 @@ function ToastItem({
           The restore was deleted. What it restored stays in the cluster.
         </p>
       )}
+      {status === 'SUCCEEDED' && result?.kind === 'DeletedSchedule' && (
+        <p className="text-muted-foreground">The schedule was deleted. The backups it made stay.</p>
+      )}
       {status === 'SUCCEEDED' && result?.kind === 'DeleteBackupRequest' && (
         <p className="text-muted-foreground">
           Velero is removing the backup and its data; it leaves the list when it is done.

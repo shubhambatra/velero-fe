@@ -278,15 +278,16 @@ export class ResourcesService {
     };
   }
 
-  /** One backup or restore, with its timeline and a YAML rendering. 404 when absent or not visible. */
+  /** One backup, restore or schedule, with its timeline and a YAML rendering. 404 when absent or not visible. */
   async detail(
     orgId: string,
     userId: string,
     clusterId: string,
-    kind: 'BACKUP' | 'RESTORE',
+    kind: 'BACKUP' | 'RESTORE' | 'SCHEDULE',
     name: string,
     token?: TokenLimit,
   ) {
+    const noun = kind.toLowerCase();
     const config = CONFIG[kind];
     const row = await this.prisma.inOrg(orgId, () =>
       this.prisma.veleroResource.findFirst({ where: { clusterId, kind, name, deletedAt: null } }),
@@ -301,7 +302,7 @@ export class ResourcesService {
     // The same answer for "there is none" and "you may not see it": a 403 would
     // confirm that a backup of that name exists.
     if (row === null || !(visibility.all || visibility.sees(coveredBy(kind, row.spec)))) {
-      throw new NotFoundException(`${kind === 'BACKUP' ? 'backup' : 'restore'} not found`);
+      throw new NotFoundException(`${noun} not found`);
     }
 
     const related =
@@ -322,7 +323,7 @@ export class ResourcesService {
 
     const object = {
       apiVersion: 'velero.io/v1',
-      kind: kind === 'BACKUP' ? 'Backup' : 'Restore',
+      kind: noun.charAt(0).toUpperCase() + noun.slice(1),
       metadata: { name: row.name, namespace: row.namespace, labels: row.labels },
       spec: row.spec,
       status: row.status,

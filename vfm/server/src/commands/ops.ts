@@ -1,5 +1,10 @@
 import { buildCreateBackup } from '../backups/backup-request';
 import { buildCreateRestore } from '../restores/restore-request';
+import {
+  buildCreateSchedule,
+  buildSetSchedulePaused,
+  buildUpdateSchedule,
+} from '../schedules/schedule-request';
 import { DEFAULT_MAX_BYTES, partByKey } from '../downloads/parts';
 import type { Command } from '../gateway/pb/vfm/agent/v1/command';
 
@@ -46,6 +51,17 @@ const DEFINITIONS = {
   DELETE_RESTORE: {
     timeoutMs: 60_000,
     build: (payload) => ({ deleteRestore: { name: String(payload.name) } }),
+  },
+  /** `velero schedule create`; the payload is the validated API body. */
+  CREATE_SCHEDULE: { timeoutMs: 60_000, build: buildCreateSchedule },
+  /** Replaces a schedule's spec; the payload is its name and the validated body. */
+  UPDATE_SCHEDULE: { timeoutMs: 60_000, build: buildUpdateSchedule },
+  /** `velero schedule pause` / `unpause`. */
+  SET_SCHEDULE_PAUSED: { timeoutMs: 60_000, build: buildSetSchedulePaused },
+  /** `velero schedule delete`: the backups it made stay. */
+  DELETE_SCHEDULE: {
+    timeoutMs: 60_000,
+    build: (payload) => ({ deleteSchedule: { name: String(payload.name) } }),
   },
   /** `velero backup create --from-schedule`. */
   TRIGGER_SCHEDULE: {

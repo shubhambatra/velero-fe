@@ -1193,6 +1193,28 @@ paths:
       summary: Schedules you may see
       tags:
         - inventory
+    post:
+      description: "The template takes the fields of a backup. A user with a namespace-scoped binding must
+        name every namespace and set `template.includeClusterResources: false`. `advancedSpec` needs
+        `advanced:write`."
+      operationId: SchedulesController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create a schedule (velero schedule create)
+      tags:
+        - schedules
   /orgs/{orgId}/clusters/{clusterId}/backup-locations:
     get:
       operationId: ResourcesController_backupLocations
@@ -1355,6 +1377,82 @@ paths:
       summary: Delete a restore (velero restore delete)
       tags:
         - restores
+  /orgs/{orgId}/clusters/{clusterId}/schedules/{name}:
+    get:
+      operationId: ResourcesController_schedule
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One schedule: summary, spec, status and YAML. 404 if you may not see it."
+      tags:
+        - inventory
+    put:
+      description: The whole spec is replaced by the body. Hooks already on the template stay unless
+        `advancedSpec` sets them.
+      operationId: SchedulesController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Replace a schedule’s spec
+      tags:
+        - schedules
+    delete:
+      description: Needs recent re-authentication. The backups the schedule made stay.
+      operationId: SchedulesController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a schedule (velero schedule delete)
+      tags:
+        - schedules
   /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/trigger:
     post:
       description: Makes a backup from the schedule’s template. The caller needs `backup:create` over
@@ -1404,6 +1502,32 @@ paths:
       summary: Which of these namespaces exist now (the restore wizard’s impact summary)
       tags:
         - restores
+  /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/pause:
+    post:
+      description: 'Body: `{ "paused": true }` or `{ "paused": false }`.'
+      operationId: SchedulesController_setPaused
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Pause or resume a schedule (velero schedule pause / unpause)
+      tags:
+        - schedules
   /orgs/{orgId}/clusters/{clusterId}/backups/{name}/logs:
     post:
       operationId: DownloadsController_fetchBackupLog

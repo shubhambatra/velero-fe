@@ -23,7 +23,7 @@ export const PASSWORD = 'canopy-vellum-ratchet-82';
 const FINGERPRINT = 'f3a1c2d4-kube-system-uid-0001';
 
 export type Call = (
-  method: 'get' | 'post' | 'delete' | 'patch',
+  method: 'get' | 'post' | 'put' | 'delete' | 'patch',
   path: string,
   body?: object,
 ) => request.Test;

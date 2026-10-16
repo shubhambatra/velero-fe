@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-16 (end of session 6, day 9) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-16 (session 7, M4 day 25) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -90,12 +90,12 @@ change in `vfm/docs/DECISIONS.md`.
 
 ### 1. Close out M0 (finish before starting M1)
 
-| # | Task | Acceptance criteria | Verify with |
-|---|---|---|---|
-| 1 | Clear B-2, then build both clusters and pass the smoke test (R-129, R-130) | `velero backup create` reaches phase `Completed` on `vfm-a` **and** `vfm-b` | `./scripts/dev-up.sh && ./scripts/smoke.sh` in `vfm/deploy/dev` |
-| 2 | ~~Compile/vet/test~~ done 2026-10-16 (Go 1.27.2 in `~/.local/go`, `export PATH=$HOME/.local/go/bin:$PATH`); still to do: install `golangci-lint` and run it. Verify the agent (R-021, R-132) | `go build` and `go vet` clean, unit tests pass, `golangci-lint` clean, `go.sum` committed | `cd vfm/agent && go mod tidy && go build ./... && go test ./... && golangci-lint run ./...` |
-| 3 | ~~Confirm CI is green~~ — **done**: green on `ee17789`. The Go jobs begin running once `go.sum` is committed in task 2 | all jobs pass | `gh run list --workflow 'VFM CI'` |
-| 4 | Re-run `dev-up` twice to prove idempotency end to end (R-130) | the second run changes nothing and reports what it skipped; `kind-velero` untouched | `./scripts/dev-up.sh` twice |
+| #   | Task                                                                                                                                                                                         | Acceptance criteria                                                                       | Verify with                                                                                 |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 1   | Clear B-2, then build both clusters and pass the smoke test (R-129, R-130)                                                                                                                   | `velero backup create` reaches phase `Completed` on `vfm-a` **and** `vfm-b`               | `./scripts/dev-up.sh && ./scripts/smoke.sh` in `vfm/deploy/dev`                             |
+| 2   | ~~Compile/vet/test~~ done 2026-10-16 (Go 1.27.2 in `~/.local/go`, `export PATH=$HOME/.local/go/bin:$PATH`); still to do: install `golangci-lint` and run it. Verify the agent (R-021, R-132) | `go build` and `go vet` clean, unit tests pass, `golangci-lint` clean, `go.sum` committed | `cd vfm/agent && go mod tidy && go build ./... && go test ./... && golangci-lint run ./...` |
+| 3   | ~~Confirm CI is green~~ — **done**: green on `ee17789`. The Go jobs begin running once `go.sum` is committed in task 2                                                                       | all jobs pass                                                                             | `gh run list --workflow 'VFM CI'`                                                           |
+| 4   | Re-run `dev-up` twice to prove idempotency end to end (R-130)                                                                                                                                | the second run changes nothing and reports what it skipped; `kind-velero` untouched       | `./scripts/dev-up.sh` twice                                                                 |
 
 **Only when all four pass is M0 complete.** Record it in `vfm/docs/PROGRESS.md`
 and move R-021, R-129, R-130 and R-132 to ✅ in `DEVELOPMENT_STATUS.md`.
@@ -160,8 +160,8 @@ criteria are still unmet (B-1, B-2).
      (the gateway address must be reachable from the cluster: set `GATEWAY_PUBLIC_ADDRESS` and
      `GATEWAY_HOSTNAMES` accordingly). Confirm **Connected** and the Velero version.
   4. ⛔ **Human checkpoint**: install the agent on one real, non-kind cluster and confirm it connects.
-  (The cluster page already shows the Velero version and plugins, the agent version, an "update available"
-  badge and a Refresh button.)
+     (The cluster page already shows the Velero version and plugins, the agent version, an "update available"
+     badge and a Refresh button.)
 - **M3 day 16 done** (ADR-021): `agent/internal/inventory`.
 - **M3 day 17 done** (ADR-022): `server/src/{inventory,events}`, `velero_resources`, SSE `/api/v1/stream`.
 - **M3 day 18 done** (ADR-023): fleet overview, cluster overview, live updates (`web/src/lib/{events,fleet}.ts`, `pages/{overview,cluster}-page.tsx`).
@@ -171,7 +171,8 @@ criteria are still unmet (B-1, B-2).
 - **M4 day 22 done** (ADR-027): backup wizard, typed delete, command notifications, `GET …/access` (`web/src/pages/backup-wizard.tsx`, `web/src/lib/backup-form.ts`, `web/src/components/{toasts,confirm-delete}.tsx`).
 - **M4 day 23 done** (ADR-028): restore create / delete (`agent/internal/velero/restore*.go`, `server/src/restores/`).
 - **M4 day 24 done** (ADR-029): restore wizard with impact summary, `CheckNamespaces` (`web/src/pages/restore-wizard.tsx`, `web/src/lib/restore-form.ts`, `agent/internal/velero/namespaces.go`).
-- **Next: M4 day 25 — schedules** (plan line 731): `CreateSchedule`, `UpdateSchedule`, `SetSchedulePaused`, `DeleteSchedule` (agent `velero.ScheduleHandler`, server module like `backups/`), with a cron builder and a next-five-runs preview in the user's timezone (plan line 732: both belong to day 25; day 26 is storage locations). A schedule embeds a backup spec: reuse `BackupSpecMap`, `backupSpecShape` and `createCoverage` (authorize `schedule:write` over what the template covers; a schedule runs later, so the rule must be the same strict one). The ⛔ M3 human checkpoint is still open.
+- **M4 day 25 done** (ADR-030): schedules — create, update, pause/resume, delete (`agent/internal/velero/{schedule,cron}.go`, `server/src/schedules/`, `GET …/schedules/{name}`, `web/src/pages/schedule-wizard.tsx`, `web/src/components/{cron-builder,backup-fields}.tsx`, `web/src/lib/{cron,schedule-form}.ts`).
+- **Next: M4 day 26 — storage locations** (plan line 734): BSL/VSL upsert, delete, set-default; credential handling (transient, redacted, the agent writes the Secret); availability status display. Agent `UpsertBackupStorageLocation` etc. protos exist; `Policy.AllowBslWrite` already gates them. Then day 27 (write-ops test sweep, credentials never in DB dumps/logs/audit). The ⛔ M3 human checkpoint is still open.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---
@@ -184,7 +185,7 @@ criteria are still unmet (B-1, B-2).
   see `vfm/docs/DECISIONS.md` ADR-003 for why.
 - **Run VFM commands as `make -C vfm <target>`.** The `vfm/` workspace uses pnpm
   10.20.0 via corepack; the repository root uses npm and Nx. Never run `pnpm
-  install` at the repository root.
+install` at the repository root.
 - **Dev ports are deliberately non-default** (Postgres 55432, Valkey 56379,
   MinIO 59000/59001, Mailpit 51025/58025, Dex 55556) because 5432 is already
   taken on this machine. See `vfm/deploy/dev/README.md`.
@@ -203,7 +204,7 @@ criteria are still unmet (B-1, B-2).
 - **The e2e suite needs a `vfm_test` database**, which already exists locally.
   On a fresh machine: `docker exec vfm-dev-postgres createdb -U vfm vfm_test`
   then `DATABASE_URL=...vfm_test pnpm --filter @vfm/server exec prisma migrate
-  deploy`. Override targets with `TEST_DATABASE_URL` / `TEST_REDIS_URL`.
+deploy`. Override targets with `TEST_DATABASE_URL` / `TEST_REDIS_URL`.
 - **Org-scoped data needs a scope.** Any model with an `orgId` can only be
   queried inside `prisma.inOrg(orgId, …)` (or a reasoned `prisma.unscoped(…)`);
   otherwise it throws. A new table with an `orgId` is covered automatically; one

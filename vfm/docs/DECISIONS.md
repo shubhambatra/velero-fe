@@ -1673,3 +1673,42 @@ last; after removing it the restore was created with the mapping and the notific
 
 Real Velero and a real API server (B-2). Narrow viewports and keyboard-only use. A namespace-limited user in the
 browser (tests only). The sudo prompt in this flow (shown for backup delete; the same `api()` path).
+
+## ADR-030 — Schedules (M4 day 25)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decisions
+
+- **A schedule is authorized as the backups it will make.** `schedule:write` is required over everything the template
+  covers, by the same strict rule as a backup (`createCoverage`: namespaces named, `includeClusterResources: false`).
+  Changing an existing schedule also needs its **current** template in reach, so a scoped user cannot take over a wider
+  schedule by narrowing it; a schedule they cannot see is a 404. Pause/resume need `schedule:write`; delete needs
+  `schedule:delete` and a recent sign-in, and is closed to API tokens. `advancedSpec` (merged onto the template) needs
+  `advanced:write` on the whole cluster. `trigger` and the schedule rule share `templateCoverage`.
+- **Name ≤ 48 characters.** Its backups are `<name>-<14-digit stamp>`, which must fit a 63-character label.
+- **Cron is checked in three places and Velero stays the authority.** The server and the agent refuse an expression
+  Velero (robfig/cron's standard parser) would not read: five fields, `@yearly`-style descriptors, `@every <duration>`;
+  the web has its own parser for the preview. Hand-written rather than a dependency: the grammar is small and
+  `cron-parser` publishes new releases every few weeks. Velero reads the expression in its process's time zone,
+  normally UTC: the builder's hour is a UTC hour, and runs are listed in UTC and the viewer's own zone.
+- **Update replaces the spec, but keeps hooks.** The form cannot express hooks (they need `advanced:write`), so an
+  update that does not mention them leaves the template's hooks as they are rather than silently dropping what an
+  administrator set; sending `advancedSpec.hooks` replaces them. Other template settings the form has no input for
+  (metadata labels, the volume-group label key) are carried through by the edit form. Removing hooks therefore needs
+  `advancedSpec` or deleting the schedule.
+- **Detail endpoint.** `GET …/schedules/{name}` (same visibility as the list) feeds the edit form.
+- **One set of fields.** The backup spec fields live in `components/backup-fields.tsx` and serve both wizards.
+
+### Deferred
+
+"Restore latest" from a schedule; a schedule's own detail page; last-run status beyond the list; time-zone-aware
+`@every` previews (Velero counts from its own last run).
+
+### Verified
+
+Go: create, idempotent re-delivery, refused specs, advanced onto the template, update keeps identity and hooks, pause
+touches only `paused`, delete leaves backups, cron grammar. Server: 31 unit tests, 28 e2e tests (mutation check:
+removing the current-template authorization made a test fail). Web: cron parser and builder, form library (round trip
+of a stored spec), wizard create/edit and list actions. Driven in Chrome against the real server and Go handlers.

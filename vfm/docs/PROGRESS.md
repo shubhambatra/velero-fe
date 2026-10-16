@@ -9,6 +9,40 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M4 day 25: schedules
+
+Session 7, continued. CI green on day 24 (`f87a9f4`).
+
+### Done
+
+- Agent: `ScheduleHandler` (create, update, set paused, delete), cron validation (`cron.go`); a re-delivered create finds
+  its object; an update replaces the spec but keeps hooks the form cannot express (ADR-030).
+- Server: `schedules/` module (`POST/PUT …/schedules`, `POST …/schedules/{name}/pause`, `DELETE …/schedules/{name}`),
+  `GET …/schedules/{name}` detail, TypeScript cron validation; `trigger` now shares `templateCoverage`.
+- Web: schedule wizard (When with a cron builder and next-five-runs → what → storage → options → review, CLI
+  preview), edit from the stored spec, list actions (Run now, Edit, Pause/Resume, Delete with typed name), shared
+  `TemplateFields` extracted from the backup wizard.
+
+### Test status
+
+Server unit **766**, e2e **421** (28 new); web **327** (75 new); Go all packages pass (9 new), golangci-lint 0,
+govulncheck clean, `buf lint` clean; lint, typecheck, build clean; OpenAPI regenerated. Requirements **58/152
+(38.2 %)** (R-061, R-063, R-064 verified; R-070, R-106 notes updated).
+
+### Driven for real
+
+Chrome against a real server and the real Go handlers over mTLS: edited an existing schedule (pickers, next runs in UTC
+and IST, hooks and labels still present afterwards), created one through all five steps (the object the agent made
+matched the request), paused one, deleted one with the typed name.
+
+### Not verified
+
+Real Velero and a real API server (B-2): whether Velero accepts every generated schedule. Narrow viewports,
+keyboard-only use, a namespace-limited user in a real browser (tests only), the sudo prompt in the delete flow (fresh
+session). Next runs for `@every` are approximate.
+
+---
+
 ## 2026-10-16 — M4 day 24: restore wizard and the namespace check
 
 Session 7, continued. CI green on day 23 (`39d5351`).
@@ -22,7 +56,7 @@ Session 7, continued. CI green on day 23 (`39d5351`).
 
 ### Test status
 
-Server unit **735**, e2e **393** (9 new); web **252** (48 new); Go all packages pass (8 new), golangci-lint 0,
+Server unit **735**, e2e **393** (9 new); web **252** (48 new); Go all packages pass (9 new), golangci-lint 0,
 govulncheck clean, `buf lint` clean; lint, typecheck, build clean; OpenAPI regenerated. Requirements **55/152
 (36.2 %)** (R-070, R-106 notes updated).
 

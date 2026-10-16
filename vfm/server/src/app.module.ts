@@ -20,6 +20,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { BackupsModule } from './backups/backups.module';
 import { DownloadsModule } from './downloads/downloads.module';
 import { RestoresModule } from './restores/restores.module';
+import { SchedulesModule } from './schedules/schedules.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './health/health.module';
@@ -96,6 +97,7 @@ function prettyTransportAvailable(): boolean {
     InventoryModule,
     BackupsModule,
     RestoresModule,
+    SchedulesModule,
     DownloadsModule,
     EventsModule,
     AuthModule,

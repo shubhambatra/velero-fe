@@ -10,6 +10,7 @@ import { parseBody } from '../common/parse-body';
 import { coveredBy } from '../inventory/projections';
 import { PrismaService } from '../prisma/prisma.service';
 import { RbacService, type TokenLimit } from '../rbac/rbac.service';
+import { templateCoverage } from '../schedules/schedule-request';
 import { checkDurations, createBackupBody, createCoverage, triggerBody } from './backup-request';
 
 /** The advanced escape hatch is bounded: a spec has no business being larger. */
@@ -122,20 +123,7 @@ export class BackupsService {
     }
 
     // What the backup would reach, by the same rule as a backup made by hand.
-    const template =
-      typeof row.spec === 'object' && row.spec !== null && 'template' in row.spec
-        ? (row.spec as { template: unknown }).template
-        : undefined;
-    const t =
-      typeof template === 'object' && template !== null
-        ? (template as Record<string, unknown>)
-        : {};
-    const covered = createCoverage({
-      includedNamespaces: stringList(t.includedNamespaces),
-      includeClusterResources:
-        typeof t.includeClusterResources === 'boolean' ? t.includeClusterResources : undefined,
-      includedClusterScopedResources: stringList(t.includedClusterScopedResources),
-    });
+    const covered = templateCoverage(row.spec);
     await this.rbac.require(
       orgId,
       userId,
@@ -153,6 +141,3 @@ export class BackupsService {
     });
   }
 }
-
-const stringList = (v: unknown): string[] =>
-  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];

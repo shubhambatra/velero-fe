@@ -596,6 +596,35 @@ describe('lists and detail pages (e2e)', () => {
       stream.cancel();
     });
 
+    it('returns the stored spec to someone who may see it, and 404 to anyone else', async () => {
+      const { call, orgId, agent } = await setup();
+      const stream = await populate(agent, [
+        resource('dev-s', {
+          kind: K.RESOURCE_KIND_SCHEDULE,
+          phase: 'Enabled',
+          spec: {
+            schedule: '0 2 * * *',
+            template: { includedNamespaces: ['dev'], includeClusterResources: false },
+          },
+        }),
+        resource('prod-s', {
+          kind: K.RESOURCE_KIND_SCHEDULE,
+          phase: 'Enabled',
+          spec: { schedule: '@daily', template: { includedNamespaces: ['prod'] } },
+        }),
+      ]);
+      const url = (n: string) => `${base(orgId, agent)}/schedules/${n}`;
+      const detail = await get(call, url('dev-s'));
+      expect(detail.spec).toMatchObject({ schedule: '0 2 * * *' });
+      expect(detail.yaml).toContain('kind: Schedule');
+
+      const dev = await scopedUser(call, orgId, agent, ['dev']);
+      await get(dev.call, url('dev-s'));
+      await get(dev.call, url('prod-s'), 404);
+      await get(dev.call, url('ghost'), 404);
+      stream.cancel();
+    });
+
     it('shows a user with no binding nothing at all, not even that the cluster exists', async () => {
       const { call, orgId, agent } = await setup();
       const stream = await populate(agent, inventory());

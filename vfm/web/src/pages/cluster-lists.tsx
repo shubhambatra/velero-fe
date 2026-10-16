@@ -1,8 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 
 import { ClusterShell } from '@/components/cluster-shell';
+import { ConfirmDelete } from '@/components/confirm-delete';
 import { ResourceList, type Column } from '@/components/resource-list';
 import { Time } from '@/components/time';
 import { useToasts } from '@/components/toast-context';
@@ -235,34 +236,153 @@ export function RestoresPage({ orgId, clusterId }: Props): ReactElement {
   );
 }
 
-function RunNow({ orgId, clusterId, name }: Props & { name: string }): ReactElement {
+function NewScheduleLink({ orgId, clusterId }: Props): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  if (access.level('schedule:write') === 'none') {
+    return (
+      <div className="flex justify-end">
+        <Button disabled title={lacks('schedule:write')}>
+          New schedule
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-end">
+      <Link
+        to="/clusters/$clusterId/schedules/new"
+        params={{ clusterId }}
+        className={buttonVariants({ variant: 'primary' })}
+      >
+        New schedule
+      </Link>
+    </div>
+  );
+}
+
+/** Run now, edit, pause or resume, and delete: each disabled with its reason when not allowed. */
+function ScheduleActions({
+  orgId,
+  clusterId,
+  schedule,
+}: Props & { schedule: ScheduleRow }): ReactElement {
+  const { name } = schedule;
   const access = useAccess(orgId, clusterId);
   const { follow } = useToasts();
+  const [asking, setAsking] = useState(false);
+  const base = `/orgs/${orgId}/clusters/${clusterId}/schedules/${encodeURIComponent(name)}`;
+
   const run = useMutation({
-    mutationFn: () =>
-      api<{ id: string }>(
-        `/orgs/${orgId}/clusters/${clusterId}/schedules/${encodeURIComponent(name)}/trigger`,
-        { method: 'POST', body: {} },
-      ),
+    mutationFn: () => api<{ id: string }>(`${base}/trigger`, { method: 'POST', body: {} }),
     onSuccess: (command) => {
       follow({ orgId, clusterId, commandId: command.id, title: `Run schedule ${name} now` });
     },
   });
-  const none = access.level('backup:create') === 'none';
+  const pause = useMutation({
+    mutationFn: () =>
+      api<{ id: string }>(`${base}/pause`, { method: 'POST', body: { paused: !schedule.paused } }),
+    onSuccess: (command) => {
+      follow({
+        orgId,
+        clusterId,
+        commandId: command.id,
+        title: `${schedule.paused ? 'Resume' : 'Pause'} schedule ${name}`,
+      });
+    },
+  });
+  const remove = useMutation({
+    mutationFn: () => api<{ id: string }>(base, { method: 'DELETE' }),
+    onSuccess: (command) => {
+      follow({ orgId, clusterId, commandId: command.id, title: `Delete schedule ${name}` });
+      setAsking(false);
+    },
+  });
+
+  const noRun = access.level('backup:create') === 'none';
+  const noWrite = access.level('schedule:write') === 'none';
+  const noDelete = access.level('schedule:delete') === 'none';
   return (
     <span className="flex flex-col gap-1">
-      <Button
-        variant="outline"
-        disabled={none || run.isPending}
-        title={none ? lacks('backup:create') : undefined}
-        aria-label={`Run ${name} now`}
-        onClick={() => {
-          run.mutate();
-        }}
-      >
-        Run now
-      </Button>
-      <ErrorNote message={run.isError ? errorMessage(run.error) : undefined} />
+      <span className="flex flex-wrap gap-1">
+        <Button
+          variant="outline"
+          disabled={noRun || run.isPending}
+          title={noRun ? lacks('backup:create') : undefined}
+          aria-label={`Run ${name} now`}
+          onClick={() => {
+            run.mutate();
+          }}
+        >
+          Run now
+        </Button>
+        {noWrite ? (
+          <Button
+            variant="outline"
+            disabled
+            title={lacks('schedule:write')}
+            aria-label={`Edit ${name}`}
+          >
+            Edit
+          </Button>
+        ) : (
+          <Link
+            to="/clusters/$clusterId/schedules/$name/edit"
+            params={{ clusterId, name }}
+            aria-label={`Edit ${name}`}
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            Edit
+          </Link>
+        )}
+        <Button
+          variant="outline"
+          disabled={noWrite || pause.isPending}
+          title={noWrite ? lacks('schedule:write') : undefined}
+          aria-label={`${schedule.paused ? 'Resume' : 'Pause'} ${name}`}
+          onClick={() => {
+            pause.mutate();
+          }}
+        >
+          {schedule.paused ? 'Resume' : 'Pause'}
+        </Button>
+        <Button
+          variant="destructive"
+          disabled={noDelete}
+          title={noDelete ? lacks('schedule:delete') : undefined}
+          aria-label={`Delete ${name}`}
+          onClick={() => {
+            remove.reset();
+            setAsking(true);
+          }}
+        >
+          Delete
+        </Button>
+      </span>
+      <ErrorNote
+        message={
+          run.isError
+            ? errorMessage(run.error)
+            : pause.isError
+              ? errorMessage(pause.error)
+              : undefined
+        }
+      />
+      {asking && (
+        <ConfirmDelete
+          name={name}
+          title="Delete this schedule?"
+          consequence="The schedule stops making backups. The backups it has already made stay."
+          confirmLabel="Delete schedule"
+          busy={remove.isPending}
+          error={remove.isError ? errorMessage(remove.error) : undefined}
+          onConfirm={() => {
+            remove.mutate();
+          }}
+          onCancel={() => {
+            setAsking(false);
+          }}
+        />
+      )}
     </span>
   );
 }
@@ -289,11 +409,12 @@ export function SchedulesPage({ orgId, clusterId }: Props): ReactElement {
     { header: 'Keeps for', cell: (s) => s.ttl ?? '—' },
     {
       header: 'Actions',
-      cell: (s) => <RunNow orgId={orgId} clusterId={clusterId} name={s.name} />,
+      cell: (s) => <ScheduleActions orgId={orgId} clusterId={clusterId} schedule={s} />,
     },
   ];
   return (
     <ClusterShell orgId={orgId} clusterId={clusterId} tab="schedules">
+      <NewScheduleLink orgId={orgId} clusterId={clusterId} />
       <ResourceList<ScheduleRow>
         orgId={orgId}
         clusterId={clusterId}

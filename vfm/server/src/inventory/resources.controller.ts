@@ -244,4 +244,27 @@ export class ResourcesController {
       r.apiToken,
     );
   }
+
+  @Get('schedules/:name')
+  @AllowsApiToken()
+  @RequirePermission('schedule:read', { checkInHandler: true })
+  @ApiOperation({
+    summary: 'One schedule: summary, spec, status and YAML. 404 if you may not see it.',
+  })
+  schedule(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('orgId') o: string,
+    @Param('clusterId') c: string,
+    @Param('name') n: string,
+    @Req() r: Request,
+  ) {
+    return this.resources.detail(
+      parseBody(orgIdParam, o),
+      u.id,
+      parseBody(orgIdParam, c),
+      'SCHEDULE',
+      parseBody(nameParam, n),
+      r.apiToken,
+    );
+  }
 }
