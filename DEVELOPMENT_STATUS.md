@@ -47,14 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **47 / 152 — 30.9 %** |
-| Requirements partial | 28 |
-| Requirements not started | 75 |
+| **Requirements verified** | **48 / 152 — 31.6 %** |
+| Requirements partial | 31 |
+| Requirements not started | 71 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
 which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
-and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39; day 15 added R-021 and R-116 → 41, and R-049 (closing the chart-version gap) → 42; M3 day 16 added R-038, R-039, R-041 → 45; day 17 added R-037 and R-135 → 47._
+and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39; day 15 added R-021 and R-116 → 41, and R-049 (closing the chart-version gap) → 42; M3 day 16 added R-038, R-039, R-041 → 45; day 17 added R-037 and R-135 → 47; day 18 added R-108 → 48 (and moved R-104, R-106, R-109 to partial)._
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
 R-025, R-103, R-105, R-113, R-127, R-152.
@@ -107,7 +107,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
 | M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–15 built and verified in parts** (ADR-015…020); exit criteria NOT met — no cluster install (B-2); ⛔ human checkpoint pending |
-| M3 — Read-only Velero visibility (days 16–20) | 696–713 | **days 16–17 done** (agent inventory sync ADR-021; ingest and event stream ADR-022); day 18 next |
+| M3 — Read-only Velero visibility (days 16–20) | 696–713 | **days 16–18 done** (agent inventory sync ADR-021; ingest and event stream ADR-022; fleet and cluster overview ADR-023); day 19 next |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
 | M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
 | M6 — Alerts, reports, approvals (days 32–35) | 762–776 | not started |
@@ -747,22 +747,22 @@ make them obvious.
 |---|---|---|---|---|
 | R-102 | `/api/v1`, cursor pagination (max 200), documented filters and sorts, `X-Request-Id`, RFC 9457 problem+json | 445–447 | M1+ | 🟡 |
 | R-103 | OpenAPI 3.1 generated from decorators, committed as `server/openapi.yaml`, web client types generated from it | 445 | M0/M1 | ✅ (generation + committed contract verified in sync; generating *web types* from it is M1) |
-| R-104 | All endpoint groups of §10 implemented | 451–465 | M1–M6 | ⬜ |
+| R-104 | All endpoint groups of §10 implemented | 451–465 | M1–M6 | 🟡 auth, orgs, teams, SSO, tokens, audit, role bindings, clusters, commands, inventory, fleet, overview and the stream exist; lists, writes, logs, alerts, reports do not |
 | R-105 | `/healthz`, `/readyz` (DB + Redis), `/metrics` on a separate port, not publicly exposed | 466 | M0 | ✅ |
 
 ### §11 Web UI (lines 472–505)
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-106 | All 13 pages | 474–496 | M1–M6 | ⬜ |
+| R-106 | All 13 pages | 474–496 | M1–M6 | 🟡 login, MFA, org admin, add cluster, fleet overview and cluster overview exist; backups, restores, schedules, storage, wizards, log viewer, alerts and reports do not |
 | R-107 | UX rules: typed destructive confirmation plus sudo, command-status toasts, actions disabled-with-reason, user timezone with UTC on hover, dark/light, responsive to tablet, keyboard accessible, WCAG 2.1 AA, explanatory empty states | 500–505 | M1–M6 | 🟡 |
 
 ### §12 Security (lines 509–528)
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-108 | TLS everywhere; mTLS required for `Connect` and `RenewCertificate` | 512 | M2 | ⬜ |
-| R-109 | Internal CA key encrypted with `VFM_MASTER_KEY`; CA rotation with overlap via `HelloAck` | 513 | M2 | ⬜ |
+| R-108 | TLS everywhere; mTLS required for `Connect` and `RenewCertificate` | 512 | M2 | ✅ verified 2026-10-16: mTLS required for `Connect` and `RenewCertificate` (real handshakes in e2e, live runs); server TLS from the internal CA, agent pins it |
+| R-109 | Internal CA key encrypted with `VFM_MASTER_KEY`; CA rotation with overlap via `HelloAck` | 513 | M2 | 🟡 the CA key is envelope-encrypted with `VFM_MASTER_KEY` (verified); CA rotation with overlap via `HelloAck` is not built |
 | R-110 | All secrets from env or Kubernetes Secrets, never from committed config | 514 | all | ✅ for the control plane; the Helm Secret wiring lands in M8 |
 | R-111 | Strict CSP, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy` | 515 | M0 | 🟡 |
 | R-112 | Validation at every boundary; the agent treated as semi-trusted; everything escaped in the UI; JSON sizes capped | 516 | all | ✅ for the REST boundary (zod per route via `parseBody`) and the agent boundary (Hello, command results and inventory are validated, bounded and cleaned; an item cannot claim another object's identity) |

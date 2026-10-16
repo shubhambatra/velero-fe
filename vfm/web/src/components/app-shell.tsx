@@ -5,6 +5,7 @@ import { PRODUCT_NAME, PRODUCT_SHORT_NAME } from '@vfm/shared';
 
 import { HealthIndicator } from '@/components/health-indicator';
 import { OrgSwitcher } from '@/components/org-switcher';
+import { useLiveUpdates, useStreamStatus } from '@/lib/events';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { canAdminister } from '@/lib/types';
 import { useOrgs, useSession } from '@/lib/session';
@@ -45,6 +46,9 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
   const session = useSession();
   const { active } = useOrgs(session.status === 'ready');
   const showAdmin = session.status === 'ready' && canAdminister(active?.orgRole);
+  // One live stream for the active organization, for the whole signed-in app.
+  useLiveUpdates(session.status === 'ready' ? active?.id : undefined);
+  const stream = useStreamStatus();
   useEffect(() => {
     // PRODUCT_NAME in @vfm/shared is the single source of the product name
     // (PLAN.md §0); index.html can only carry a static copy for first paint.
@@ -72,6 +76,23 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
 
         <div className="ml-auto flex items-center gap-2">
           {session.status === 'ready' && <OrgSwitcher email={session.user.email} />}
+          {session.status === 'ready' && active !== undefined && (
+            <span
+              role="status"
+              className="text-xs text-muted-foreground"
+              title={
+                stream === 'live'
+                  ? 'Updates arrive as they happen.'
+                  : 'Live updates are not connected; this page refreshes every few seconds instead.'
+              }
+            >
+              {stream === 'live'
+                ? 'Live'
+                : stream === 'offline'
+                  ? 'Updates paused'
+                  : 'Reconnecting…'}
+            </span>
+          )}
           <HealthIndicator />
           <ThemeToggle />
         </div>

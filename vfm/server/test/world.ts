@@ -155,6 +155,7 @@ export function resource(
     uid?: string;
     rv?: string;
     status?: Record<string, unknown>;
+    spec?: Record<string, unknown>;
   } = {},
 ): ResourceItem {
   const kind = options.kind ?? ResourceKind.RESOURCE_KIND_BACKUP;
@@ -170,7 +171,7 @@ export function resource(
       apiVersion: 'velero.io/v1',
       kind: OBJECT_KIND[kind] ?? 'Backup',
       metadata: { name, namespace: 'velero', uid, creationTimestamp: '2026-10-16T01:00:00Z' },
-      spec: { storageLocation: 'default' },
+      spec: options.spec ?? { storageLocation: 'default' },
       status: {
         phase: options.phase ?? 'Completed',
         startTimestamp: '2026-10-16T01:00:05Z',

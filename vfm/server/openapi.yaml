@@ -1025,6 +1025,42 @@ paths:
       summary: Counts of Velero objects by kind and phase, for the kinds you may read
       tags:
         - inventory
+  /orgs/{orgId}/fleet:
+    get:
+      description: A section you may not read is null, not zero.
+      operationId: FleetController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Every cluster you can see, with backup, schedule and storage health
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/overview:
+    get:
+      operationId: FleetController_overview
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Health, versions, policy, storage locations and recent activity of one cluster
+      tags:
+        - inventory
   /stream:
     get:
       description: Events carry no object names. Re-read through the REST API on an event.

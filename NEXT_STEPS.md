@@ -164,7 +164,8 @@ criteria are still unmet (B-1, B-2).
   badge and a Refresh button.)
 - **M3 day 16 done** (ADR-021): `agent/internal/inventory`.
 - **M3 day 17 done** (ADR-022): `server/src/{inventory,events}`, `velero_resources`, SSE `/api/v1/stream`.
-- **Next: M3 day 18 — fleet overview + cluster overview UI** (plan line 705): fleet table/cards, needs-attention list, cluster overview tab, live updates via SSE. Use `GET /orgs/{orgId}/clusters` (status, versions, plugins, agent), `GET .../inventory` (counts by kind/phase) and `EventSource('/api/v1/stream')`: on an event, **re-read the REST endpoint** (events carry no object names by design); reconnect with backoff; the stream needs a session and an active org and is capped at 10 per user.
+- **M3 day 18 done** (ADR-023): fleet overview, cluster overview, live updates (`web/src/lib/{events,fleet}.ts`, `pages/{overview,cluster}-page.tsx`).
+- **Next: M3 day 19 — lists and detail pages** (plan line 708): backups, restores, schedules and storage (BSL/VSL/repositories) lists with filters, sorting and cursor pagination (max 200, R-102); backup and restore detail pages (spec, status, timeline, YAML). New REST endpoints read `velero_resources` (indexes exist on `(cluster_id, kind, phase)` and the start/completion columns); gate each by the kind's read permission (`inventory/kinds.ts`); a namespace-scoped user must be filtered by the backup's `spec.includedNamespaces` (not yet implemented anywhere: decide and record it). Enable the disabled tabs on `pages/cluster-page.tsx`.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

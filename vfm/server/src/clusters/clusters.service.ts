@@ -6,7 +6,7 @@ import { newId } from '../common/uuid';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env.schema';
 import { PrismaService } from '../prisma/prisma.service';
-import { RbacService } from '../rbac/rbac.service';
+import { RbacService, type TokenLimit } from '../rbac/rbac.service';
 import { StreamsService } from '../streams/streams.service';
 import { EnrollmentService } from './enrollment.service';
 import { buildInstallCommand } from './install-command';
@@ -122,22 +122,19 @@ export class ClustersService {
    * else those where a role binding gives `cluster:read`. A cluster the caller
    * cannot read does not appear, rather than appearing greyed out.
    */
-  async list(
-    orgId: string,
-    userId: string,
-    token?: { permissions: string[] | null; clusterIds: string[] | null },
-  ): Promise<ClusterView[]> {
+  async list(orgId: string, userId: string, token?: TokenLimit): Promise<ClusterView[]> {
     const clusters = await this.prisma.inOrg(orgId, () =>
       this.prisma.cluster.findMany({ orderBy: { name: 'asc' } }),
     );
 
-    const visible: Cluster[] = [];
-    for (const cluster of clusters) {
-      const { may } = await this.rbac.mayAttempt(orgId, userId, cluster.id, 'cluster:read', token);
-      if (may) {
-        visible.push(cluster);
-      }
-    }
+    const held = await this.rbac.matrix(
+      orgId,
+      userId,
+      clusters.map((c) => c.id),
+      ['cluster:read'],
+      token,
+    );
+    const visible = clusters.filter((c) => held.get(c.id)?.has('cluster:read') === true);
     return visible.map((c) => view(c, this.env.AGENT_CHART_VERSION));
   }
 

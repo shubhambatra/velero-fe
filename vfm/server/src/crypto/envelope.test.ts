@@ -37,7 +37,16 @@ describe('createKeyring', () => {
 
     expect(() => createKeyring(short)).toThrow(/VFM_MASTER_KEY/);
     expect(() => createKeyring(short)).toThrow(/32 bytes/);
-    expect(() => createKeyring(short)).not.toThrow(new RegExp(short.slice(0, 8)));
+    // A plain substring check: base64 contains `+` and `/`, so building a RegExp from
+    // random key material fails to compile a few percent of the time.
+    let message = '';
+    try {
+      createKeyring(short);
+    } catch (error) {
+      message = error instanceof Error ? error.message : '';
+    }
+    expect(message).not.toBe('');
+    expect(message).not.toContain(short.slice(0, 8));
   });
 
   it('accepts previous keys for decryption', () => {

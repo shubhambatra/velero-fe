@@ -9,6 +9,40 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M3 day 18: fleet overview and cluster overview, live
+
+Session 7, continued. CI green on day 17 (`a622daf`).
+
+### Done
+
+- Server: `RbacService.matrix()` (bulk permissions), `FleetService`, `GET /orgs/{id}/fleet` and
+  `.../clusters/{id}/overview`; the cluster list uses the bulk path (ADR-023).
+- Web: fleet overview (totals, needs-attention, cluster table), cluster overview page with disabled-with-reason
+  tabs, a time component (local with UTC on hover), the live-update hook with reconnect and polling fallback, and a
+  Live / Reconnecting / Updates paused indicator in the header.
+- Fixed a flaky M1 crypto test (random base64 compiled into a RegExp).
+
+### Test status
+
+Server unit **607**, e2e **271** (9 new); web **111** (62 new: 42 attention/totals/format, 8 stream, 13 page);
+Go unchanged; lint, typecheck, build clean; OpenAPI regenerated.
+
+### Driven for real
+
+Chrome + real server + the real Go agent code over a changing fake cluster: the fleet page updated live with no
+reload and the cluster page showed every section; see ADR-023.
+
+### Not verified
+
+Narrow viewports and keyboard-only use; real Velero (B-2); behind a buffering proxy.
+
+### Next
+
+M3 day 19 — lists and detail pages: backups, restores, schedules, storage with filters, sorting and pagination;
+backup and restore detail pages.
+
+---
+
 ## 2026-10-16 — M3 day 17: inventory ingest and the event stream
 
 Session 7, continued. CI green on day 16 (`dd87f81`).

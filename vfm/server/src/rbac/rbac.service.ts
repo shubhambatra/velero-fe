@@ -4,6 +4,7 @@ import {
   mayAttempt,
   type AuthorizeRequest,
   type Decision,
+  type Permission,
   type Principal,
   type RoleBinding,
 } from '@vfm/shared';
@@ -81,6 +82,70 @@ export class RbacService {
       bindings: roleBindings,
       context: { allowBackupContentDownload: settings.allowBackupContentDownload },
     };
+  }
+
+  /**
+   * Which of `permissions` the user holds on each of `clusterIds`, in a fixed
+   * number of queries regardless of how many clusters there are. The fleet page
+   * needs this for every cluster at once; asking per cluster would be hundreds of
+   * round trips for the same answer. It evaluates with the same pure engine as
+   * every other check, so the two cannot disagree.
+   */
+  async matrix(
+    orgId: string,
+    userId: string,
+    clusterIds: readonly string[],
+    permissions: readonly Permission[],
+    token?: TokenLimit,
+  ): Promise<Map<string, Set<Permission>>> {
+    const result = new Map<string, Set<Permission>>();
+    if (clusterIds.length === 0) {
+      return result;
+    }
+    const [membership, teams, bindings, org] = await this.prisma.inOrg(orgId, () =>
+      Promise.all([
+        this.prisma.membership.findUnique({
+          where: { orgId_userId: { orgId, userId } },
+          select: { orgRole: true },
+        }),
+        this.prisma.teamMember.findMany({ where: { userId }, select: { teamId: true } }),
+        this.prisma.roleBinding.findMany({
+          where: { clusterId: { in: [...clusterIds] } },
+          select: { clusterId: true, subjectType: true, subjectId: true, role: true, scope: true },
+        }),
+        this.prisma.organization.findUnique({ where: { id: orgId }, select: { settings: true } }),
+      ]),
+    );
+
+    const principal: Principal = {
+      userId,
+      orgRole: membership?.orgRole,
+      teamIds: teams.map((t) => t.teamId),
+      ...(token === undefined
+        ? {}
+        : { tokenLimit: { permissions: token.permissions, clusterIds: token.clusterIds } }),
+    };
+    const context = {
+      allowBackupContentDownload: parseOrgSettings(org?.settings).allowBackupContentDownload,
+    };
+    const byCluster = new Map<string, RoleBinding[]>();
+    for (const binding of bindings) {
+      const list = byCluster.get(binding.clusterId) ?? [];
+      list.push(binding);
+      byCluster.set(binding.clusterId, list);
+    }
+
+    for (const clusterId of clusterIds) {
+      const mine = byCluster.get(clusterId) ?? [];
+      const held = new Set<Permission>();
+      for (const permission of permissions) {
+        if (mayAttempt(principal, clusterId, permission, mine, context)) {
+          held.add(permission);
+        }
+      }
+      result.set(clusterId, held);
+    }
+    return result;
   }
 
   async decide(

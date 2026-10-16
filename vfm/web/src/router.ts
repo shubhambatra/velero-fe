@@ -2,6 +2,7 @@ import { createRouter } from '@tanstack/react-router';
 
 import {
   auditRoute,
+  clusterRoute,
   clustersRoute,
   loginRoute,
   membersRoute,
@@ -26,6 +27,7 @@ export const routeTree = rootRoute.addChildren([
   membersRoute,
   createOrgRoute,
   tokensRoute,
+  clusterRoute,
   clustersRoute,
   inviteRoute,
   teamsRoute,

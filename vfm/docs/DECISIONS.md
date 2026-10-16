@@ -1302,3 +1302,72 @@ a secret was never stored.
 Per-kind filtering cannot yet differ for a browser session: every built-in role grants all five read
 permissions together, so it is exercised only through API-token limits. Nothing ran against a real Velero. The
 SSE has not been driven by a browser (no UI consumes it until day 18).
+
+---
+
+## ADR-023 — Fleet and cluster overview (M3 day 18)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+**Server**
+
+- `GET /orgs/{orgId}/fleet` returns every cluster the caller can see with its backup, schedule and
+  storage health; `GET /orgs/{orgId}/clusters/{id}/overview` returns one cluster's health, inventory
+  counts, storage locations and recent backups and restores.
+- **Permissions are evaluated in bulk.** `RbacService.matrix()` answers "which of these permissions does
+  this user hold on each of these clusters" in four queries however many clusters there are, using the same
+  pure engine as every other check, so the two cannot disagree. The fleet page would otherwise have cost
+  hundreds of round trips; the existing cluster list now uses it too (its e2e tests pass unchanged).
+- **A section the caller may not read is `null`, never zero.** A zero would itself tell a restricted user
+  something. The client in turn never sums across a cluster it cannot fully read: a total that would include
+  an unreadable cluster is shown as "—", not as a partial number presented as the whole.
+- The latest finished backup per cluster is found with one grouped maximum and one lookup of those rows,
+  rather than by loading every backup.
+
+**Web**
+
+- **Fleet overview** (`/`): totals, a "needs attention" list, and a table of clusters with last backup,
+  schedules and storage health. **Cluster overview** (`/clusters/:id`): health, versions with plugins, the
+  agent's policy, storage locations with their state and message, recent backups and restores, an inventory
+  empty state, and a Refresh button that is disabled, with the reason, when the agent is not connected.
+- **"Needs attention" is a pure function with a table test per rule** (`lib/fleet.ts`): disconnected,
+  enrolled-but-never-connected, pending, unavailable storage, a failed or partially failed last backup, invalid
+  schedules, stale inventory, an outdated agent. A disabled cluster is never flagged; a `null` section produces
+  nothing; ordering is errors, warnings, notes, then by name, with stable keys.
+- **Live updates use the stream only as a nudge.** Events carry no data (ADR-022); on one, the fleet and
+  cluster queries of that organization are re-read through the REST API, debounced to 300 ms, and also on every
+  (re)connect, because whatever changed while the stream was down is found only by looking. A browser that has
+  given up on the stream (an HTTP error) is reconnected by hand with backoff; while the stream is not live the
+  pages poll every 15 s, and every 2 min when it is (a safety net, not the mechanism). A "Live / Reconnecting /
+  Updates paused" indicator is always in the header so nobody trusts a screen that has stopped updating.
+- Tabs that do not exist yet (Backups, Restores, Schedules, Storage, Workloads, Events, Activity, Access) are
+  **visible but disabled with the reason** (PLAN §11.2); none is a mock-up. Times show in the viewer's timezone
+  with the UTC instant on hover.
+
+### Verified
+
+Server: 9 e2e tests over real gRPC and PostgreSQL (health summaries, a never-reported cluster, per-cluster
+isolation, visibility with and without a binding, organization isolation, `null` sections under narrowed API
+tokens, the overview's storage-location parsing and recent activity, 404s). Web: 42 unit tests (every attention
+rule, totals including the partial-sum refusal, phase tones, relative time, durations), 8 for the stream with a
+fake `EventSource` (debounce, org-scoped invalidation, reconnect with growing delay, backoff reset, no effect
+after close, no `EventSource`), and 13 page tests. **Driven for real in Chrome** against a real server and the
+real Go agent code feeding a changing fake cluster: the fleet page updated with no reload (the Velero version
+appeared from the server's on-connect refresh; the backup count rose, a partially-failed then failed last backup, an
+unavailable storage location and an invalid schedule each appeared as attention items), the "Live" indicator showed, the
+cluster page rendered every section, and the agent's exit surfaced as "disconnected" on its own.
+
+### Found along the way
+
+An unrelated crypto unit test from M1 built a `RegExp` from random base64, which fails to compile when the
+string starts with `+` or `/`, so it failed a few percent of the time. It now compares plain substrings (40 clean
+runs). A stray `prettier --write` run from `server/` kept reformatting the generated protobuf stubs; they were
+restored each time and are covered by `.prettierignore` only from the repository root.
+
+### Not verified
+
+The pages at narrow widths and by keyboard only (I did not drive them); real Velero data; the stream through a
+buffering proxy (the server sets `X-Accel-Buffering: no`, untested behind one).
