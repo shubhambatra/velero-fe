@@ -47,14 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **45 / 152 — 29.6 %** |
-| Requirements partial | 29 |
-| Requirements not started | 76 |
+| **Requirements verified** | **47 / 152 — 30.9 %** |
+| Requirements partial | 28 |
+| Requirements not started | 75 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
 which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
-and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39; day 15 added R-021 and R-116 → 41, and R-049 (closing the chart-version gap) → 42; M3 day 16 added R-038, R-039, R-041 → 45._
+and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39; day 15 added R-021 and R-116 → 41, and R-049 (closing the chart-version gap) → 42; M3 day 16 added R-038, R-039, R-041 → 45; day 17 added R-037 and R-135 → 47._
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
 R-025, R-103, R-105, R-113, R-127, R-152.
@@ -107,7 +107,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
 | M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
 | M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–15 built and verified in parts** (ADR-015…020); exit criteria NOT met — no cluster install (B-2); ⛔ human checkpoint pending |
-| M3 — Read-only Velero visibility (days 16–20) | 696–713 | **day 16 done** (agent inventory sync, ADR-021); day 17 next |
+| M3 — Read-only Velero visibility (days 16–20) | 696–713 | **days 16–17 done** (agent inventory sync ADR-021; ingest and event stream ADR-022); day 18 next |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
 | M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
 | M6 — Alerts, reports, approvals (days 32–35) | 762–776 | not started |
@@ -655,7 +655,7 @@ make them obvious.
 | R-034 | `ServerMessage` payloads: HelloAck, Command, CancelCommand, StartLogSession, StopLogSession, RequestResync | 209–219 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-035 | `Command` with all 16 operations | 221–243 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-036 | `advanced_spec_json` escape hatch, merged then validated agent-side against the Velero type with unknown-field rejection, gated on `advanced:write` | 246 | M4 | ⬜ |
-| R-037 | Inventory snapshot chunked to ≤ 1 MB with snapshot id and sequence; atomic replace on the last chunk | 250 | M3 | 🟡 agent side verified (≤1 MB chunks, id, contiguous sequence, last flag); atomic replace on the server is day 17 |
+| R-037 | Inventory snapshot chunked to ≤ 1 MB with snapshot id and sequence; atomic replace on the last chunk | 250 | M3 | ✅ verified 2026-10-16: ≤1 MB chunks with id and sequence (agent); atomic replace on the last chunk, discard on disconnect (server e2e); live run with the real agent |
 | R-038 | Informer deltas batched and debounced: max 2 s, max 500 items | 251 | M3 | ✅ verified 2026-10-16: agent debounces to 2 s and 500 per batch (informer-backed tests) |
 | R-039 | Full resync every 10 minutes or on `RequestResync` | 252 | M3 | ✅ verified 2026-10-16: agent resyncs on a timer and on `RequestResync` (tests); the server does not yet send `RequestResync` |
 | R-040 | All Velero and core kinds of §5.3 synced, subject to detected-version capabilities | 253 | M3/M5 | 🟡 all eleven Velero kinds with detected capabilities; core kinds (Node, Namespace, Pod, PVC, Event) are M5 |
@@ -765,7 +765,7 @@ make them obvious.
 | R-109 | Internal CA key encrypted with `VFM_MASTER_KEY`; CA rotation with overlap via `HelloAck` | 513 | M2 | ⬜ |
 | R-110 | All secrets from env or Kubernetes Secrets, never from committed config | 514 | all | ✅ for the control plane; the Helm Secret wiring lands in M8 |
 | R-111 | Strict CSP, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy` | 515 | M0 | 🟡 |
-| R-112 | Validation at every boundary; the agent treated as semi-trusted; everything escaped in the UI; JSON sizes capped | 516 | all | ✅ for the REST boundary (zod per route via `parseBody`); the agent boundary arrives with the gateway in M2 |
+| R-112 | Validation at every boundary; the agent treated as semi-trusted; everything escaped in the UI; JSON sizes capped | 516 | all | ✅ for the REST boundary (zod per route via `parseBody`) and the agent boundary (Hello, command results and inventory are validated, bounded and cleaned; an item cannot claim another object's identity) |
 | R-113 | Central `redact()` before logging, before `commands.payload`, before audit details, with credential-field tests | 517 | M0 | ✅ |
 | R-114 | `pnpm audit`, `govulncheck` and Trivy in CI, failing on high/critical | 518 | M0 | 🟡 |
 | R-115 | Containers non-root, read-only root filesystem, all capabilities dropped, seccomp RuntimeDefault | 519 | M2/M8 | ⬜ |
@@ -803,7 +803,7 @@ make them obvious.
 | R-132 | Agent unit tests: command→CR mapping per op, policy, idempotency, redaction, capability gating | 587 | M2+ | 🟡 existing config/health/leader tests pass; per-op/policy/idempotency tests arrive with M2 |
 | R-133 | Agent integration via envtest with Velero CRDs, including the DownloadRequest flow | 588 | M3 | ⬜ |
 | R-134 | Server unit tests: RBAC and namespace scope (50+ cases), org isolation, command state machine, crypto, redaction, alert rules | 589 | M1+ | 🟡 355 unit + 121 e2e + 121 shared; RBAC (66 cases) and org isolation covered; command state machine, alert rules arrive with their features |
-| R-135 | Server integration via Testcontainers plus an in-process fake agent over real gRPC: enrollment, mTLS, reconnect, re-delivery, revocation, SSE fan-out across two instances | 590 | M2 | ⬜ |
+| R-135 | Server integration via Testcontainers plus an in-process fake agent over real gRPC: enrollment, mTLS, reconnect, re-delivery, revocation, SSE fan-out across two instances | 590 | M2 | ✅ verified 2026-10-16: in-process fake agent over real gRPC/mTLS covers enrollment, mTLS, reconnect, re-delivery, revocation and SSE fan-out across two replicas |
 | R-136 | Web unit tests: form→payload mapping, CLI-equivalent generator, permission-disabled states | 591 | M3+ | 🟡 |
 | R-137 | Playwright e2e against kind, MinIO and Velero | 592 | M2+ | ⬜ |
 | R-138 | Security tests: cross-org access on every endpoint generated from OpenAPI, scope enforcement, CSRF, rate limits, agent cannot report for another cluster | 593 | M7 | ⬜ |

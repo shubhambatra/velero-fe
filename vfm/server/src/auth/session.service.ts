@@ -122,6 +122,20 @@ export class SessionService {
     return record;
   }
 
+  /**
+   * Whether a session is still live, **without** extending it. A long-lived SSE
+   * connection checks this periodically: using `touch` would let an open browser
+   * tab keep a session alive forever, defeating the idle timeout.
+   */
+  async isLive(id: string): Promise<boolean> {
+    const raw = await this.redis.connection.get(sessionKey(id));
+    if (raw === null) {
+      return false;
+    }
+    const record = parse(raw);
+    return record !== null && Date.now() < record.absoluteExpiresAt && !record.mfaPending;
+  }
+
   /** Overwrites the mutable parts of a live session. */
   async update(
     id: string,

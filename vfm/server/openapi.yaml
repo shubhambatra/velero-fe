@@ -1005,6 +1005,37 @@ paths:
       summary: Cancel a command the agent has not started
       tags:
         - commands
+  /orgs/{orgId}/clusters/{clusterId}/inventory:
+    get:
+      operationId: InventoryController_summary
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Counts of Velero objects by kind and phase, for the kinds you may read
+      tags:
+        - inventory
+  /stream:
+    get:
+      description: Events carry no object names. Re-read through the REST API on an event.
+      operationId: StreamController_stream
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: "Server-sent events: cluster status, inventory changes and command progress"
+      tags:
+        - stream
   /healthz:
     get:
       description: Returns 200 while the process is able to serve requests.

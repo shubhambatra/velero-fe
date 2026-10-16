@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 
+import { EventsService } from '../events/events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { AgentMessage, ServerMessage } from '../gateway/pb/vfm/agent/v1/gateway';
@@ -70,6 +71,9 @@ export type AgentMessageHandler = (
   message: AgentMessage,
 ) => void | Promise<void>;
 
+/** Called when a stream that had been accepted has ended, for whatever reason. */
+export type DisconnectedHandler = (clusterId: string, orgId: string) => void | Promise<void>;
+
 /** Called once a stream has been accepted: the moment to re-deliver anything queued. */
 export type ConnectedHandler = (clusterId: string, orgId: string) => void | Promise<void>;
 
@@ -105,12 +109,14 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
   private readonly streams = new Map<string, LiveStream>();
   private readonly handlers: AgentMessageHandler[] = [];
   private readonly connectedHandlers: ConnectedHandler[] = [];
+  private readonly disconnectedHandlers: DisconnectedHandler[] = [];
   private subscriber: Redis | undefined;
   private timers: NodeJS.Timeout[] = [];
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly events: EventsService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -163,6 +169,11 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
   /** Registers a handler run after each accepted stream. Errors are logged, never fatal. */
   onConnected(handler: ConnectedHandler): void {
     this.connectedHandlers.push(handler);
+  }
+
+  /** Registers a handler run after an accepted stream ends. Errors are logged, never fatal. */
+  onDisconnected(handler: DisconnectedHandler): void {
+    this.disconnectedHandlers.push(handler);
   }
 
   /** Whether this replica holds the stream for `clusterId`. */
@@ -428,6 +439,7 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       }),
     );
     this.logger.log(`agent connected: cluster ${clusterId} on ${this.replicaId}`);
+    await this.events.publish({ type: 'cluster', orgId, clusterId, status: 'CONNECTED' });
   }
 
   private notifyConnected(identity: StreamIdentity): void {
@@ -435,6 +447,16 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       Promise.resolve(handler(identity.clusterId, identity.orgId)).catch((error: unknown) => {
         this.logger.warn(
           `a connected-handler failed for cluster ${identity.clusterId}: ${error instanceof Error ? error.message : 'unknown'}`,
+        );
+      });
+    }
+  }
+
+  private notifyDisconnected(identity: StreamIdentity): void {
+    for (const handler of this.disconnectedHandlers) {
+      Promise.resolve(handler(identity.clusterId, identity.orgId)).catch((error: unknown) => {
+        this.logger.warn(
+          `a disconnected-handler failed for cluster ${identity.clusterId}: ${error instanceof Error ? error.message : 'unknown'}`,
         );
       });
     }
@@ -480,6 +502,10 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
     const { clusterId, orgId } = live.identity;
     if (this.streams.get(clusterId) === live) {
       this.streams.delete(clusterId);
+      // Only the stream that was still the registered one: when a newer stream on
+      // this replica has already replaced it, running these would wipe that
+      // stream's state.
+      this.notifyDisconnected(live.identity);
     }
 
     // Remove the route only if it is still ours: a newer stream on another
@@ -500,7 +526,7 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       return;
     }
 
-    await this.prisma.inOrg(orgId, () =>
+    const changed = await this.prisma.inOrg(orgId, () =>
       this.prisma.cluster.updateMany({
         // Only a cluster that is still marked connected: never resurrect a
         // DISABLED one, and never overwrite a newer connection's status.
@@ -509,6 +535,9 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       }),
     );
     this.logger.log(`agent disconnected: cluster ${clusterId}`);
+    if (changed.count > 0) {
+      await this.events.publish({ type: 'cluster', orgId, clusterId, status: 'DISCONNECTED' });
+    }
   }
 
   /** Ends a stream with a gRPC status the agent can act on. Idempotent. */
@@ -590,6 +619,14 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
         }),
       );
       marked += result.count;
+      if (result.count > 0) {
+        await this.events.publish({
+          type: 'cluster',
+          orgId: cluster.orgId,
+          clusterId: cluster.id,
+          status: 'DISCONNECTED',
+        });
+      }
     }
     return marked;
   }

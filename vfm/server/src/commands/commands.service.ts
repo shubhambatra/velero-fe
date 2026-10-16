@@ -16,6 +16,7 @@ import type { Command as CommandRow, Prisma } from '@prisma/client';
 import { newId } from '../common/uuid';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env.schema';
+import { EventsService } from '../events/events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { ErrorCode } from '../gateway/pb/vfm/agent/v1/common';
@@ -88,6 +89,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly streams: StreamsService,
+    private readonly events: EventsService,
     @Inject(ENV) env: Env,
   ) {
     this.options = { refreshOnConnect: env.COMMANDS_REFRESH_ON_CONNECT };
@@ -159,7 +161,19 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
         `could not send command ${row.id}: ${error instanceof Error ? error.message : 'unknown'}`,
       );
     });
-    return view(await this.find(orgId, clusterId, row.id));
+    const created = view(await this.find(orgId, clusterId, row.id));
+    await this.announce(orgId, clusterId, created.id, created.status);
+    return created;
+  }
+
+  /** Tells subscribed browsers a command moved; they re-read it through the REST API. */
+  private announce(
+    orgId: string,
+    clusterId: string,
+    commandId: string,
+    status: string,
+  ): Promise<void> {
+    return this.events.publish({ type: 'command', orgId, clusterId, commandId, status });
   }
 
   async get(orgId: string, clusterId: string, commandId: string): Promise<CommandView> {
@@ -200,6 +214,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
         ServerMessage.fromPartial({ messageId: randomUUID(), cancel: { commandId } }),
       )
       .catch(() => false);
+    await this.announce(orgId, clusterId, commandId, 'CANCELLED');
     return view(await this.find(orgId, clusterId, commandId));
   }
 
@@ -258,6 +273,9 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
         }),
       );
       expired += result.count;
+      if (result.count > 0) {
+        await this.announce(command.orgId, command.clusterId, command.id, 'TIMED_OUT');
+      }
       if (result.count > 0 && command.status !== 'QUEUED') {
         await this.streams
           .send(
@@ -361,24 +379,37 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       return;
     }
     const now = new Date();
+    let moved = 0;
     await this.prisma.inOrg(row.orgId, async () => {
       if (state === CommandAckState.COMMAND_ACK_STATE_RUNNING) {
-        await this.prisma.command.updateMany({
-          where: { id: commandId, status: { in: statusesAccepting('running') } },
-          data: { status: 'RUNNING', startedAt: now },
-        });
+        moved = (
+          await this.prisma.command.updateMany({
+            where: { id: commandId, status: { in: statusesAccepting('running') } },
+            data: { status: 'RUNNING', startedAt: now },
+          })
+        ).count;
         // An ack that never arrived is still an ack: record it once.
         await this.prisma.command.updateMany({
           where: { id: commandId, ackedAt: null },
           data: { ackedAt: now },
         });
       } else {
-        await this.prisma.command.updateMany({
-          where: { id: commandId, status: { in: ['QUEUED', 'SENT'] } },
-          data: { status: 'ACKED', ackedAt: now },
-        });
+        moved = (
+          await this.prisma.command.updateMany({
+            where: { id: commandId, status: { in: ['QUEUED', 'SENT'] } },
+            data: { status: 'ACKED', ackedAt: now },
+          })
+        ).count;
       }
     });
+    if (moved > 0) {
+      await this.announce(
+        row.orgId,
+        row.clusterId,
+        commandId,
+        state === CommandAckState.COMMAND_ACK_STATE_RUNNING ? 'RUNNING' : 'ACKED',
+      );
+    }
   }
 
   private async onResult(
@@ -420,6 +451,10 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
         },
       }),
     );
+
+    if (updated.count > 0) {
+      await this.announce(row.orgId, row.clusterId, row.id, status);
+    }
 
     // Only a result that actually finished the command may change cluster facts:
     // a late duplicate for an already-timed-out command must not.

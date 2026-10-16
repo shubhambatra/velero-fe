@@ -163,7 +163,8 @@ criteria are still unmet (B-1, B-2).
   (The cluster page already shows the Velero version and plugins, the agent version, an "update available"
   badge and a Refresh button.)
 - **M3 day 16 done** (ADR-021): `agent/internal/inventory`.
-- **Next: M3 day 17 — inventory ingest (server)**: atomic snapshot replace keyed by snapshot id/sequence (discard an incomplete snapshot on disconnect), delta upsert/delete applied only on top of a fully received snapshot, `velero_resources` with extracted columns, validation of agent payloads (semi-trusted; reject unknown kinds, oversize, mismatched namespace), SSE `/stream` filtered per user permission. Register through `StreamsService.onAgentMessage`; send `RequestResync` when a delta names an unknown snapshot.
+- **M3 day 17 done** (ADR-022): `server/src/{inventory,events}`, `velero_resources`, SSE `/api/v1/stream`.
+- **Next: M3 day 18 — fleet overview + cluster overview UI** (plan line 705): fleet table/cards, needs-attention list, cluster overview tab, live updates via SSE. Use `GET /orgs/{orgId}/clusters` (status, versions, plugins, agent), `GET .../inventory` (counts by kind/phase) and `EventSource('/api/v1/stream')`: on an event, **re-read the REST endpoint** (events carry no object names by design); reconnect with backoff; the stream needs a session and an active org and is capped at 10 per user.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

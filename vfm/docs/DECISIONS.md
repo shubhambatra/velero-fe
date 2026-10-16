@@ -1219,3 +1219,86 @@ and after the control plane is killed and restarted a new snapshot containing ev
 The server does not ingest any of this yet (day 17). It accepts and ignores snapshot and event
 messages, which a test proves does not disturb the stream. Nothing has run against a real Velero
 or a real API server (B-2).
+
+---
+
+## ADR-022 — Inventory ingest and the event stream (M3 day 17)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+**`velero_resources`** follows §9: org and cluster, kind, namespace, name, uid, resource version,
+`phase`, `spec`/`status`/`labels` JSON, `created_by_vfm`, soft delete (`deleted_at`), unique on
+`(cluster_id, kind, namespace, name)`. Three timestamps (`started_at`, `completed_at`, `expires_at`) are
+extracted into columns, indexed with `(cluster_id, kind, phase)`, so lists can filter and sort without
+scanning JSON. Clusters gain `inventory_snapshot_id` and `inventory_synced_at`.
+
+**The ingest contract**
+
+- A snapshot is **assembled in memory per cluster and applied in one transaction** when its last chunk
+  arrives; readers see the old inventory or the new one, never half of either. A snapshot cut off by a
+  disconnect is discarded with the stream's state. A snapshot beginning while another is arriving
+  supersedes it.
+- Only **what changed** is written at a routine resync (compared by resource version, uid and deleted
+  state); absent objects are soft-deleted and a recreated object takes its row back.
+- A **delta** is accepted only against the snapshot currently applied and only in sequence. An unknown
+  snapshot, a gap, an out-of-order chunk or an oversize batch is not patched around: it is refused, the agent
+  is sent `RequestResync` (rate limited to one per 5 s), and after a gap deltas are ignored until a new snapshot.
+  A replayed batch is ignored. A delete applies only if the uid matches, so a stale delete cannot remove an
+  object recreated under the same name.
+- Per-cluster ingest state is keyed by the **authenticated stream**: an agent cannot write another cluster's
+  inventory, and a stream that was refused at Hello is never heard.
+
+**Validation (the agent is semi-trusted, §12)**
+
+- Only the eleven Velero kinds are accepted; the core kinds in the protocol enum wait for M5.
+- The identity an item claims (kind, namespace, name, uid) must **equal the object it carries**, so an agent
+  cannot file one object under another's name. Names, namespaces and uids must be well-formed; objects over
+  256 KB, non-JSON, or without metadata are refused.
+- Nothing is stored as sent: strings are bounded and stripped of control characters, labels capped at 64,
+  timestamps parsed or dropped (implausible years are dropped). One bad item is skipped and counted; the rest of
+  its snapshot is applied. Limits: 50 000 objects and 128 MB per snapshot (above that the snapshot is discarded
+  and logged, not retried: asking again would repeat it).
+
+**Events (`/api/v1/stream`, SSE)**
+
+- Events are **thin**: they say a kind changed on a cluster (or a cluster's status, or a command's status),
+  never which object or what it holds. The browser re-reads through the REST API, which applies the full
+  rules, so exactly one place decides what a user may see, and the stream cannot be a channel for learning
+  names.
+- Every event is checked against the **receiving user's** permissions (`cluster:read`, or the kind's read
+  permission) before it is written, and against the user's active organization. A doubt (a failed check)
+  denies. Decisions are cached per connection for 10 s: that is the bound on how long a revoked grant keeps
+  delivering, stated rather than hidden.
+- Sessions only (an API token has no business holding a browser stream). At most 10 streams per user (`429`
+  beyond). The stream ends when its session does (checked every minute with a read that does **not** extend the
+  session: an open tab must not defeat the idle timeout). `X-Accel-Buffering: no` and a ping every 25 s keep
+  proxies honest.
+- Events travel through Redis pub/sub, so a change handled by one replica reaches the streams held by another.
+  Events are published for cluster status (connect, disconnect, sweeper), inventory and command progress.
+- Written with the Express response directly rather than RxJS `@Sse`, to avoid a new dependency.
+
+**Read model:** `GET .../inventory` returns counts by kind and phase and when the cluster last synced. A kind
+the caller may not read is **absent, not zero**; zero would itself be information. API-token limits apply (a
+bug the test caught: the first version ignored the token and listed every kind).
+
+### Verified
+
+Ingest: 20 e2e tests over real gRPC/mTLS and PostgreSQL (multi-chunk and empty snapshots, atomic swap with the
+old inventory visible until the last chunk, discard on disconnect, out-of-sequence, supersession, revival,
+only-what-changed, delta ordering/replay/unknown snapshot/gap/stale delete, forged identity and unsupported
+kinds while good items are applied, cross-cluster isolation, a refused stream is not heard, counts, token
+narrowing, 404, cascade) plus 21 validation unit tests. Events: 11 e2e tests over real HTTP with two replicas
+(statuses and inventory, no names in events, delivery across replicas, per-user visibility and the moment a
+grant arrives, revocation within the window, org isolation, auth, the stream cap, session end); three mutations
+(no permission check; other orgs' events; no kind filter) each failed a test. Live: the real Go agent's syncer
+fed the real server: a snapshot, a create, an update and a delete landed, and a last-applied annotation containing
+a secret was never stored.
+
+### Not verified / honest limits
+
+Per-kind filtering cannot yet differ for a browser session: every built-in role grants all five read
+permissions together, so it is exercised only through API-token limits. Nothing ran against a real Velero. The
+SSE has not been driven by a browser (no UI consumes it until day 18).

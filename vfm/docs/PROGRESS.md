@@ -9,6 +9,43 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M3 day 17: inventory ingest and the event stream
+
+Session 7, continued. CI green on day 16 (`dd87f81`).
+
+### Done
+
+- `velero_resources` + cluster snapshot columns (migration), validation and extraction, the ingest service
+  (atomic snapshot replace, ordered deltas, fallbacks to a resync), the inventory summary endpoint (ADR-022).
+- `events` module: Redis-backed publish/subscribe and `GET /api/v1/stream` (SSE) with per-user filtering, caps
+  and session-bound lifetime. Cluster status, inventory and command progress are published.
+- `world.ts` test helper; `StreamsService.onDisconnected`; `SessionService.isLive`.
+
+### Test status
+
+Server unit **607**, e2e **262** (20 inventory, 11 SSE, one stream-ingest-tolerance already existed); web 49;
+Go unchanged; lint, typecheck, build clean; OpenAPI regenerated.
+
+### Found by testing
+
+The inventory summary ignored an API token's narrowed permissions (listed every kind). Fixed and covered.
+
+### Verified live
+
+Real Go syncer → real server: snapshot, create, update and delete reached `velero_resources`; the last-applied
+annotation was not stored.
+
+### Not verified
+
+A real Velero (B-2); a browser consuming the stream (day 18); per-kind filtering for sessions (no role can differ
+yet).
+
+### Next
+
+M3 day 18 — fleet overview and cluster overview UI, live updates via SSE.
+
+---
+
 ## 2026-10-16 — M3 day 16: inventory sync on the agent
 
 Session 7, continued. CI was green on all five jobs at `0bbdafb`.

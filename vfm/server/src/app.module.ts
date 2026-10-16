@@ -15,6 +15,8 @@ import { SessionGuard } from './auth/session.guard';
 import { SudoGuard } from './auth/sudo.guard';
 import { ClustersModule } from './clusters/clusters.module';
 import { CommandsModule } from './commands/commands.module';
+import { EventsModule } from './events/events.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './health/health.module';
@@ -88,6 +90,8 @@ function prettyTransportAvailable(): boolean {
     ClustersModule,
     GatewayModule,
     CommandsModule,
+    InventoryModule,
+    EventsModule,
     AuthModule,
     HealthModule,
   ],

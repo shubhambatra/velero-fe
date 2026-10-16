@@ -138,14 +138,15 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships   Membership[]
-  teams         Team[]
-  invites       Invite[]
-  oidcProviders OidcProvider[]
-  roleBindings  RoleBinding[]
-  apiTokens     ApiToken[]
-  clusters      Cluster[]
-  commands      Command[]
+  memberships     Membership[]
+  teams           Team[]
+  invites         Invite[]
+  oidcProviders   OidcProvider[]
+  roleBindings    RoleBinding[]
+  apiTokens       ApiToken[]
+  clusters        Cluster[]
+  commands        Command[]
+  veleroResources VeleroResource[]
 
   @@map("organizations")
 }
@@ -516,6 +517,11 @@ model Cluster {
 
   lastSeenAt DateTime? @map("last_seen_at") @db.Timestamptz(6)
 
+  /// The last inventory snapshot fully applied, and when. A delta that names any
+  /// other snapshot is refused and answered with a request for a new one.
+  inventorySnapshotId String?   @map("inventory_snapshot_id")
+  inventorySyncedAt   DateTime? @map("inventory_synced_at") @db.Timestamptz(6)
+
   labels             Json    @default("{}")
   grafanaUrlTemplate String? @map("grafana_url_template")
 
@@ -527,6 +533,7 @@ model Cluster {
   certificates    AgentCertificate[]
   roleBindings    RoleBinding[]
   commands        Command[]
+  veleroResources VeleroResource[]
 
   @@unique([orgId, name])
   @@index([orgId, status])
@@ -657,4 +664,62 @@ model Command {
   @@index([orgId, createdAt])
   @@index([status, deadlineAt])
   @@map("commands")
+}
+
+/// A Velero object as last reported by a cluster's agent (PLAN.md §9, §5.3).
+///
+/// Everything here is **agent-reported and therefore semi-trusted** (§12): it is
+/// validated on the way in, shown only as data, and never an input to an
+/// authorization decision. `spec`, `status` and `labels` are the object's own
+/// JSON; the typed columns are extracted from it so lists can filter and sort
+/// without scanning JSON.
+///
+/// Deletion is soft (`deletedAt`) so history such as "a backup that existed" is
+/// not lost to an agent that missed nothing. The unique key is the identity the
+/// agent reports, and a recreated object of the same name takes the row over.
+model VeleroResource {
+  id String @id @db.Uuid
+
+  orgId     String @map("org_id") @db.Uuid
+  clusterId String @map("cluster_id") @db.Uuid
+
+  /// `ResourceKind` name without prefix: BACKUP, RESTORE, SCHEDULE, ...
+  kind      String
+  namespace String
+  name      String
+  uid       String
+
+  resourceVersion   String    @map("resource_version")
+  creationTimestamp DateTime? @map("creation_timestamp") @db.Timestamptz(6)
+
+  /// `status.phase`, bounded.
+  phase String?
+
+  startedAt   DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  spec   Json @default("{}")
+  status Json @default("{}")
+  labels Json @default("{}")
+
+  /// The object carries the `vfm.io/managed` annotation: created through this
+  /// control plane rather than with the Velero CLI.
+  createdByVfm Boolean @default(false) @map("created_by_vfm")
+
+  /// The snapshot that last wrote this row, for diagnosis.
+  snapshotId String? @map("snapshot_id")
+
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cluster Cluster      @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  @@unique([clusterId, kind, namespace, name])
+  @@index([clusterId, kind, phase])
+  @@index([clusterId, kind, startedAt])
+  @@index([clusterId, kind, completedAt])
+  @@index([orgId])
+  @@map("velero_resources")
 }
