@@ -47,14 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **30 / 152 — 19.7 %** |
-| Requirements partial | 26 |
-| Requirements not started | 94 |
+| **Requirements verified** | **32 / 152 — 21.1 %** |
+| Requirements partial | 29 |
+| Requirements not started | 89 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
 which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
-and R-025, which are 🟡 there. Today adds R-033, R-034, R-035, R-045 → 30._
+and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32._
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
 R-025, R-103, R-105, R-113, R-127, R-152.
@@ -73,7 +73,7 @@ rotation), and **R-110** (every secret from the environment — `VFM_MASTER_KEY`
 is now required and validated, and no secret is committed). Nothing else met
 its acceptance criteria.
 
-Verified in session 7 (M2 day 10): **R-033**, **R-034**, **R-035**, **R-045** — the protocol messages, all 16 command ops and the error enum, as a proto contract with generated stubs round-tripped on both ends.
+Verified in session 7 (M2 days 10–11): **R-026** (bootstrap tokens), **R-029** (internal CA and 7-day SPIFFE certificates), **R-033**, **R-034**, **R-035**, **R-045** — the protocol messages, all 16 command ops and the error enum, as a proto contract with generated stubs round-tripped on both ends.
 
 Verified in session 4 (M1 day 6): **R-084** (every query on an org-owned model
 is org-scoped by a Prisma client extension, with tests that fail when a model is
@@ -106,7 +106,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
 | M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
-| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **day 10 done** (proto contract, ADR-015); day 11 next |
+| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–11 done** (proto contract ADR-015; CA, enrollment, gateway, add-cluster UI ADR-016); day 12 next |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
 | M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
@@ -637,12 +637,12 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-026 | Bootstrap token: 32 random bytes, stored hashed, 24 h expiry, bound to the cluster, burned on use | 177–181 | M2 | ⬜ |
+| R-026 | Bootstrap token: 32 random bytes, stored hashed, 24 h expiry, bound to the cluster, burned on use | 177–181 | M2 | ✅ verified 2026-10-16: real mTLS handshakes, e2e + live run |
 | R-027 | Agent generates an ECDSA P-256 keypair; the private key never leaves the cluster | 179 | M2 | ⬜ |
-| R-028 | `clusterFingerprint` = `kube-system` namespace UID, used to detect reinstallation into a different cluster | 180 | M2 | ⬜ |
-| R-029 | Internal CA signs a 7-day client certificate with SAN `spiffe://vfm/cluster/{id}` | 181 | M2 | ⬜ |
-| R-030 | Certificate renewed at 2/3 of lifetime via `RenewCertificate`, authenticated by the current cert | 182 | M2 | ⬜ |
-| R-031 | Revocation: deny-list by serial checked on connect; open streams closed immediately | 183 | M2 | ⬜ |
+| R-028 | `clusterFingerprint` = `kube-system` namespace UID, used to detect reinstallation into a different cluster | 180 | M2 | 🟡 server records and enforces it (e2e); the agent computing it is day 12 |
+| R-029 | Internal CA signs a 7-day client certificate with SAN `spiffe://vfm/cluster/{id}` | 181 | M2 | ✅ verified 2026-10-16: real mTLS handshakes, e2e + live run |
+| R-030 | Certificate renewed at 2/3 of lifetime via `RenewCertificate`, authenticated by the current cert | 182 | M2 | 🟡 `RenewCertificate` works over mTLS (e2e + live); the agent renewing at 2/3 lifetime is day 12 |
+| R-031 | Revocation: deny-list by serial checked on connect; open streams closed immediately | 183 | M2 | 🟡 deny-list enforced on every authentication (disable/delete/rotate, live); closing already-open streams is day 13 |
 | R-032 | `AgentGateway` service with `Enroll`, `RenewCertificate`, `Connect` | 188–192 | M2 | 🟡 service defined and generated; no server or agent implementation yet |
 | R-033 | `AgentMessage` payloads: Hello, Heartbeat, CommandAck, CommandResult, InventorySnapshot, ResourceEvents, LogChunk, LogSessionEnded | 194–207 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-034 | `ServerMessage` payloads: HelloAck, Command, CancelCommand, StartLogSession, StopLogSession, RequestResync | 209–219 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |

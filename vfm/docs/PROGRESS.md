@@ -9,7 +9,7 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
-## 2026-10-16 — M2 day 11 (part 1): internal CA, clusters, bootstrap tokens
+## 2026-10-16 — M2 day 11: internal CA, clusters, bootstrap tokens, gateway, add-cluster UI
 
 Session 7, continued. CI on the day 10 commit was red in three jobs (buf action
 pushing to the BSR, a golangci-lint built with an older Go, five real `x/net`
@@ -32,14 +32,29 @@ vulnerabilities); fixed in `a9643fc` and **green on all five jobs**.
 
 ### Test status
 
-shared 128, server unit **517**, e2e **178** (22 new in `clusters.e2e.test.ts`:
+shared 128, server unit **517**, e2e **189**, web **47** (22 + 11 + 6 new in `clusters.e2e.test.ts`:
 concurrent double-enroll, replay, expiry, fingerprint move, revocation by
 disable/delete/rotate, cross-org isolation, audit never records the token).
 
-### Not yet (rest of day 11)
+### Also done (parts 2 and 3)
 
-The gRPC listener with `Enroll`/`RenewCertificate` on the wire, and the
-add-cluster UI.
+- gRPC gateway (`server/src/gateway`): one mTLS port that requests but does not
+  require a client certificate; `Enroll`, `RenewCertificate`; `Connect`
+  authenticates then answers UNIMPLEMENTED (day 13). Server certificate rotates
+  in place. 11 real-handshake e2e tests (`gateway.e2e.test.ts`).
+- Web: `/clusters` page (list, add, new token, rotate, disable/enable, typed-name
+  delete; install command shown once, never stored), nav link, 6 tests.
+
+### Driven for real (built server, Vite, real Chrome, throwaway DB, live gRPC)
+
+Sign-in + MFA enrolment, create org, add cluster in the UI → install command
+shown once and gone after reload; a Node client acting as the agent enrolled
+with that token over real TLS and renewed over mTLS; the UI then showed
+`enrolled` with the agent version; **Disable in the UI made the live gateway
+refuse the same certificate** (`UNAUTHENTICATED … revoked`), Enable issued a
+fresh token, the typed-name delete gated correctly and a deleted cluster's
+certificate stayed refused. Not driven: Rotate and "New token" buttons (covered
+by unit/e2e tests only), and the Go agent (it has no gRPC client until day 12).
 
 ---
 

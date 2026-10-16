@@ -20,7 +20,6 @@ const MAIN_CONTENT_ID = 'main-content';
  * exist (§16 forbids reporting stubs as done).
  */
 const PLANNED_SECTIONS: { label: string; reason: string }[] = [
-  { label: 'Clusters', reason: 'Arrives with agent enrollment and connectivity (M2).' },
   { label: 'Backups', reason: 'Arrives with read-only Velero visibility (M3).' },
   { label: 'Restores', reason: 'Arrives with read-only Velero visibility (M3).' },
   { label: 'Schedules', reason: 'Arrives with read-only Velero visibility (M3).' },
@@ -93,6 +92,19 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
           >
             Overview
           </Link>
+
+          {session.status === 'ready' && active !== undefined && (
+            <Link
+              to="/clusters"
+              className="rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              activeProps={{
+                className: 'bg-accent text-accent-foreground',
+                'aria-current': 'page',
+              }}
+            >
+              Clusters
+            </Link>
+          )}
 
           {session.status === 'ready' && active !== undefined && (
             <Link

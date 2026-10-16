@@ -56,11 +56,11 @@ describe('application shell', () => {
   it('shows planned sections as visible-but-disabled with the reason (PLAN.md §11.2)', async () => {
     renderApp();
 
-    const clusters = await screen.findByRole('button', { name: 'Clusters' });
+    const clusters = await screen.findByRole('button', { name: 'Backups' });
 
     expect(clusters).toBeVisible();
     expect(clusters).toBeDisabled();
-    expect(clusters.getAttribute('title') ?? '').toContain('M2');
+    expect(clusters.getAttribute('title') ?? '').toContain('M3');
   });
 
   it('keeps the shell around the not-found page for an unknown URL', async () => {

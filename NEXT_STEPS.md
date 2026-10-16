@@ -145,12 +145,15 @@ criteria are still unmet (B-1, B-2).
   generated Go and TS stubs committed. Regenerate with
   `cd vfm/proto && ~/.local/buf/node_modules/.bin/buf generate` (needs network:
   remote plugins).
-- **Next: day 11 — internal CA and enrollment** (plan lines 671–674): CA
-  bootstrap encrypted with `VFM_MASTER_KEY`, CSR signing, cert table +
-  deny-list, bootstrap tokens (issue/hash/expire/burn), `Enroll` and
-  `RenewCertificate` handlers on `server/src/gateway`, add-cluster UI + generated
-  Helm command. Needs a `clusters` table (and the FK on `role_bindings.cluster_id`
-  deferred in ADR-012).
+- **Day 11 done** (ADR-016): CA, clusters API, bootstrap tokens, gRPC gateway
+  (`Enroll`/`RenewCertificate`; `Connect` authenticates then UNIMPLEMENTED),
+  add-cluster UI. Driven live; see PROGRESS.md.
+- **Next: day 12 — agent connection manager** (plan line 676): in `vfm/agent`,
+  enroll on first start (ECDSA key + CSR, `kube-system` UID fingerprint, Secret in
+  `vfm-system`), mTLS `Connect`, `Hello`, heartbeats, reconnect with backoff +
+  jitter, renewal at 2/3 lifetime, graceful shutdown, leader gating. Needs the Go
+  gRPC client; stubs are in `agent/internal/pb`. Day 13 then replaces the
+  server's UNIMPLEMENTED `Connect`.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

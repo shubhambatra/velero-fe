@@ -6,6 +6,7 @@ import { MfaPage } from '@/pages/mfa-page';
 import { SetupPage } from '@/pages/setup-page';
 import { CreateOrgPage } from '@/pages/admin/create-org-page';
 import { InvitePage } from '@/pages/invite-page';
+import { ClustersPage } from '@/pages/clusters-page';
 import { TokensPage } from '@/pages/tokens-page';
 import { AuditPage } from '@/pages/admin/audit-page';
 import { MembersPage } from '@/pages/admin/members-page';
@@ -80,6 +81,7 @@ function memberRoute(
 }
 
 export const tokensRoute = memberRoute('/tokens', (id) => <TokensPage orgId={id} />);
+export const clustersRoute = memberRoute('/clusters', (id) => <ClustersPage orgId={id} />);
 
 export const createOrgRoute = createRoute({
   getParentRoute: () => rootRoute,
