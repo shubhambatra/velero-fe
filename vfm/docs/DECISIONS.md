@@ -940,3 +940,64 @@ day-13 placeholder) and backed off.
 Leader election across two real replicas against a cluster (blocked on B-2 for kind),
 the Secret store against a real API server (the unit tests use a fake clientset), and
 the stream's server half (day 13).
+
+---
+
+## ADR-018 — The agent stream on the server: registry, routing and liveness (M2 day 13)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+- **A `streams` module**, separate from `gateway` and `clusters`, so the clusters
+  module can revoke and the gateway can attach without depending on each other.
+- **Routing.** `vfm:agent:{clusterId}` = `{replica, session}`, 60 s TTL, refreshed by
+  every heartbeat and by a 20 s timer. `locate()` says which replica holds an agent;
+  `send()` writes locally or publishes to `vfm:gateway:replica:{id}` and reports
+  whether anyone received it, so a caller can queue instead of losing a message.
+- **One control channel** (`vfm:gateway:control`) carries `close` messages. They
+  serve both supersession (a new stream ends every other for the same cluster, here
+  or on another replica; the newest wins) and revocation (`disable`, `delete` and
+  `rotate-certificate` publish a close, which is the live half of §5.1 step 6; the
+  deny-list stops reconnects). The subscriber is a dedicated connection with an
+  offline queue and unlimited retries, unlike the shared fail-fast client.
+- **Hello is a gate, not a record.** It must be the first message, within 10 s, once
+  only. Protocol versions other than the supported set, a fingerprint different from
+  the cluster's, and a disabled cluster are refused with distinct gRPC statuses
+  (`FAILED_PRECONDITION`, `UNAUTHENTICATED`). What is stored from it is sanitised:
+  control characters stripped, strings capped at 128, at most 50 plugins and
+  capabilities, at most 100 namespaces. The agent is semi-trusted (§12).
+- **Absent means restricted.** A Hello with no policy is stored as read-only with
+  nothing allowed, never as open: "unknown" must not render as "everything allowed".
+- **Liveness is two mechanisms.** A per-stream watchdog closes a stream silent for
+  45 s (`DEADLINE_EXCEEDED`). A sweeper, run by whichever replica wins a short Redis
+  lock, marks `CONNECTED` clusters whose `last_seen_at` is stale **and** whose route
+  has expired as `DISCONNECTED`, which is the only thing that notices a replica that
+  was killed. Cleanup after a stream never overwrites a newer connection's status or
+  resurrects a `DISABLED` cluster.
+- **A stream ends when its certificate does.** The server closes it at the
+  certificate's `notAfter`; the agent, which renewed at two thirds of the lifetime,
+  reconnects with the new one.
+- **Bug found by testing, worth recording.** Node's async iterator destroys a duplex
+  stream when the peer half-closes, so the server never sent its closing status and a
+  gracefully stopping agent waited for nothing. The server iterates with
+  `destroyOnReturn: false`.
+
+### Verified live
+
+Two real server processes sharing one database and Redis raced at first start and
+agreed on a single CA row. A real Go agent enrolled and connected to replica 1; the
+cluster showed `CONNECTED` with its Velero details. Killing replica 1 with `SIGKILL`
+left the cluster `CONNECTED` until the sweeper on replica 2 marked it `DISCONNECTED`
+56 s later. The same stored identity then connected through replica 2 with no
+re-enrollment, the route named replica 2, and a `SIGTERM` to the agent produced a clean
+close and an immediate `DISCONNECTED` with the route cleared.
+
+### Not done here
+
+Delivery guarantees and re-sending on reconnect are day 14 (`send()` returns false
+when an agent is unreachable; it does not queue). Inventory and event messages are
+accepted and handed to `onAgentMessage` handlers, of which there are none yet. The
+certificate-expiry close is implemented but not exercised by a test (a seven-day
+certificate cannot be waited out and the issuer lifetime is not injectable).

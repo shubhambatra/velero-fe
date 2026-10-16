@@ -20,6 +20,7 @@ import {
 
 import { CaService } from '../ca/ca.service';
 import { EnrollmentService } from '../clusters/enrollment.service';
+import { StreamsService } from '../streams/streams.service';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env.schema';
 import { GatewayIdentityProvider } from './gateway-identity';
@@ -82,6 +83,7 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
     @Inject(ENV) private readonly env: Env,
     private readonly ca: CaService,
     private readonly enrollment: EnrollmentService,
+    private readonly streams: StreamsService,
   ) {}
 
   /** The port actually bound; differs from `GATEWAY_PORT` only when that is 0. */
@@ -235,16 +237,12 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
   }
 
   /**
-   * Authenticates the stream's certificate. The stream itself arrives with the
-   * connection manager and routing (day 13); until then an authenticated agent is
-   * told so, and an unauthenticated one is refused exactly as it will be later.
+   * Authenticates the stream's certificate against the CA and the deny-list,
+   * then hands the stream to the registry, which owns it from there.
    */
   private async connect(call: ServerDuplexStream<AgentMessage, ServerMessage>): Promise<void> {
-    await this.enrollment.authenticate(this.peerCertificate(call));
-    call.emit('error', {
-      code: status.UNIMPLEMENTED,
-      details: 'the agent stream is not implemented yet',
-    });
+    const who = await this.enrollment.authenticate(this.peerCertificate(call));
+    await this.streams.attach(call, who);
   }
 
   /** The verified client certificate (DER), or a refusal. */

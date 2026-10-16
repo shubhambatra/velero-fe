@@ -150,12 +150,13 @@ criteria are still unmet (B-1, B-2).
   add-cluster UI. Driven live; see PROGRESS.md.
 - **Day 12 done** (ADR-017): `agent/internal/{identity,gateway}`, wired into the
   leader task. Run Go tooling with `export PATH=$HOME/.local/go/bin:$HOME/go/bin:$PATH`.
-- **Next: day 13 — gateway & routing** (plan line 679): replace the server's
-  UNIMPLEMENTED `Connect` with a stream registry, Redis routing
-  (`agent:{clusterId} → replica`), `CONNECTED`/`DISCONNECTED` status + `last_seen_at`,
-  45 s disconnect detection, revocation closing live streams, Hello validation
-  (fingerprint check, protocol N/N-1), then run two server replicas locally and
-  verify routing.
+- **Day 13 done** (ADR-018): `server/src/streams`, a real `Connect`, live revocation.
+- **Next: day 14 — command pipeline (generic)** (plan line 683): `commands` table + state
+  machine (QUEUED→SENT→ACKED→RUNNING→terminal, TIMED_OUT, CANCELLED), queue → route →
+  send → ack/result using `StreamsService.send()` (returns false when unreachable: queue
+  and re-send on reconnect via `onAgentMessage`/Hello), deadlines, cancel. Agent side:
+  dispatcher, allowlist, policy ConfigMap (§5.5), idempotency LRU + ConfigMap persistence,
+  labels on created objects. Implement only `RefreshServerStatus` end to end.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

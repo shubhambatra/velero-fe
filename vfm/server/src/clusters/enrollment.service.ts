@@ -165,7 +165,9 @@ export class EnrollmentService {
    * must not be disabled. Anything unknown is denied, which is what makes
    * deleting a cluster (and its certificate rows) a revocation too.
    */
-  async authenticate(der: Buffer): Promise<{ clusterId: string; orgId: string; serial: string }> {
+  async authenticate(
+    der: Buffer,
+  ): Promise<{ clusterId: string; orgId: string; serial: string; notAfter: Date }> {
     let verified;
     try {
       verified = await this.ca.verifyClientCertificate(der);
@@ -194,7 +196,12 @@ export class EnrollmentService {
     ) {
       throw new UnauthorizedException('the client certificate has been revoked');
     }
-    return { clusterId: row.clusterId, orgId: row.orgId, serial: row.serial };
+    return {
+      clusterId: row.clusterId,
+      orgId: row.orgId,
+      serial: row.serial,
+      notAfter: row.notAfter,
+    };
   }
 
   /** Issues a replacement certificate; the current one stays valid until it expires. */

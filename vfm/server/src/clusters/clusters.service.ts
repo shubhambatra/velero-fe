@@ -7,6 +7,7 @@ import { ENV } from '../config/config.module';
 import type { Env } from '../config/env.schema';
 import { PrismaService } from '../prisma/prisma.service';
 import { RbacService } from '../rbac/rbac.service';
+import { StreamsService } from '../streams/streams.service';
 import { EnrollmentService } from './enrollment.service';
 import { buildInstallCommand } from './install-command';
 
@@ -60,6 +61,7 @@ export class ClustersService {
     private readonly enrollment: EnrollmentService,
     private readonly ca: CaService,
     private readonly rbac: RbacService,
+    private readonly streams: StreamsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -151,6 +153,7 @@ export class ClustersService {
   async remove(orgId: string, clusterId: string): Promise<void> {
     await this.find(orgId, clusterId);
     await this.prisma.inOrg(orgId, () => this.prisma.cluster.delete({ where: { id: clusterId } }));
+    await this.streams.closeCluster(clusterId, 'the cluster was deleted');
   }
 
   async disable(orgId: string, clusterId: string): Promise<ClusterView> {
@@ -165,6 +168,7 @@ export class ClustersService {
         this.prisma.clusterBootstrapToken.deleteMany({ where: { clusterId, usedAt: null } }),
       ]),
     );
+    await this.streams.closeCluster(clusterId, 'the cluster was disabled');
     return view(updated);
   }
 
@@ -221,6 +225,7 @@ export class ClustersService {
     await this.prisma.inOrg(orgId, () =>
       this.prisma.cluster.update({ where: { id: clusterId }, data: { status: 'PENDING' } }),
     );
+    await this.streams.closeCluster(clusterId, 'the agent certificates were rotated');
     return { revoked, ...(await this.grant(orgId, cluster)) };
   }
 

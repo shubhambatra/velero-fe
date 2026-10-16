@@ -47,14 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **35 / 152 — 23.0 %** |
-| Requirements partial | 27 |
+| **Requirements verified** | **37 / 152 — 24.3 %** |
+| Requirements partial | 25 |
 | Requirements not started | 88 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
 which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
-and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35._
+and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37._
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
 R-025, R-103, R-105, R-113, R-127, R-152.
@@ -106,7 +106,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
 | M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
-| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–12 done** (ADR-015, ADR-016, agent connection manager ADR-017); day 13 next |
+| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–13 done** (ADR-015…018: contract, CA/enrollment, agent manager, server streams); day 14 next |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
 | M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
@@ -642,8 +642,8 @@ make them obvious.
 | R-028 | `clusterFingerprint` = `kube-system` namespace UID, used to detect reinstallation into a different cluster | 180 | M2 | ✅ verified 2026-10-16: agent sends the kube-system UID, server records and enforces it (Go tests, e2e) |
 | R-029 | Internal CA signs a 7-day client certificate with SAN `spiffe://vfm/cluster/{id}` | 181 | M2 | ✅ verified 2026-10-16: real mTLS handshakes, e2e + live run |
 | R-030 | Certificate renewed at 2/3 of lifetime via `RenewCertificate`, authenticated by the current cert | 182 | M2 | ✅ verified 2026-10-16: agent renews at 2/3 lifetime on the live stream (Go test); `RenewCertificate` over mTLS (e2e + live) |
-| R-031 | Revocation: deny-list by serial checked on connect; open streams closed immediately | 183 | M2 | 🟡 deny-list enforced on every authentication (disable/delete/rotate, live); closing already-open streams is day 13 |
-| R-032 | `AgentGateway` service with `Enroll`, `RenewCertificate`, `Connect` | 188–192 | M2 | 🟡 service defined and generated; no server or agent implementation yet |
+| R-031 | Revocation: deny-list by serial checked on connect; open streams closed immediately | 183 | M2 | ✅ verified 2026-10-16: live run with two server processes and the real Go agent, plus e2e |
+| R-032 | `AgentGateway` service with `Enroll`, `RenewCertificate`, `Connect` | 188–192 | M2 | ✅ verified 2026-10-16: live run with two server processes and the real Go agent, plus e2e |
 | R-033 | `AgentMessage` payloads: Hello, Heartbeat, CommandAck, CommandResult, InventorySnapshot, ResourceEvents, LogChunk, LogSessionEnded | 194–207 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-034 | `ServerMessage` payloads: HelloAck, Command, CancelCommand, StartLogSession, StopLogSession, RequestResync | 209–219 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
 | R-035 | `Command` with all 16 operations | 221–243 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |

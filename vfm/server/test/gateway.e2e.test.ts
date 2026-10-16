@@ -13,8 +13,13 @@ import { CaService } from '../src/ca/ca.service';
 import { CSRF_HEADER } from '../src/auth/csrf.guard';
 import { SessionService } from '../src/auth/session.service';
 import { GatewayService } from '../src/gateway/gateway.service';
-import { AgentGatewayClient } from '../src/gateway/pb/vfm/agent/v1/gateway';
+import {
+  AgentGatewayClient,
+  AgentMessage,
+  type ServerMessage,
+} from '../src/gateway/pb/vfm/agent/v1/gateway';
 import type { EnrollResponse } from '../src/gateway/pb/vfm/agent/v1/enrollment';
+import { hello } from './agent-harness';
 import { createTestApp, type TestApp } from './app-harness';
 
 /**
@@ -172,15 +177,24 @@ describe('agent gateway (e2e, real mTLS)', () => {
       });
     });
 
-  const connectOutcome = (c: AgentGatewayClient): Promise<ServiceError> =>
+  /** Opens a stream with a valid Hello; resolves 'acked' on HelloAck or with the refusal. */
+  const connectOutcome = (c: AgentGatewayClient): Promise<ServiceError | 'acked'> =>
     new Promise((resolve) => {
       const stream = c.connect(new Metadata());
       stream.on('error', (error) => {
         resolve(error as ServiceError);
       });
-      stream.on('data', () => undefined);
-      stream.write({ messageId: 'x' });
+      stream.on('data', (message: ServerMessage) => {
+        if (message.helloAck !== undefined) {
+          stream.cancel();
+          resolve('acked');
+        }
+      });
+      stream.write(AgentMessage.fromPartial(hello()));
     });
+
+  const codeOf = (outcome: ServiceError | 'acked'): number | string =>
+    outcome === 'acked' ? outcome : outcome.code;
 
   async function enrolledAgent() {
     const cluster = await newCluster();
@@ -235,13 +249,12 @@ describe('agent gateway (e2e, real mTLS)', () => {
     const anonymous = client({});
 
     expect((await errorOf(renew(anonymous, agent.keys.csrPem))).code).toBe(status.UNAUTHENTICATED);
-    expect((await connectOutcome(anonymous)).code).toBe(status.UNAUTHENTICATED);
+    expect(codeOf(await connectOutcome(anonymous))).toBe(status.UNAUTHENTICATED);
   });
 
-  it('lets a valid certificate through Connect’s authentication', async () => {
+  it('lets a valid certificate open a stream and be acknowledged', async () => {
     const agent = await enrolledAgent();
-    // Authenticated, and then told the stream itself is not built yet (day 13).
-    expect((await connectOutcome(client({ cert: agent.cert }))).code).toBe(status.UNIMPLEMENTED);
+    expect(await connectOutcome(client({ cert: agent.cert }))).toBe('acked');
   });
 
   it('does not authenticate a certificate signed by another CA, even with the right identity', async () => {
@@ -252,20 +265,20 @@ describe('agent gateway (e2e, real mTLS)', () => {
     const forged = await signAgentCsr(forgedCa, keys.csrPem, agent.clusterId);
 
     const attacker = client({ cert: { chain: forged.certificatePem, key: keys.privateKeyPem } });
-    expect((await connectOutcome(attacker)).code).toBe(status.UNAUTHENTICATED);
+    expect(codeOf(await connectOutcome(attacker))).toBe(status.UNAUTHENTICATED);
     expect((await errorOf(renew(attacker, keys.csrPem))).code).toBe(status.UNAUTHENTICATED);
   });
 
   it('stops authenticating a certificate the moment its cluster is disabled', async () => {
     const agent = await enrolledAgent();
     const c = client({ cert: agent.cert });
-    expect((await connectOutcome(c)).code).toBe(status.UNIMPLEMENTED);
+    expect(await connectOutcome(c)).toBe('acked');
 
     await agent
       .call('post', `/orgs/${agent.orgId}/clusters/${agent.clusterId}/disable`)
       .expect(200);
 
-    expect((await connectOutcome(client({ cert: agent.cert }))).code).toBe(status.UNAUTHENTICATED);
+    expect(codeOf(await connectOutcome(client({ cert: agent.cert })))).toBe(status.UNAUTHENTICATED);
   });
 
   it('lets an agent pin the control plane: a client that trusts a different CA cannot connect', async () => {

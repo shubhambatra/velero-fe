@@ -9,6 +9,46 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M2 day 13: the stream on the server — registry, routing, liveness
+
+Session 7, continued. CI green on day 12 (`93e22e8`), Go race job included.
+
+### Done
+
+- `server/src/streams`: stream registry, Redis routing with TTL, a control channel for
+  supersession and revocation, Hello validation and sanitising, 45 s watchdog, a
+  crash-recovering sweeper, certificate-expiry close (ADR-018).
+- `Connect` is real now (was UNIMPLEMENTED); `disable`/`delete`/`rotate-certificate`
+  close open streams on every replica.
+- Found and fixed by testing: the async iterator destroyed the stream on half-close, so
+  a gracefully stopping agent never got a closing status.
+
+### Test status
+
+Server unit **517**, e2e **210** (21 new in `streams.e2e.test.ts`, two real replicas;
+`gateway.e2e.test.ts` updated for the real Connect); Go and web unchanged; lint,
+typecheck, build clean.
+
+### Verified live (two server processes + the real Go agent)
+
+CA race at first start → one row; agent enrolled and connected to replica 1; `kill -9`
+of replica 1 → sweeper on replica 2 marked the cluster DISCONNECTED after 56 s; same
+identity reconnected via replica 2 without re-enrolling; SIGTERM to the agent → clean
+close, immediate DISCONNECTED, route cleared.
+
+### Not verified
+
+Certificate-expiry close (not injectable); agent on a real or kind cluster (B-2);
+the UI showing live status changes (SSE is M3 day 17 — the page shows status on load).
+
+### Next
+
+M2 day 14 — the `commands` table and state machine, queue → route → send → ack/result,
+deadlines, re-delivery on reconnect, cancel; agent dispatcher, allowlist, policy,
+idempotency; `RefreshServerStatus` end to end.
+
+---
+
 ## 2026-10-16 — M2 day 12: the agent's connection manager
 
 Session 7, continued. CI is green on the whole of day 11 (`c657dab`).

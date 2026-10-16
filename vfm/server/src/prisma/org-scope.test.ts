@@ -244,6 +244,7 @@ describe('static guard over the source tree', () => {
       'oidc/oidc-login.service.ts: an oidc provider id identifies its org',
       'orgs/invites.service.ts: an invite token identifies its org',
       'orgs/orgs.service.ts: a user lists their own memberships (org switcher)',
+      'streams/streams.service.ts: the stale-stream sweeper spans every org',
       'tokens/api-tokens.service.ts: an api token identifies its org',
     ]);
   });
