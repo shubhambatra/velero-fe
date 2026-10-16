@@ -45,4 +45,12 @@ const (
 	// DefaultCredentialsSecret holds the agent's key, certificate and the
 	// control-plane CA in AgentNamespace (PLAN.md §5.1 step 3).
 	DefaultCredentialsSecret = ComponentName + "-credentials"
+
+	// DefaultPolicyConfigMap is the owner-controlled policy (PLAN.md §5.5) and
+	// DefaultStateConfigMap the agent's own executed-command cache (§5.4).
+	DefaultPolicyConfigMap = ComponentName + "-policy"
+	DefaultStateConfigMap  = ComponentName + "-state"
+
+	// DefaultVeleroNamespace is where Velero is installed unless told otherwise.
+	DefaultVeleroNamespace = "velero"
 )

@@ -293,6 +293,74 @@ describe('commands (e2e)', () => {
     });
   });
 
+  describe('refresh on connect', () => {
+    it('asks a newly connected agent for Velero’s version, once, and records the answer', async () => {
+      const { call, orgId } = await world();
+      const c = await cluster(call, orgId, 'prod-eu');
+      commands.options.refreshOnConnect = true;
+      try {
+        const agent = await connect(c);
+        const sent = (await agent.next()).command;
+        expect(sent?.refreshStatus).toBeDefined();
+        // Asked by the control plane itself, not on behalf of any user.
+        expect(sent?.requestedBy).toBe('');
+
+        agent.send({
+          messageId: 'r',
+          result: {
+            commandId: sent?.commandId ?? '',
+            ok: true,
+            serverStatus: {
+              serverVersion: 'v1.18.4',
+              plugins: [{ name: 'velero.io/aws', kind: 'ObjectStore' }],
+            },
+          },
+        });
+        await eventually(
+          () => stateOf(sent?.commandId ?? ''),
+          (s) => s.status === 'SUCCEEDED',
+          'SUCCEEDED',
+        );
+        const shown = await call('get', `/orgs/${orgId}/clusters/${c.clusterId}`).expect(200);
+        expect(shown.body.veleroVersion).toBe('v1.18.4');
+        agent.cancel();
+        await agent.ended;
+
+        // The next connect asks again (the previous one is finished), and asks only once.
+        const again = await connect(c);
+        expect((await again.next()).command?.refreshStatus).toBeDefined();
+        await expect(again.next(400)).rejects.toThrow(/timed out/);
+        again.cancel();
+      } finally {
+        commands.options.refreshOnConnect = false;
+      }
+    });
+
+    it('does not pile up a second refresh while one is still unfinished', async () => {
+      const { call, orgId } = await world();
+      const c = await cluster(call, orgId, 'prod-eu');
+      commands.options.refreshOnConnect = true;
+      try {
+        const first = await connect(c);
+        const sent = (await first.next()).command;
+        first.cancel();
+        await first.ended;
+
+        // Reconnects before answering: the same command is re-delivered, not a new one.
+        const second = await connect(c);
+        expect((await second.next()).command?.commandId).toBe(sent?.commandId);
+        await expect(second.next(400)).rejects.toThrow(/timed out/);
+        const all = await call('get', `/orgs/${orgId}/clusters/${c.clusterId}/commands`).expect(
+          200,
+        );
+        expect(all.body.commands).toHaveLength(1);
+        second.cancel();
+      } finally {
+        commands.options.refreshOnConnect = false;
+      }
+    });
+  });
+
   describe('what the agent may report', () => {
     it('accepts a result that arrives without its ack, and ignores a later duplicate', async () => {
       const { call, orgId } = await world();

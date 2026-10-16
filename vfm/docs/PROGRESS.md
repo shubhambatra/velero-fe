@@ -9,6 +9,48 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M2 day 14: the command pipeline
+
+Session 7, continued. CI green on day 13 (`2acb16a`) and on the first server half (see
+commit table).
+
+### Done
+
+- Server: `commands` table + migration, state machine, enqueue / send / ack / result /
+  timeout sweeper / cancel / re-delivery on connect, refresh-on-connect, REST
+  (`refresh-status`, list, get, cancel) (ADR-019).
+- Agent: `policy` (§5.5, malformed ⇒ lockdown), `dispatch` (allowlist, policy gate,
+  idempotency LRU persisted to a ConfigMap, cancel, deadlines, panic safety),
+  `velero.StatusHandler` (`RefreshServerStatus`), all wired into the leader task.
+- Config: `VFM_AGENT_POLICY_CONFIGMAP`, `_STATE_CONFIGMAP`, `_VELERO_NAMESPACE`.
+- Two mutation checks (server cross-cluster rule, agent duplicate guard) proved the tests
+  would fail without the code.
+
+### Test status
+
+Server unit **549**, e2e **229** (19 commands, 21 streams, 11 gateway …), web 47; Go: all
+packages pass; golangci-lint 0 issues; govulncheck clean; OpenAPI regenerated.
+
+### Verified live
+
+Real server + real Go manager/dispatcher/handler with a fake Kubernetes API as Velero:
+connect → the server's own `REFRESH_STATUS` → executed → `SUCCEEDED` (attempts 1) →
+cluster shows `v1.18.4-live` and two plugins. With Velero absent: `FAILED`,
+`NOT_FOUND`, readable message.
+
+### Not verified
+
+Real Velero / real API server (B-2); `-race` locally (CI runs it); the ConfigMaps' RBAC
+(chart, day 15).
+
+### Next
+
+M2 day 15 — the agent Helm chart (RBAC per §12.2, policy ConfigMap, PDB, securityContext,
+resources, proxy and custom-CA support) and the hardening tests: agent killed
+mid-command, server replica killed, revoked cert, wrong fingerprint, token reuse.
+
+---
+
 ## 2026-10-16 — M2 day 13: the stream on the server — registry, routing, liveness
 
 Session 7, continued. CI green on day 12 (`93e22e8`), Go race job included.

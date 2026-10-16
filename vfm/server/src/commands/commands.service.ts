@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
   ConflictException,
+  Inject,
   HttpException,
   HttpStatus,
   Injectable,
@@ -13,6 +14,8 @@ import {
 import type { Command as CommandRow, Prisma } from '@prisma/client';
 
 import { newId } from '../common/uuid';
+import { ENV } from '../config/config.module';
+import type { Env } from '../config/env.schema';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { ErrorCode } from '../gateway/pb/vfm/agent/v1/common';
@@ -78,11 +81,17 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
   private readonly logger = new Logger(CommandsService.name);
   private timer: NodeJS.Timeout | undefined;
 
+  /** Tunable at runtime so a test can turn the on-connect refresh on for one case. */
+  readonly options: { refreshOnConnect: boolean };
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly streams: StreamsService,
-  ) {}
+    @Inject(ENV) env: Env,
+  ) {
+    this.options = { refreshOnConnect: env.COMMANDS_REFRESH_ON_CONNECT };
+  }
 
   onApplicationBootstrap(): void {
     this.streams.onAgentMessage((clusterId, message) => this.onAgentMessage(clusterId, message));
@@ -106,7 +115,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
   async enqueue(
     orgId: string,
     clusterId: string,
-    requestedById: string,
+    requestedById: string | null,
     op: OpKey,
     payload: Record<string, unknown> = {},
   ): Promise<CommandView> {
@@ -207,6 +216,11 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     }
     if (rows.length > 0) {
       this.logger.log(`re-delivered ${rows.length.toString()} command(s) to cluster ${clusterId}`);
+    }
+
+    if (this.options.refreshOnConnect && !rows.some((row) => row.op === 'REFRESH_STATUS')) {
+      // Not on behalf of a user: the control plane is keeping its own record fresh.
+      await this.enqueue(orgId, clusterId, null, 'REFRESH_STATUS');
     }
   }
 

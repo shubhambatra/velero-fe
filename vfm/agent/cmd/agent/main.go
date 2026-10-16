@@ -5,11 +5,12 @@
 // control plane and never listens for inbound connections except for its own
 // probes and metrics (PLAN.md §1.1 P1).
 //
-// What this binary does today (M2 day 12): resolve and validate configuration,
+// What this binary does today (M2 day 14): resolve and validate configuration,
 // emit JSON logs, serve /healthz, /readyz and /metrics, build a Kubernetes
 // client, win or follow the leader election and, as leader, enrol with the
-// control plane and keep the mTLS stream open — see [leaderTask]. It does not
-// execute commands or sync inventory yet.
+// control plane, keep the mTLS stream open and execute the one command that
+// exists so far, RefreshServerStatus — see [leaderTask]. It does not sync
+// inventory yet.
 package main
 
 import (
@@ -21,6 +22,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"reflect"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -28,12 +30,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/config"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/dispatch"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/gateway"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/health"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/identity"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/kube"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/leader"
 	pb "github.com/shubhambatra/velero-fe/vfm/agent/internal/pb/vfm/agent/v1"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/policy"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/velero"
 )
 
 // version is the agent version reported in logs, metrics and (from M2) in the
@@ -146,11 +151,12 @@ func run(args []string) error {
 }
 
 // leaderTask returns the work performed only while this replica holds the
-// Lease: enrolling if needed, then holding the control-plane stream open with
-// Hello, heartbeats, reconnects and certificate renewal (PLAN.md §5, M2 day 12).
+// Lease: enrolling if needed, holding the control-plane stream open, and
+// executing the typed commands that arrive on it (PLAN.md §5, M2 days 12 and 14).
 //
-// SEAM — command execution (day 14) and the Velero and core informers (M3 day
-// 16 / M5 day 28) attach to the manager's OnMessage hook and Send queue.
+// SEAM — the other operations (M4) register further handlers on the dispatcher;
+// the Velero and core informers (M3 day 16 / M5 day 28) attach to the manager's
+// Send queue.
 func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client) leader.Task {
 	return func(ctx context.Context) error {
 		var bootstrapCA []byte
@@ -163,7 +169,35 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 			}
 		}
 
-		manager, err := gateway.New(gateway.Options{
+		current := newPolicyHolder(ctx, logger, cfg, kubeClient)
+
+		cache := dispatch.NewCache(dispatch.CacheSize)
+		state := &dispatch.Store{Client: kubeClient.Clientset(), Namespace: cfg.Namespace, Name: cfg.StateConfigMap}
+		if err := state.Load(ctx, cache); err != nil {
+			// Not fatal: the worst case is a re-delivered command running twice, and
+			// objects the agent creates are found by label before they are created.
+			logger.Warn("could not load the executed-command cache; starting empty", "error", err)
+		} else {
+			logger.Info("executed-command cache loaded", "entries", cache.Len())
+		}
+
+		// The dispatcher needs the manager to send and the manager needs the
+		// dispatcher to receive; the manager is bound after both exist.
+		var manager *gateway.Manager
+		dispatcher := dispatch.New(dispatch.Options{
+			Send:   func(m *pb.AgentMessage) bool { return manager.Send(m) },
+			Policy: current.get,
+			Cache:  cache,
+			NewID:  gateway.NewMessageID,
+			Logger: logger,
+		})
+		dispatcher.Register("refresh_status", (&velero.StatusHandler{
+			Dynamic:   kubeClient.Dynamic(),
+			Namespace: cfg.VeleroNamespace,
+		}).Handle)
+
+		var err error
+		manager, err = gateway.New(gateway.Options{
 			Address:         cfg.ControlPlaneAddress,
 			ServerName:      cfg.ServerName,
 			BootstrapCA:     bootstrapCA,
@@ -174,9 +208,10 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 				Name:      cfg.CredentialsSecret,
 			},
 			Fingerprint:       clusterFingerprint(kubeClient),
-			Hello:             helloBuilder(kubeClient),
+			Hello:             helloBuilder(kubeClient, current.get),
 			AgentVersion:      version,
 			HeartbeatInterval: cfg.HeartbeatInterval,
+			OnMessage:         dispatcher.Handle,
 			OnConnection: func(connected bool) {
 				logger.Info("control-plane connection state", "connected", connected)
 			},
@@ -186,14 +221,63 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 			return err
 		}
 
+		go state.Run(ctx, cache, stateSaveInterval, func(err error) {
+			logger.Warn("could not persist the executed-command cache", "error", err)
+		})
+
 		logger.Info("leader task started",
 			"control_plane_address", cfg.ControlPlaneAddress,
 			"enrollment_token_set", cfg.EnrollmentToken != "",
 		)
 		err = manager.Run(ctx)
+		dispatcher.Stop()
 		logger.Info("leader task stopping")
 		return err
 	}
+}
+
+const (
+	stateSaveInterval    = 30 * time.Second
+	policyReloadInterval = 30 * time.Second
+)
+
+// policyHolder keeps the current policy and reloads it, so the owner can change
+// the ConfigMap without restarting the agent.
+type policyHolder struct{ current atomic.Pointer[policy.Policy] }
+
+func (h *policyHolder) get() policy.Policy { return *h.current.Load() }
+
+func newPolicyHolder(ctx context.Context, logger *slog.Logger, cfg *config.Config, k *kube.Client) *policyHolder {
+	h := &policyHolder{}
+	load := func() {
+		p, err := policy.Load(ctx, k.Clientset(), cfg.Namespace, cfg.PolicyConfigMap)
+		if err != nil {
+			// Load returns a lockdown policy with the error: a broken policy must
+			// never widen what the agent does.
+			logger.Error("the agent policy is unreadable or invalid; refusing all changes until it is fixed", "error", err)
+		}
+		if old := h.current.Load(); old == nil || !reflect.DeepEqual(*old, p) {
+			logger.Info("agent policy in effect",
+				"allow_restore", p.AllowRestore, "allow_bsl_write", p.AllowBslWrite,
+				"allow_log_streaming", p.AllowLogStreaming, "read_only", p.ReadOnly,
+				"restore_denied_namespaces", p.RestoreDeniedNamespaces)
+		}
+		h.current.Store(&p)
+	}
+	load()
+	go func() {
+		ticker := time.NewTicker(policyReloadInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				load()
+			}
+		}
+	}()
+	return h
 }
 
 // clusterFingerprint is the UID of the kube-system namespace (PLAN.md §5.1
@@ -210,22 +294,16 @@ func clusterFingerprint(k *kube.Client) func(context.Context) (string, error) {
 }
 
 // helloBuilder reports what the agent knows about itself and its cluster. The
-// policy is the built-in default (PLAN.md §5.5) until day 14 loads the
-// `vfm-agent-policy` ConfigMap; no command executes before then, so the
-// default is also what is enforced.
-func helloBuilder(k *kube.Client) func(context.Context) *pb.Hello {
+// policy is the one in effect, so the UI can show disabled actions with the
+// reason (PLAN.md §5.5). The Velero version is not known here: the control plane
+// asks for it with RefreshServerStatus once the stream is up.
+func helloBuilder(k *kube.Client, currentPolicy func() policy.Policy) func(context.Context) *pb.Hello {
 	return func(context.Context) *pb.Hello {
 		hello := &pb.Hello{
 			AgentVersion: version,
 			ChartVersion: os.Getenv("VFM_AGENT_CHART_VERSION"),
 			ImageTag:     os.Getenv("VFM_AGENT_IMAGE_TAG"),
-			Policy: &pb.AgentPolicy{
-				AllowRestore:              true,
-				RestoreDeniedNamespaces:   []string{"kube-system", "vfm-system", "velero"},
-				AllowBslWrite:             true,
-				AllowLogStreaming:         true,
-				LogStreamDeniedNamespaces: []string{},
-			},
+			Policy:       currentPolicy().Proto(),
 		}
 		if v, err := k.Clientset().Discovery().ServerVersion(); err == nil {
 			hello.KubernetesVersion = v.GitVersion

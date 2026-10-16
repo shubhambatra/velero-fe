@@ -121,7 +121,7 @@ func New(opts Options) (*Manager, error) {
 // (PLAN.md §5.6).
 func (m *Manager) Send(msg *pb.AgentMessage) bool {
 	if msg.GetMessageId() == "" {
-		msg.MessageId = newMessageID()
+		msg.MessageId = NewMessageID()
 	}
 	select {
 	case m.outbox <- msg:
@@ -131,7 +131,8 @@ func (m *Manager) Send(msg *pb.AgentMessage) bool {
 	}
 }
 
-func newMessageID() string {
+// NewMessageID is a UUIDv7 message id (PLAN.md §5.2).
+func NewMessageID() string {
 	id, err := uuid.NewV7()
 	if err != nil {
 		return uuid.NewString()
@@ -218,7 +219,7 @@ func (m *Manager) session(ctx context.Context) error {
 		hello.AgentVersion = m.opts.AgentVersion
 	}
 	if err := stream.Send(&pb.AgentMessage{
-		MessageId: newMessageID(),
+		MessageId: NewMessageID(),
 		Payload:   &pb.AgentMessage_Hello{Hello: hello},
 	}); err != nil {
 		return err
@@ -316,7 +317,7 @@ func (m *Manager) session(ctx context.Context) error {
 				continue
 			}
 			if err := stream.Send(&pb.AgentMessage{
-				MessageId: newMessageID(),
+				MessageId: NewMessageID(),
 				Payload: &pb.AgentMessage_Heartbeat{Heartbeat: &pb.Heartbeat{
 					SentAt:         timestamppb.New(m.opts.Now()),
 					BufferedEvents: uint32(len(m.outbox)), //nolint:gosec // bounded by the channel capacity

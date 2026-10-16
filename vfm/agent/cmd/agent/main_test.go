@@ -15,6 +15,7 @@ import (
 
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/config"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/kube"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/policy"
 )
 
 func testConfig() *config.Config {
@@ -149,7 +150,7 @@ func TestClusterFingerprintIsTheKubeSystemUID(t *testing.T) {
 }
 
 func TestHelloReportsTheDefaultPolicy(t *testing.T) {
-	hello := helloBuilder(kube.FromClientset(fake.NewClientset(), "h"))(context.Background())
+	hello := helloBuilder(kube.FromClientset(fake.NewClientset(), "h"), policy.Default)(context.Background())
 	p := hello.GetPolicy()
 	if !p.GetAllowRestore() || p.GetReadOnly() {
 		t.Errorf("default policy should allow restores and not be read-only: %+v", p)

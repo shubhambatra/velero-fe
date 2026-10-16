@@ -47,14 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **37 / 152 — 24.3 %** |
-| Requirements partial | 25 |
-| Requirements not started | 88 |
+| **Requirements verified** | **39 / 152 — 25.7 %** |
+| Requirements partial | 27 |
+| Requirements not started | 84 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
 which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
-and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37._
+and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39._
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
 R-025, R-103, R-105, R-113, R-127, R-152.
@@ -106,7 +106,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
 | M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
-| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–13 done** (ADR-015…018: contract, CA/enrollment, agent manager, server streams); day 14 next |
+| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–14 done** (ADR-015…019: contract, CA/enrollment, agent manager, server streams, command pipeline); day 15 next |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
 | M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
@@ -653,11 +653,11 @@ make them obvious.
 | R-039 | Full resync every 10 minutes or on `RequestResync` | 252 | M3 | ⬜ |
 | R-040 | All Velero and core kinds of §5.3 synced, subject to detected-version capabilities | 253 | M3/M5 | ⬜ |
 | R-041 | Secrets never synced; BSLs carry only the secret name/key reference | 254 | M3 | ⬜ |
-| R-042 | Command lifecycle state machine exactly as §5.4, including TIMED_OUT and CANCELLED | 258–263 | M2 | ⬜ |
-| R-043 | Agent idempotency: LRU of the last 10 000 command ids with results, persisted to a ConfigMap every 30 s; duplicates replay the cached result | 266 | M2 | ⬜ |
-| R-044 | Created CRs labelled `vfm.io/command-id`, `vfm.io/requested-by` and annotated `vfm.io/managed=true`; existing object with that label short-circuits creation | 267 | M2/M4 | ⬜ |
+| R-042 | Command lifecycle state machine exactly as §5.4, including TIMED_OUT and CANCELLED | 258–263 | M2 | ✅ verified 2026-10-16: pure state-machine table + e2e over real gRPC; timeout, cancel and re-delivery paths |
+| R-043 | Agent idempotency: LRU of the last 10 000 command ids with results, persisted to a ConfigMap every 30 s; duplicates replay the cached result | 266 | M2 | 🟡 LRU of 10 000, replay, and restart-survival tested (fake clientset); persistence to a real ConfigMap unverified (B-2) |
+| R-044 | Created CRs labelled `vfm.io/command-id`, `vfm.io/requested-by` and annotated `vfm.io/managed=true`; existing object with that label short-circuits creation | 267 | M2/M4 | 🟡 labels, annotation and look-up-by-label before create verified for `ServerStatusRequest`; the M4 objects follow |
 | R-045 | Error-code enum exactly as listed | 268 | M2 | ✅ verified 2026-10-16: proto/vfm/agent/v1, buf lint+build clean, TS and Go round-trip tests |
-| R-046 | Agent policy ConfigMap enforced before execution and reported in `Hello` so the UI can explain disabled actions | 270–281 | M2 | ⬜ |
+| R-046 | Agent policy ConfigMap enforced before execution and reported in `Hello` so the UI can explain disabled actions | 270–281 | M2 | ✅ verified 2026-10-16: policy logic table-tested (malformed ⇒ lockdown), enforced before execution, reported in Hello; ConfigMap read tested with a fake clientset only |
 | R-047 | Limits: 4 MB gRPC, 64 KB log chunks, 10 concurrent log sessions, 30 min hard / 60 s idle timeouts, 5 000 buffered events then forced resync | 283–288 | M2/M5 | ⬜ |
 | R-048 | `protocol_version` with N and N−1 support; `buf breaking` in CI against main | 292 | M2 | 🟡 `protocol_version` in Hello; `buf breaking` wired in CI, untested until main has a proto |
 | R-049 | Agent chart version and image tag reported; UI shows "update available" | 293 | M2 | ⬜ |

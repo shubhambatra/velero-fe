@@ -1001,3 +1001,93 @@ when an agent is unreachable; it does not queue). Inventory and event messages a
 accepted and handed to `onAgentMessage` handlers, of which there are none yet. The
 certificate-expiry close is implemented but not exercised by a test (a seven-day
 certificate cannot be waited out and the issuer lifetime is not injectable).
+
+---
+
+## ADR-019 — The command pipeline (M2 day 14)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+**Server (`commands` module, `commands` table)**
+
+- **The row is the source of truth, written before anything is sent.** A command is
+  `QUEUED` first, then written to the stream if the agent is reachable. A crash between
+  the two loses nothing; an unreachable agent just means the command waits for the next
+  Hello, when every unfinished command is re-sent oldest first with the same id.
+- **A pure state machine** (`command-state.ts`) implements §5.4: it never moves
+  backwards and never leaves a terminal state. Late, duplicate and out-of-order messages
+  (a result before its ack, an ack twice) are ignored, not errors. Every transition is one
+  conditional `UPDATE ... WHERE status IN (...)`, so concurrent writers cannot regress a
+  command.
+- **An agent can only report on its own cluster's commands.** Looked up by id, the
+  command's `cluster_id` must equal the stream's. A compromised cluster that learns another
+  cluster's command id gets nothing and is logged. (Mutation-checked: removing the check
+  makes the test fail.)
+- **Results are display data.** Error text is stripped of control characters and capped
+  at 1 000 characters; only a result that actually finished the command may update cluster
+  facts, so a late duplicate for a command that already timed out cannot rewrite them.
+- **Cancel is allowed only before the agent acknowledges** (`QUEUED`/`SENT`), as the plan
+  says; afterwards `409`. The agent is also told to drop it if it already received it.
+- **Timeouts.** A lock-guarded sweeper marks overdue unfinished commands `TIMED_OUT`
+  (`TIMEOUT`) and sends `CancelCommand`. Default deadline is per operation (60 s for
+  `REFRESH_STATUS`). A cluster with 100 unfinished commands refuses more (`429`): a stuck
+  agent must not grow the table without bound.
+- **A closed set of operations** (`ops.ts`). Only `REFRESH_STATUS` exists; the M4
+  mutations are added there with their own validation. `refresh-status` needs only
+  `cluster:read`: it changes nothing the caller cannot already see.
+- **Refresh on connect.** After each accepted Hello the server enqueues its own
+  `REFRESH_STATUS` (not on behalf of any user, `requestedBy` empty) unless one is already
+  unfinished, so the UI shows Velero's version without anyone asking. Switchable with
+  `COMMANDS_REFRESH_ON_CONNECT` (off in the test harness so suites that assert on exactly
+  what an agent receives stay quiet).
+- **Secrets.** There is no column for credential material. When M4 adds BSL/VSL upserts
+  their credentials must be envelope-encrypted before they reach the `payload` column.
+
+**Agent (`dispatch`, `policy`, `velero` packages)**
+
+- **The agent is not a remote shell.** It runs only operations with a registered handler
+  (the allowlist), only after the policy allows them, at most once per command id, and
+  answers everything, refusals included, with a typed result. An operation without a
+  handler is `INVALID_ARGUMENT`, not silence. A panicking handler becomes `INTERNAL`
+  without the panic text; the agent survives.
+- **Idempotency.** An LRU of 10 000 outcomes, answered from memory on a duplicate, also
+  across a restart: persisted every 30 s (when changed) as gzip JSON in
+  `BinaryData` of the `vfm-agent-state` ConfigMap, trimmed oldest-first to stay under
+  900 KiB (a ConfigMap holds 1 MiB). A corrupt or unreadable cache starts empty and says
+  so; the worst case is a command executed twice, which creation by label already
+  tolerates. The outcome is recorded _before_ it is sent, so a lost send is answered from
+  the cache on re-delivery.
+- **Policy (§5.5)** is read from the `vfm-agent-policy` ConfigMap and reloaded every 30 s.
+  Absent means the default. **Malformed means lockdown, not default**: unknown keys (a
+  typo such as `allowRestor`), non-booleans or overlong names make the agent refuse every
+  change until fixed, and say why. A restore is refused if it names a protected namespace,
+  maps into one, or names none at all (which means all) without excluding every protected
+  namespace. `RefreshServerStatus` is the one command allowed in read-only mode.
+- **`RefreshServerStatus`** creates a `ServerStatusRequest` labelled
+  `vfm.io/command-id` / `vfm.io/requested-by` and annotated `vfm.io/managed=true`,
+  looking first for one with the same command-id label so a re-run does not duplicate it,
+  waits for `status.phase == Processed`, reads the version and up to 100 plugins, and
+  deletes the request with its own context so a missed deadline does not leave objects in
+  the customer's cluster. Kubernetes errors are mapped to typed codes without the raw API
+  body. It uses the dynamic client; Velero's Go types arrive with M3.
+- **Shutdown** cancels running commands and waits for them to report.
+
+### Verified
+
+Server: 19 e2e tests (real gRPC/mTLS), a state-machine table, a mutation check on the
+cross-cluster rule. Agent: dispatcher, policy, cache/persistence and handler tests, plus
+the whole agent path (manager → dispatcher → result) against an in-process control plane,
+and a mutation check on the duplicate guard. Live: a real server with the real Go manager,
+dispatcher and handler (a fake Kubernetes API standing in for Velero) — connect, the
+server's own refresh, execution, `SUCCEEDED` after one attempt, version and plugins on the
+cluster; and with Velero absent, `FAILED` / `NOT_FOUND` with the explanatory message.
+
+### Not verified
+
+Against a real Velero and a real API server (kind is blocked on B-2): the dynamic client
+against real CRDs, the state ConfigMap and policy ConfigMap against a real API server
+(fake clientset only), and RBAC for them (the chart is day 15). No UI action yet; the
+clusters page shows the Velero version but not the plugin list.

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -57,6 +58,7 @@ type Options struct {
 // Client is the agent's handle on the Kubernetes API.
 type Client struct {
 	clientset    kubernetes.Interface
+	dynamic      dynamic.Interface
 	host         string
 	probeTimeout time.Duration
 }
@@ -83,8 +85,14 @@ func New(opts Options) (*Client, error) {
 		return nil, fmt.Errorf("build kubernetes client: %w", err)
 	}
 
+	dyn, err := dynamic.NewForConfig(restCfg)
+	if err != nil {
+		return nil, fmt.Errorf("build dynamic kubernetes client: %w", err)
+	}
+
 	return &Client{
 		clientset:    clientset,
+		dynamic:      dyn,
 		host:         restCfg.Host,
 		probeTimeout: probeTimeout(opts.Timeout),
 	}, nil
@@ -126,6 +134,17 @@ func probeTimeout(requestTimeout time.Duration) time.Duration {
 // already built one. Production code uses [New].
 func FromClientset(clientset kubernetes.Interface, host string) *Client {
 	return &Client{clientset: clientset, host: host, probeTimeout: maxProbeTimeout}
+}
+
+// Dynamic returns the untyped client used for Velero's custom resources, which the
+// agent reads and writes without importing Velero's API types until M3.
+func (c *Client) Dynamic() dynamic.Interface { return c.dynamic }
+
+// WithDynamic returns a copy of the client using `d`, for tests.
+func (c *Client) WithDynamic(d dynamic.Interface) *Client {
+	clone := *c
+	clone.dynamic = d
+	return &clone
 }
 
 // Clientset returns the typed Kubernetes client. From M2 it is also the client

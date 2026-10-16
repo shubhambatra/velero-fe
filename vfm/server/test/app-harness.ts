@@ -88,6 +88,9 @@ export async function createTestApp(options: { gateway?: boolean } = {}): Promis
   // an ephemeral port.
   process.env.GATEWAY_ENABLED = options.gateway === true ? 'true' : 'false';
   process.env.GATEWAY_PORT = '0';
+  // A quiet connect: suites that assert on exactly which commands an agent
+  // receives turn the on-connect Velero refresh on for the one case that tests it.
+  process.env.COMMANDS_REFRESH_ON_CONNECT = 'false';
   process.env.HOST = '127.0.0.1';
 
   Logger.overrideLogger(false);

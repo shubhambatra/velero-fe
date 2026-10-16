@@ -185,6 +185,15 @@ export const envSchema = z.object({
         .filter((host) => host !== ''),
     )
     .refine((hosts) => hosts.length > 0, 'at least one hostname is required'),
+  /**
+   * Whether to ask each agent for Velero's version and plugins whenever it
+   * connects, so the UI shows them without anyone asking. Off only in tests that
+   * assert on exactly which commands an agent receives.
+   */
+  COMMANDS_REFRESH_ON_CONNECT: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
   /** `host:port` shown to the operator in the generated install command. */
   GATEWAY_PUBLIC_ADDRESS: z.string().min(1).default('localhost:8443'),
   /** Where the agent's Helm chart is published; shown in the install command. */

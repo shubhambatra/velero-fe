@@ -44,6 +44,9 @@ const (
 	// EnvEnrollmentToken has no flag on purpose: a flag would sit in the process
 	// list for anyone on the node to read. The chart injects it from a Secret.
 	EnvEnrollmentToken         = EnvPrefix + "ENROLLMENT_TOKEN"
+	EnvPolicyConfigMap         = EnvPrefix + "POLICY_CONFIGMAP"
+	EnvStateConfigMap          = EnvPrefix + "STATE_CONFIGMAP"
+	EnvVeleroNamespace         = EnvPrefix + "VELERO_NAMESPACE"
 	EnvClusterID               = EnvPrefix + "CLUSTER_ID"
 	EnvClusterName             = EnvPrefix + "CLUSTER_NAME"
 	EnvInstanceID              = EnvPrefix + "INSTANCE_ID"
@@ -79,6 +82,9 @@ var (
 	settingControlPlaneCAFile      = setting{EnvControlPlaneCAFile, "control-plane-ca-file"}
 	settingServerName              = setting{EnvServerName, "server-name"}
 	settingCredentialsSecret       = setting{EnvCredentialsSecret, "credentials-secret"}
+	settingPolicyConfigMap         = setting{EnvPolicyConfigMap, "policy-configmap"}
+	settingStateConfigMap          = setting{EnvStateConfigMap, "state-configmap"}
+	settingVeleroNamespace         = setting{EnvVeleroNamespace, "velero-namespace"}
 	settingEnrollmentToken         = setting{env: EnvEnrollmentToken}
 	settingClusterID               = setting{EnvClusterID, "cluster-id"}
 	settingClusterName             = setting{EnvClusterName, "cluster-name"}
@@ -141,6 +147,19 @@ type Config struct {
 	// CredentialsSecret names the Secret in Namespace that holds the agent's
 	// private key, certificate and the CA (PLAN.md §5.1 step 3).
 	CredentialsSecret string
+
+	// PolicyConfigMap names the ConfigMap holding the agent-side policy
+	// (PLAN.md §5.5). Set by the cluster owner at install time; the control plane
+	// cannot change it.
+	PolicyConfigMap string
+
+	// StateConfigMap names the ConfigMap the agent persists its executed-command
+	// cache to, so a restart still recognises a re-delivered command.
+	StateConfigMap string
+
+	// VeleroNamespace is where Velero runs and where the agent creates its
+	// requests.
+	VeleroNamespace string
 
 	// EnrollmentToken is the one-time bootstrap token. Environment only, and
 	// never logged; unused once the agent holds a certificate.
@@ -206,6 +225,9 @@ func Default() *Config {
 		InstanceID:         defaultInstanceID(),
 		Namespace:          AgentNamespace,
 		CredentialsSecret:  DefaultCredentialsSecret,
+		PolicyConfigMap:    DefaultPolicyConfigMap,
+		StateConfigMap:     DefaultStateConfigMap,
+		VeleroNamespace:    DefaultVeleroNamespace,
 		HealthAddr:         ":8081",
 		MetricsAddr:        ":9090",
 		LogLevel:           slog.LevelInfo,
@@ -268,6 +290,9 @@ func (c *Config) applyEnv(getenv func(string) (string, bool), probs *problems) {
 	env.str(settingControlPlaneCAFile, &c.ControlPlaneCAFile)
 	env.str(settingServerName, &c.ServerName)
 	env.str(settingCredentialsSecret, &c.CredentialsSecret)
+	env.str(settingPolicyConfigMap, &c.PolicyConfigMap)
+	env.str(settingStateConfigMap, &c.StateConfigMap)
+	env.str(settingVeleroNamespace, &c.VeleroNamespace)
 	env.str(settingEnrollmentToken, &c.EnrollmentToken)
 	env.str(settingClusterID, &c.ClusterID)
 	env.str(settingClusterName, &c.ClusterName)
@@ -318,6 +343,12 @@ func (c *Config) applyFlags(args []string, probs *problems) error {
 		"TLS server name to verify the gateway against (default: host of the address)")
 	fs.StringVar(&c.CredentialsSecret, settingCredentialsSecret.flag, c.CredentialsSecret,
 		"Secret in the agent namespace holding the key, certificate and CA")
+	fs.StringVar(&c.PolicyConfigMap, settingPolicyConfigMap.flag, c.PolicyConfigMap,
+		"ConfigMap holding the agent-side policy, set by the cluster owner")
+	fs.StringVar(&c.StateConfigMap, settingStateConfigMap.flag, c.StateConfigMap,
+		"ConfigMap the executed-command cache is persisted to")
+	fs.StringVar(&c.VeleroNamespace, settingVeleroNamespace.flag, c.VeleroNamespace,
+		"namespace Velero runs in")
 	fs.StringVar(&c.ClusterID, settingClusterID.flag, c.ClusterID,
 		"cluster ID issued by the control plane at enrollment")
 	fs.StringVar(&c.ClusterName, settingClusterName.flag, c.ClusterName,
@@ -388,6 +419,9 @@ func (c *Config) normalize() {
 	c.ControlPlaneCAFile = strings.TrimSpace(c.ControlPlaneCAFile)
 	c.ServerName = strings.TrimSpace(c.ServerName)
 	c.CredentialsSecret = strings.TrimSpace(c.CredentialsSecret)
+	c.PolicyConfigMap = strings.TrimSpace(c.PolicyConfigMap)
+	c.StateConfigMap = strings.TrimSpace(c.StateConfigMap)
+	c.VeleroNamespace = strings.TrimSpace(c.VeleroNamespace)
 	c.EnrollmentToken = strings.TrimSpace(c.EnrollmentToken)
 	c.ClusterID = strings.ToLower(strings.TrimSpace(c.ClusterID))
 	c.InstanceID = strings.TrimSpace(c.InstanceID)
@@ -402,8 +436,16 @@ func (c *Config) normalize() {
 // validate records a problem for every setting that cannot be used, rather
 // than returning on the first one.
 func (c *Config) validate(probs *problems) {
-	if !dns1123Subdomain.MatchString(c.CredentialsSecret) {
-		probs.add(settingCredentialsSecret, "must be a valid Kubernetes object name")
+	for _, named := range []struct {
+		s setting
+		v string
+	}{{settingCredentialsSecret, c.CredentialsSecret}, {settingPolicyConfigMap, c.PolicyConfigMap}, {settingStateConfigMap, c.StateConfigMap}} {
+		if !dns1123Subdomain.MatchString(named.v) {
+			probs.add(named.s, "must be a valid Kubernetes object name")
+		}
+	}
+	if len(c.VeleroNamespace) > 63 || !dns1123Label.MatchString(c.VeleroNamespace) {
+		probs.add(settingVeleroNamespace, "must be a valid Kubernetes namespace name")
 	}
 	if c.ControlPlaneAddress == "" {
 		probs.add(settingControlPlaneAddress, "is required: the agent dials out to the control plane (PLAN.md §1.1 P1)")
@@ -565,6 +607,9 @@ func (c *Config) LogValue() slog.Value {
 		slog.Bool("control_plane_ca_file_set", c.ControlPlaneCAFile != ""),
 		slog.String("server_name", c.ServerName),
 		slog.String("credentials_secret", c.CredentialsSecret),
+		slog.String("policy_configmap", c.PolicyConfigMap),
+		slog.String("state_configmap", c.StateConfigMap),
+		slog.String("velero_namespace", c.VeleroNamespace),
 		// Presence only: the token is a credential.
 		slog.Bool("enrollment_token_set", c.EnrollmentToken != ""),
 		slog.String("cluster_id", c.ClusterID),

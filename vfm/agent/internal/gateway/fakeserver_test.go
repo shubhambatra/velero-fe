@@ -129,6 +129,9 @@ type fakeGateway struct {
 	refuseConnect  codes.Code
 	heartbeatEvery time.Duration
 	closedByClient chan struct{}
+	// stream is the live Connect stream, so a test can push to the agent.
+	stream   grpc.BidiStreamingServer[pb.AgentMessage, pb.ServerMessage]
+	received []*pb.AgentMessage
 }
 
 func startFakeGateway(t *testing.T, ca *testCA, serverCA *testCA) *fakeGateway {
@@ -204,6 +207,7 @@ func (g *fakeGateway) Connect(stream grpc.BidiStreamingServer[pb.AgentMessage, p
 	}
 	g.mu.Lock()
 	g.hellos = append(g.hellos, first.GetHello())
+	g.stream = stream
 	g.mu.Unlock()
 
 	if err := stream.Send(&pb.ServerMessage{
@@ -227,11 +231,13 @@ func (g *fakeGateway) Connect(stream grpc.BidiStreamingServer[pb.AgentMessage, p
 		if err != nil {
 			return err
 		}
+		g.mu.Lock()
 		if msg.GetHeartbeat() != nil {
-			g.mu.Lock()
 			g.heartbeats++
-			g.mu.Unlock()
+		} else {
+			g.received = append(g.received, msg)
 		}
+		g.mu.Unlock()
 	}
 }
 
@@ -247,4 +253,24 @@ func (g *fakeGateway) configure(change func()) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	change()
+}
+
+// push sends a message to the connected agent.
+func (g *fakeGateway) push(msg *pb.ServerMessage) {
+	g.mu.Lock()
+	stream := g.stream
+	g.mu.Unlock()
+	if stream == nil {
+		g.t.Fatal("no live stream to push to")
+	}
+	if err := stream.Send(msg); err != nil {
+		g.t.Fatalf("push: %v", err)
+	}
+}
+
+// messages returns the non-heartbeat messages the agent has sent.
+func (g *fakeGateway) messages() []*pb.AgentMessage {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return append([]*pb.AgentMessage(nil), g.received...)
 }
