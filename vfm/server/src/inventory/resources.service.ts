@@ -6,6 +6,7 @@ import type { Prisma, VeleroResource } from '@prisma/client';
 import { stringify } from 'yaml';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { coverageOf, type CoverageBackup } from './coverage';
 import { WatchScopeService } from './watch-scope.service';
 import { RbacService, type TokenLimit } from '../rbac/rbac.service';
 import {
@@ -369,10 +370,55 @@ export class ResourcesService {
       more = true;
     }
 
+    if (kind === 'NAMESPACE') {
+      await this.addCoverage(orgId, userId, clusterId, items as { name: string }[], token);
+    }
+
     return {
       items,
       nextCursor: more && cursorId !== undefined ? this.encodeCursor(cursorId, signature) : null,
     };
+  }
+
+  /**
+   * Adds "last successful backup covering this namespace" to a page of namespaces.
+   * Looks at the newest 2 000 completed backups and the enabled schedules; the name of a
+   * backup is given only when the caller may see that backup.
+   */
+  private async addCoverage(
+    orgId: string,
+    userId: string,
+    clusterId: string,
+    items: { name: string }[],
+    token?: TokenLimit,
+  ): Promise<void> {
+    if (items.length === 0) {
+      return;
+    }
+    const [backups, schedules, visibility] = await Promise.all([
+      this.prisma.inOrg(orgId, () =>
+        this.prisma.veleroResource.findMany({
+          where: { clusterId, kind: 'BACKUP', phase: 'Completed', deletedAt: null },
+          orderBy: { completedAt: { sort: 'desc', nulls: 'last' } },
+          take: 2_000,
+          select: { name: true, spec: true, completedAt: true },
+        }),
+      ),
+      this.prisma.inOrg(orgId, () =>
+        this.prisma.veleroResource.findMany({
+          where: { clusterId, kind: 'SCHEDULE', deletedAt: null },
+          take: 500,
+          select: { spec: true },
+        }),
+      ),
+      this.rbac.visibility(orgId, userId, clusterId, 'backup:read', token),
+    ]);
+    const now = new Date();
+    const mayName = (b: CoverageBackup): boolean =>
+      visibility.all || visibility.sees(coveredBy('BACKUP', b.spec));
+    for (const item of items) {
+      Object.assign(item, { coverage: coverageOf(item.name, backups, schedules, now, mayName) });
+    }
   }
 
   /** One backup, restore or schedule, with its timeline and a YAML rendering. 404 when absent or not visible. */

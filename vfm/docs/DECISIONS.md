@@ -1835,3 +1835,39 @@ Go: projections (a pod full of secrets reports none), events, snapshot across na
 cluster), one retirement. Server: kind and namespace rules, summaries, a fixture produced by the agent's own projections
 validates, 10 e2e (lists, filters, visibility, refusal of malformed items, scope messages, no count leak). The two tests that
 assumed a pod was an unsupported kind now use a truly unsupported one.
+
+## ADR-034 — The workloads UI and namespace backup coverage (M5 day 29)
+
+### Decisions
+
+- **"Last successful backup covering this namespace"** is computed by the control plane when namespaces are listed
+  (`inventory/coverage.ts`): from the newest 2 000 `Completed` backups and the enabled schedules, a backup covers a
+  namespace if its namespace filter includes it (empty or `*` means all) and does not exclude it. It is judged by the
+  namespace filter alone: a backup narrowed by label selectors or resource lists still counts, and the page says
+  "covering", not "restorable". `PartiallyFailed` is not "successful".
+- **Badges.** `recent` (the backup finished within 48 hours), `stale` (older), `none`; and `scheduled` when an unpaused
+  schedule's template covers it. 48 hours is a constant, not a setting.
+- **What a limited viewer is told.** The time of the newest covering backup is not a secret about a namespace they can
+  see, but a backup's name is given only if they may see that backup (all its namespaces in their scope); otherwise the
+  name is null and the page shows the time alone.
+- **One Workloads tab with four views** (namespaces, pods, nodes, volume claims) and a separate Events tab, all built on
+  the existing `ResourceList` (filters, sort, cursor paging). "Show pods" on a namespace opens the pods filtered to it,
+  which is also what asks a large cluster's agent for that namespace's pods. Pod rows expand (native `<details>`) into
+  their containers: state, reason, restarts, last termination reason, image.
+- **Pod scope is published one at a time per cluster**, so several requests at once send one `WatchScope` message
+  instead of several identical ones.
+- **The Activity tab** stays disabled; its reason now says plainly that a command history page is not built (it said M4,
+  which was wrong).
+
+### Deferred
+
+A per-namespace detail page; coverage by label-selector backups; a setting for the staleness threshold; logs from a pod
+row (day 30).
+
+### Verified
+
+Server: 15 coverage unit tests, 4 e2e (times, scheduled, none, a name withheld from a limited viewer), a single scope
+message under concurrent requests. Web: 8 page tests. Driven in Chrome against the real server and the real agent
+syncer (fake Kubernetes objects, including a pod carrying env vars and annotations): the namespaces table, Show pods,
+a pod's containers, the events tab; the agent received the pod scope; no database table, server log or agent log
+contains the planted secret.

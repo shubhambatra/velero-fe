@@ -9,6 +9,34 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M5 day 29: workloads UI
+
+Session 7, continued. CI green on day 28 (`3a38529`).
+
+### Done
+
+- Server: namespace backup coverage (`inventory/coverage.ts`, added to the namespaces list); the pod scope published one
+  message at a time (ADR-034).
+- Web: Workloads tab (namespaces with coverage badges, pods with a containers drill-down, nodes, volume claims) and an
+  Events tab; `ResourceList` can start from a chosen filter; phase colours for pod, claim and event states.
+
+### Test status
+
+Server unit **814**, e2e **480**; web **363**; Go unchanged (all packages pass); lint, typecheck, build, `buf lint` clean.
+Requirements **68/152 (44.7 %)** (R-072, R-073, R-075 verified).
+
+### Driven for real
+
+Chrome against the real server and the real agent syncer (fake Kubernetes objects): namespaces with Backed up, Stale and
+Never badges, Show pods filtered to shop, a pod's containers (OOMKilled, CrashLoopBackOff), events; the agent received the
+pod scope; the planted secret was found in no table or log.
+
+### Not verified
+
+Real clusters (B-2); narrow viewports and keyboard use; a namespace-limited user in the browser (server tests only).
+
+---
+
 ## 2026-10-17 — M5 day 28: the core inventory
 
 Session 7, continued. CI green on day 27 (`c7531ef`).

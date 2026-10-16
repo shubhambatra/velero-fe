@@ -55,6 +55,7 @@ export function ResourceList<T>({
   defaultOrder = 'desc',
   phases,
   extras = [],
+  initialExtra,
   emptyHint,
 }: {
   orgId: string;
@@ -69,13 +70,15 @@ export function ResourceList<T>({
   defaultOrder?: 'asc' | 'desc';
   phases?: Option[];
   extras?: Extra[];
+  /** Filter values the list starts with (for example a namespace chosen elsewhere). */
+  initialExtra?: Record<string, string> | undefined;
   emptyHint: string;
 }): ReactElement {
   const [text, setText] = useState('');
   const [phase, setPhase] = useState('');
   const [sort, setSort] = useState(defaultSort);
   const [order, setOrder] = useState<'asc' | 'desc'>(defaultOrder);
-  const [extra, setExtra] = useState<Record<string, string>>({});
+  const [extra, setExtra] = useState<Record<string, string>>(initialExtra ?? {});
   const q = useDebounced(text.trim());
 
   const filters: Filters = { q, phase, sort, order, ...extra };

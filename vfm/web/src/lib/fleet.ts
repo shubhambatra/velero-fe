@@ -78,7 +78,15 @@ export function phaseTone(phase: string | null): Tone {
     case 'Available':
     case 'Enabled':
     case 'Ready':
+    case 'Running':
+    case 'Active':
+    case 'Bound':
+    case 'Succeeded':
       return 'ok';
+    case 'Pending':
+    case 'Warning':
+    case 'Terminating':
+      return 'warn';
     case 'PartiallyFailed':
     case 'Deleting':
     case 'WaitingForPluginOperationsPartiallyFailed':
@@ -88,6 +96,7 @@ export function phaseTone(phase: string | null): Tone {
     case 'FailedValidation':
     case 'Unavailable':
     case 'NotReady':
+    case 'Lost':
       return 'error';
     default:
       return 'neutral';

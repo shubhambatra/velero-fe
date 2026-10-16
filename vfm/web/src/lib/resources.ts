@@ -86,6 +86,78 @@ export interface RepositoryRow {
   message: string | null;
 }
 
+/** The live view (`GET …/inventory/{nodes,namespaces,pods,pvcs,events}`). */
+export interface NodeRow {
+  name: string;
+  phase: string | null;
+  roles: string[];
+  kubeletVersion: string | null;
+  allocatable: { cpu: string | null; memory: string | null; pods: string | null };
+  pressure: string[];
+  schedulable: boolean;
+  taints: { key: string | null; value: string | null; effect: string | null }[];
+}
+
+export interface Coverage {
+  state: 'recent' | 'stale' | 'none';
+  lastBackupAt: string | null;
+  /** Null when the backup reaches namespaces the viewer cannot see. */
+  lastBackupName: string | null;
+  scheduled: boolean;
+}
+
+export interface NamespaceRow {
+  name: string;
+  phase: string | null;
+  labels: Record<string, string>;
+  createdAt: string | null;
+  coverage?: Coverage;
+}
+
+export interface ContainerRow {
+  name: string | null;
+  image: string | null;
+  ready: boolean;
+  init: boolean;
+  state: string | null;
+  reason: string | null;
+  restarts: number;
+  lastTerminationReason: string | null;
+}
+
+export interface PodRow {
+  namespace: string;
+  name: string;
+  phase: string | null;
+  reason: string | null;
+  ready: string;
+  restarts: number;
+  node: string | null;
+  owner: { kind: string | null; name: string | null } | null;
+  startedAt: string | null;
+  containers: ContainerRow[];
+}
+
+export interface PvcRow {
+  namespace: string;
+  name: string;
+  phase: string | null;
+  capacity: string | null;
+  storageClass: string | null;
+  volume: string | null;
+}
+
+export interface EventRow {
+  namespace: string;
+  name: string;
+  type: string | null;
+  reason: string | null;
+  message: string | null;
+  count: number;
+  lastSeen: string | null;
+  object: { kind: string | null; name: string | null; namespace: string | null };
+}
+
 export interface Page<T> {
   items: T[];
   nextCursor: string | null;

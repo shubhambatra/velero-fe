@@ -7,16 +7,19 @@ import { api, errorMessage } from '@/lib/client';
 import { useRefreshInterval } from '@/lib/events';
 import type { ClusterOverview } from '@/lib/fleet';
 
-export type ClusterTab = 'overview' | 'backups' | 'restores' | 'schedules' | 'storage';
+export type ClusterTab =
+  'overview' | 'backups' | 'restores' | 'schedules' | 'storage' | 'workloads' | 'events';
 
 /**
  * Tabs that do not exist yet are visible but disabled, each with the reason
  * (PLAN.md §11.2); none is a mock-up.
  */
 const LATER: { label: string; reason: string }[] = [
-  { label: 'Workloads', reason: 'Nodes, namespaces and pods arrive in M5.' },
-  { label: 'Events', reason: 'Arrives in M5.' },
-  { label: 'Activity', reason: 'Command history arrives with the write operations (M4).' },
+  {
+    label: 'Activity',
+    reason:
+      'A command history page is not built yet; each action’s outcome appears as a notification.',
+  },
   { label: 'Access', reason: 'Per-cluster role bindings are managed through the API for now.' },
 ];
 
@@ -26,6 +29,8 @@ const TABS: { id: ClusterTab; label: string; to: string }[] = [
   { id: 'restores', label: 'Restores', to: '/clusters/$clusterId/restores' },
   { id: 'schedules', label: 'Schedules', to: '/clusters/$clusterId/schedules' },
   { id: 'storage', label: 'Storage', to: '/clusters/$clusterId/storage' },
+  { id: 'workloads', label: 'Workloads', to: '/clusters/$clusterId/workloads' },
+  { id: 'events', label: 'Events', to: '/clusters/$clusterId/events' },
 ];
 
 /** The header and tab strip every cluster page shares. */

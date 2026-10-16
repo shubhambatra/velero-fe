@@ -261,6 +261,78 @@ describe('the live view (e2e)', () => {
     });
   });
 
+  describe('namespace backup coverage', () => {
+    const completed = (name: string, namespaces: string[], hoursAgo: number) =>
+      resource(name, {
+        phase: 'Completed',
+        spec: namespaces.length === 0 ? {} : { includedNamespaces: namespaces },
+        status: { completionTimestamp: new Date(Date.now() - hoursAgo * 3_600_000).toISOString() },
+      });
+    const schedule = (name: string, namespaces: string[], paused = false) =>
+      resource(name, {
+        kind: K.RESOURCE_KIND_SCHEDULE,
+        phase: 'Enabled',
+        spec: { schedule: '0 2 * * *', paused, template: { includedNamespaces: namespaces } },
+      });
+
+    it('says when each namespace was last backed up successfully, and whether a schedule covers it', async () => {
+      const s = await setup([
+        ...items(),
+        completed('shop-only', ['shop'], 3),
+        completed('billing-old', ['billing'], 100),
+        resource('billing-failed', { phase: 'Failed', spec: { includedNamespaces: ['billing'] } }),
+        schedule('shop-nightly', ['shop']),
+        schedule('billing-nightly', ['billing'], true),
+      ]);
+      const res = await s.call('get', `${s.base}/namespaces`).expect(200);
+      const byName = Object.fromEntries(
+        (res.body.items as { name: string; coverage: Record<string, unknown> }[]).map((i) => [
+          i.name,
+          i.coverage,
+        ]),
+      );
+      expect(byName.shop).toMatchObject({
+        state: 'recent',
+        lastBackupName: 'shop-only',
+        scheduled: true,
+      });
+      expect(byName.billing).toMatchObject({
+        state: 'stale',
+        lastBackupName: 'billing-old',
+        scheduled: false,
+      });
+      s.stream.cancel();
+    });
+
+    it('says none for a namespace nothing covers', async () => {
+      const s = await setup([...items(), completed('shop-only', ['shop'], 1)]);
+      const res = await s.call('get', `${s.base}/namespaces`).expect(200);
+      const billing = (res.body.items as { name: string; coverage: object }[]).find(
+        (i) => i.name === 'billing',
+      );
+      expect(billing?.coverage).toEqual({
+        state: 'none',
+        lastBackupAt: null,
+        lastBackupName: null,
+        scheduled: false,
+      });
+      s.stream.cancel();
+    });
+
+    it('does not name a backup that reaches namespaces the caller cannot see, but still says when it ran', async () => {
+      const s = await setup([...items(), completed('both', ['shop', 'billing'], 2)]);
+      const viewer = await member(s.call, s.orgId, s.agent, 'VIEWER', {
+        type: 'NAMESPACES',
+        namespaces: ['shop'],
+      });
+      const res = await viewer.call('get', `${s.base}/namespaces`).expect(200);
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].coverage).toMatchObject({ state: 'recent', lastBackupName: null });
+      expect(res.body.items[0].coverage.lastBackupAt).toEqual(expect.any(String));
+      s.stream.cancel();
+    });
+  });
+
   describe('who sees what', () => {
     it('shows a namespace-limited viewer only their namespaces, but every node', async () => {
       const s = await setup();
@@ -358,6 +430,17 @@ describe('the live view (e2e)', () => {
       await s.call('get', `${s.base}/pods?namespace=shop`).expect(200);
       await s.call('get', `${s.base}/pods?namespace=billing`).expect(200);
       expect(await nextScope(s.stream)).toEqual(['billing', 'shop']);
+      s.stream.cancel();
+    });
+
+    it('sends one message when several requests ask at once', async () => {
+      const s = await setup();
+      await Promise.all(
+        Array.from({ length: 6 }, () => s.call('get', `${s.base}/pods?namespace=shop`).expect(200)),
+      );
+      expect(await nextScope(s.stream)).toEqual(['shop']);
+      // Nothing else follows.
+      await expect(s.stream.next(600)).rejects.toThrow();
       s.stream.cancel();
     });
 

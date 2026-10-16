@@ -239,10 +239,18 @@ describe('cluster overview', () => {
     renderApp({ path: '/clusters/c1' });
 
     const tabs = await screen.findByRole('navigation', { name: 'Cluster sections' });
-    const workloads = within(tabs).getByRole('button', { name: 'Workloads' });
-    expect(workloads).toBeDisabled();
-    expect(workloads.getAttribute('title') ?? '').toContain('M5');
-    // The tabs that exist are real links.
+    const activity = within(tabs).getByRole('button', { name: 'Activity' });
+    expect(activity).toBeDisabled();
+    expect(activity.getAttribute('title') ?? '').toContain('not built yet');
+    // The tabs that exist are real links, the live view's among them.
+    expect(within(tabs).getByRole('link', { name: 'Workloads' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/workloads',
+    );
+    expect(within(tabs).getByRole('link', { name: 'Events' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/events',
+    );
     expect(within(tabs).getByRole('link', { name: 'Backups' })).toHaveAttribute(
       'href',
       '/clusters/c1/backups',

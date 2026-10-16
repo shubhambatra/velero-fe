@@ -30,6 +30,8 @@ export class WatchScopeService implements OnApplicationBootstrap, OnApplicationS
   private readonly logger = new Logger(WatchScopeService.name);
   /** What this replica last sent, to send only changes. */
   private readonly sent = new Map<string, string>();
+  /** Publishing is one at a time per cluster, so two requests at once send one message. */
+  private readonly queue = new Map<string, Promise<void>>();
   private timer: NodeJS.Timeout | undefined;
 
   constructor(
@@ -78,7 +80,22 @@ export class WatchScopeService implements OnApplicationBootstrap, OnApplicationS
   }
 
   /** Sends the agent the set, if it is not what it was last sent. */
-  async publish(clusterId: string): Promise<void> {
+  publish(clusterId: string): Promise<void> {
+    const next = (this.queue.get(clusterId) ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() => this.publishNow(clusterId));
+    this.queue.set(clusterId, next);
+    void next
+      .finally(() => {
+        if (this.queue.get(clusterId) === next) {
+          this.queue.delete(clusterId);
+        }
+      })
+      .catch(() => undefined);
+    return next;
+  }
+
+  private async publishNow(clusterId: string): Promise<void> {
     const namespaces = (await this.wanted(clusterId)).sort();
     const signature = namespaces.join(',');
     if (this.sent.get(clusterId) === signature) {
