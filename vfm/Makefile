@@ -153,10 +153,12 @@ helm-lint: ## Lint the Helm charts
 	for chart in $(VFM_ROOT)/deploy/helm/*/Chart.yaml; do \
 		[ -e "$$chart" ] || continue; \
 		found=1; \
-		helm lint "$$(dirname "$$chart")"; \
+		helm lint "$$(dirname "$$chart")" \
+			--set controlPlane.address=vfm.example.com:8443 \
+			--set-file controlPlane.caBundle=$(VFM_ROOT)/deploy/helm/lint-ca.pem; \
 	done; \
 	if [ "$$found" = 0 ]; then \
-		echo 'helm-lint: no charts yet (agent chart lands in M2 day 15) — nothing to lint'; \
+		echo 'helm-lint: no charts found — nothing to lint'; \
 	fi
 
 .PHONY: versions

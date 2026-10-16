@@ -151,15 +151,18 @@ criteria are still unmet (B-1, B-2).
 - **Day 12 done** (ADR-017): `agent/internal/{identity,gateway}`, wired into the
   leader task. Run Go tooling with `export PATH=$HOME/.local/go/bin:$HOME/go/bin:$PATH`.
 - **Day 13 done** (ADR-018): `server/src/streams`, a real `Connect`, live revocation.
-- **Day 14 done** (ADR-019): commands table/state machine/pipeline on the server; policy, dispatcher,
-  idempotency and `RefreshServerStatus` on the agent.
-- **Next: day 15 — agent Helm chart + stream hardening** (plan line 688): chart with RBAC exactly per §12.2
-  (it must allow `get/create/update` on the credentials Secret, `vfm-agent-state` and `get` on
-  `vfm-agent-policy` by name; `create/get/list/delete` on `serverstatusrequests.velero.io` in the Velero
-  namespace; Lease), policy ConfigMap, PDB, securityContext, resources, image override, proxy env vars,
-  custom CA; values `controlPlane.address`, `controlPlane.caBundle`, `enrollment.token` (ADR-016). Tests:
-  agent killed mid-command, server replica killed, revoked cert, wrong-cluster fingerprint, token reuse.
-  Then the M2 exit criteria need kind (B-2) and a human install on a real cluster.
+- **Days 10-15 are built** (ADR-015…020). **M2's exit criteria are not met** and what remains is not
+  something more code here can finish:
+  1. Clear B-2 (inotify, needs root), then `./scripts/dev-up.sh` in `vfm/deploy/dev` to build both kind clusters.
+  2. Build and load the agent image: `docker build -t ghcr.io/shubhambatra/vfm-agent:0.1.0 vfm/agent`, then
+     `kind load docker-image ... --name vfm-a` (and `vfm-b`). No registry publishes it yet.
+  3. In the UI, **Add cluster**, copy the generated command, and run it against each kind cluster
+     (the gateway address must be reachable from the cluster: set `GATEWAY_PUBLIC_ADDRESS` and
+     `GATEWAY_HOSTNAMES` accordingly). Confirm **Connected** and the Velero version.
+  4. ⛔ **Human checkpoint**: install the agent on one real, non-kind cluster and confirm it connects.
+  Small gaps to close first: show the Velero plugin list on the cluster page, store `chartVersion` and
+  `imageTag` from Hello (R-049), and a Refresh button.
+- Then **M3 day 16 — inventory sync** (agent informers) is next.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

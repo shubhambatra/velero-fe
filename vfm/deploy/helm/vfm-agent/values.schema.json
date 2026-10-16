@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["controlPlane"],
+  "properties": {
+    "replicaCount": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "logLevel": { "enum": ["debug", "info", "warn", "error"] },
+    "controlPlane": {
+      "type": "object",
+      "required": ["address", "caBundle"],
+      "properties": {
+        "address": { "type": "string", "minLength": 3, "pattern": "^[A-Za-z0-9.:\\[\\]-]+$" },
+        "caBundle": { "type": "string", "minLength": 1, "pattern": "^-----BEGIN CERTIFICATE-----" },
+        "serverName": { "type": "string" }
+      }
+    },
+    "velero": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "allowRestore": { "type": "boolean" },
+        "allowBslWrite": { "type": "boolean" },
+        "allowLogStreaming": { "type": "boolean" },
+        "readOnly": { "type": "boolean" },
+        "restoreDeniedNamespaces": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 63 }
+        },
+        "logStreamDeniedNamespaces": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 63 }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

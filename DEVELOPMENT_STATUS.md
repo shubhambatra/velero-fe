@@ -47,14 +47,14 @@ unfinished work as done.
 
 | Measure | Value |
 |---|---|
-| **Requirements verified** | **39 / 152 — 25.7 %** |
-| Requirements partial | 27 |
-| Requirements not started | 84 |
+| **Requirements verified** | **41 / 152 — 27.0 %** |
+| Requirements partial | 28 |
+| Requirements not started | 81 |
 | Requirements blocked | 2 |
 
 _Correction (2026-10-16): the header previously read 28 verified. The §10 inventory,
 which is the source of truth, had 26 ✅ rows; the two extra were R-024 (pin half)
-and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39._
+and R-025, which are 🟡 there. Day 10 added R-033, R-034, R-035, R-045 → 30; day 11 added R-026 and R-029 → 32; day 12 added R-027, R-028, R-030 → 35; day 13 added R-031 and R-032 → 37; day 14 added R-042 and R-046 → 39; day 15 added R-021 and R-116 → 41._
 
 Verified in session 1: R-002, R-003, R-007, R-010, R-017, R-024 (the pin half),
 R-025, R-103, R-105, R-113, R-127, R-152.
@@ -106,7 +106,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 |---|---|---|
 | M0 — Foundation (days 1–3) | 616–633 | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1 |
 | M1 — Identity, orgs, RBAC (days 4–9) | 637–662 | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next** |
-| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–14 done** (ADR-015…019: contract, CA/enrollment, agent manager, server streams, command pipeline); day 15 next |
+| M2 — Agent protocol, enrollment (days 10–15) | 666–692 | **days 10–15 built and verified in parts** (ADR-015…020); exit criteria NOT met — no cluster install (B-2), plugins not yet shown in the UI; ⛔ human checkpoint pending |
 | M3 — Read-only Velero visibility (days 16–20) | 696–713 | not started |
 | M4 — Velero write operations (days 21–27) | 717–740 | not started |
 | M5 — Cluster live view and logs (days 28–31) | 744–758 | not started |
@@ -605,7 +605,7 @@ make them obvious.
 | R-011 | P1 — agent dials out only; control plane never connects into a cluster | 36 | M2 | ⬜ |
 | R-012 | P2 — backup data never passes through VFM | 37 | M3/M4 | ⬜ |
 | R-013 | P3 — agent executes only typed commands; no kubectl, exec or arbitrary YAML | 38 | M2 | ⬜ |
-| R-014 | P4 — least privilege for both agent RBAC and user permissions | 39 | M1/M2 | ⬜ |
+| R-014 | P4 — least privilege for both agent RBAC and user permissions | 39 | M1/M2 | 🟡 user permissions engine (M1) and agent RBAC (verified) exist; namespace-level enforcement on live routes arrives with M4 |
 | R-015 | P5 — every state-changing action audited | 40 | M1+ | 🟡 every control-plane mutation incl. refusals; commands in the same transaction arrive in M2 |
 | R-016 | P6 — air-gap capable; no runtime internet calls, no CDN assets | 41 | all | 🟡 |
 
@@ -627,7 +627,7 @@ make them obvious.
 
 | ID | Requirement | Lines | Milestone | Status |
 |---|---|---|---|---|
-| R-021 | Agent stack as specified, distroless non-root read-only image | 126–135 | M0/M2 | 🟡 compiles, vets, tests pass (2026-10-16); distroless image not built, golangci-lint absent |
+| R-021 | Agent stack as specified, distroless non-root read-only image | 126–135 | M0/M2 | ✅ verified 2026-10-16: compiles, vets, tests, golangci-lint and govulncheck clean; distroless non-root image built and run read-only with all capabilities dropped |
 | R-022 | Control-plane stack as specified | 137–148 | M0–M2 | 🟡 |
 | R-023 | Web stack as specified | 150–156 | M0/M3/M5 | 🟡 |
 | R-024 | Velero support window, version detection, capability map, e2e on primary and oldest | 158–162 | M0/M2/M3 | 🟡 |
@@ -660,7 +660,7 @@ make them obvious.
 | R-046 | Agent policy ConfigMap enforced before execution and reported in `Hello` so the UI can explain disabled actions | 270–281 | M2 | ✅ verified 2026-10-16: policy logic table-tested (malformed ⇒ lockdown), enforced before execution, reported in Hello; ConfigMap read tested with a fake clientset only |
 | R-047 | Limits: 4 MB gRPC, 64 KB log chunks, 10 concurrent log sessions, 30 min hard / 60 s idle timeouts, 5 000 buffered events then forced resync | 283–288 | M2/M5 | ⬜ |
 | R-048 | `protocol_version` with N and N−1 support; `buf breaking` in CI against main | 292 | M2 | 🟡 `protocol_version` in Hello; `buf breaking` wired in CI, untested until main has a proto |
-| R-049 | Agent chart version and image tag reported; UI shows "update available" | 293 | M2 | ⬜ |
+| R-049 | Agent chart version and image tag reported; UI shows "update available" | 293 | M2 | 🟡 the agent reports chart version and image tag in Hello; the control plane does not yet store them or show "update available" |
 
 ### §6 Velero CLI coverage (lines 297–327)
 
@@ -762,7 +762,7 @@ make them obvious.
 | R-113 | Central `redact()` before logging, before `commands.payload`, before audit details, with credential-field tests | 517 | M0 | ✅ |
 | R-114 | `pnpm audit`, `govulncheck` and Trivy in CI, failing on high/critical | 518 | M0 | 🟡 |
 | R-115 | Containers non-root, read-only root filesystem, all capabilities dropped, seccomp RuntimeDefault | 519 | M2/M8 | ⬜ |
-| R-116 | Agent RBAC exactly §12.2 — no cluster-wide secret read, no exec, no wildcards — verified by rendering the chart and diffing the rules | 521–525 | M2 | ⬜ |
+| R-116 | Agent RBAC exactly §12.2 — no cluster-wide secret read, no exec, no wildcards — verified by rendering the chart and diffing the rules | 521–525 | M2 | ✅ verified 2026-10-16: `test/chart` renders the chart and diffs the rules against §12.2; three mutations each failed it |
 | R-117 | `docs/THREAT_MODEL.md` (STRIDE per component) with every mitigation verified by a test or a documented manual check | 527–528 | M7 | ⬜ |
 
 ### §13 Non-functional requirements (lines 532–545)

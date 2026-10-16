@@ -9,6 +9,48 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-16 — M2 day 15: the agent chart, the image and stream hardening
+
+Session 7, continued. CI green on day 14 (`f57a446`).
+
+### Done
+
+- `vfm/deploy/helm/vfm-agent`: RBAC per §12.2, policy and CA ConfigMaps, enrollment Secret,
+  hardened two-replica Deployment, PDB, proxy, image override, values schema (ADR-020).
+- `test/chart`: renders the chart and diffs RBAC against §12.2; checks env vars against the
+  agent's config constants and feeds the rendered environment to the real `config.Load`; parses
+  the rendered policy with the real parser. Three mutations each failed the suite.
+- `agent/Dockerfile` (distroless, non-root, digest-pinned bases); built and run read-only.
+- Hardening tests: agent killed mid-command (both timings), replica killed abruptly and
+  restarted, plus a RUNNING-state re-delivery e2e. The rest of the list is covered by the earlier
+  suites (table in ADR-020).
+- CI: chart tests require helm, `helm lint`, and an image build step. Makefile `helm-lint`
+  passes the required values.
+- Fixed a `VFM_AGENT_*` vs `VFM_*` naming slip in docs and two raw env reads; agent README
+  brought up to date.
+
+### Test status
+
+Server unit **550**, e2e **230**, web 47; Go: all packages pass including `test/chart`;
+golangci-lint 0 issues; govulncheck clean; `helm lint` clean.
+
+### M2 status against its exit criteria
+
+"Both kind clusters enroll from the UI-generated Helm command, show Connected, display Velero
+version and plugins; e2e golden paths 1, 8 (with RefreshServerStatus), 9, 11 pass." **Not met as
+written:** every component is built and verified separately — UI-generated command, enrolment,
+mTLS stream, status, refresh, revocation, two replicas, the chart, the image — but nothing has
+been installed on a kind cluster (B-2), and the plugin list is stored but not yet shown in the UI.
+The ⛔ human checkpoint (install on one real, non-kind cluster) is yours.
+
+### Next
+
+M2's remaining work is yours and B-2's: clear B-2, run `dev-up`, build and `kind load` the image,
+install from the UI-generated command on both clusters, and confirm Connected. Then the human
+checkpoint, then M3 (inventory).
+
+---
+
 ## 2026-10-16 — M2 day 14: the command pipeline
 
 Session 7, continued. CI green on day 13 (`2acb16a`) and on the first server half (see
@@ -22,7 +64,7 @@ commit table).
 - Agent: `policy` (§5.5, malformed ⇒ lockdown), `dispatch` (allowlist, policy gate,
   idempotency LRU persisted to a ConfigMap, cancel, deadlines, panic safety),
   `velero.StatusHandler` (`RefreshServerStatus`), all wired into the leader task.
-- Config: `VFM_AGENT_POLICY_CONFIGMAP`, `_STATE_CONFIGMAP`, `_VELERO_NAMESPACE`.
+- Config: `VFM_POLICY_CONFIGMAP`, `_STATE_CONFIGMAP`, `_VELERO_NAMESPACE`.
 - Two mutation checks (server cross-cluster rule, agent duplicate guard) proved the tests
   would fail without the code.
 
@@ -101,7 +143,7 @@ Session 7, continued. CI is green on the whole of day 11 (`c657dab`).
   `kube-system` UID fingerprint, identity in a Secret), mTLS `Connect` with Hello and
   heartbeats, reconnect with backoff + jitter, renewal at 2/3 lifetime, graceful stop,
   CA pinning (ADR-017). Wired into the leader task, replacing the inert seam.
-- New config: `VFM_AGENT_CONTROL_PLANE_CA_FILE`, `_SERVER_NAME`, `_CREDENTIALS_SECRET`,
+- New config: `VFM_CONTROL_PLANE_CA_FILE`, `_SERVER_NAME`, `_CREDENTIALS_SECRET`,
   and the environment-only `_ENROLLMENT_TOKEN` (never logged).
 - Real `golangci-lint` v2.14.0 and `govulncheck`: 0 issues, no vulnerabilities.
 

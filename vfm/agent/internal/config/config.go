@@ -45,6 +45,8 @@ const (
 	// list for anyone on the node to read. The chart injects it from a Secret.
 	EnvEnrollmentToken         = EnvPrefix + "ENROLLMENT_TOKEN"
 	EnvPolicyConfigMap         = EnvPrefix + "POLICY_CONFIGMAP"
+	EnvChartVersion            = EnvPrefix + "CHART_VERSION"
+	EnvImageTag                = EnvPrefix + "IMAGE_TAG"
 	EnvStateConfigMap          = EnvPrefix + "STATE_CONFIGMAP"
 	EnvVeleroNamespace         = EnvPrefix + "VELERO_NAMESPACE"
 	EnvClusterID               = EnvPrefix + "CLUSTER_ID"

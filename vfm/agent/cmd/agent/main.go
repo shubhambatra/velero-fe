@@ -301,8 +301,8 @@ func helloBuilder(k *kube.Client, currentPolicy func() policy.Policy) func(conte
 	return func(context.Context) *pb.Hello {
 		hello := &pb.Hello{
 			AgentVersion: version,
-			ChartVersion: os.Getenv("VFM_AGENT_CHART_VERSION"),
-			ImageTag:     os.Getenv("VFM_AGENT_IMAGE_TAG"),
+			ChartVersion: os.Getenv(config.EnvChartVersion),
+			ImageTag:     os.Getenv(config.EnvImageTag),
 			Policy:       currentPolicy().Proto(),
 		}
 		if v, err := k.Clientset().Discovery().ServerVersion(); err == nil {

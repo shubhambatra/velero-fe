@@ -270,6 +270,50 @@ describe('commands (e2e)', () => {
       second.cancel();
     });
 
+    it('re-delivers a command the agent had started when it died, without regressing it', async () => {
+      const { call, orgId } = await world();
+      const c = await cluster(call, orgId, 'prod-eu');
+      const first = await connect(c);
+      const id = ((await refresh(call, orgId, c.clusterId).expect(202)).body as { id: string }).id;
+      await first.next();
+      first.send({
+        messageId: 'a',
+        ack: { commandId: id, state: CommandAckState.COMMAND_ACK_STATE_ACKED },
+      });
+      first.send({
+        messageId: 'r',
+        ack: { commandId: id, state: CommandAckState.COMMAND_ACK_STATE_RUNNING },
+      });
+      await eventually(
+        () => stateOf(id),
+        (s) => s.status === 'RUNNING',
+        'RUNNING',
+      );
+
+      // The agent is killed mid-command: no result, the stream just ends.
+      first.cancel();
+      await first.ended;
+
+      // Its replacement is told about the same command, which stays RUNNING (it is not
+      // started over) and is answered from the agent's cache or run once more.
+      const second = await connect(c);
+      expect((await second.next()).command?.commandId).toBe(id);
+      const row = await eventually(
+        () => stateOf(id),
+        (s) => s.attempts >= 2,
+        'a second attempt',
+      );
+      expect(row.status).toBe('RUNNING');
+
+      second.send({ messageId: 'res', result: { commandId: id, ok: true } });
+      await eventually(
+        () => stateOf(id),
+        (s) => s.status === 'SUCCEEDED',
+        'SUCCEEDED',
+      );
+      second.cancel();
+    });
+
     it('does not re-deliver an acknowledged command as new work, and never a finished one', async () => {
       const { call, orgId } = await world();
       const c = await cluster(call, orgId, 'prod-eu');

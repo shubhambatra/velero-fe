@@ -129,6 +129,9 @@ type fakeGateway struct {
 	refuseConnect  codes.Code
 	heartbeatEvery time.Duration
 	closedByClient chan struct{}
+	// creds and listen address are kept so a test can kill the server and bring up
+	// another on the same address, as a restarted replica would.
+	creds grpc.ServerOption
 	// stream is the live Connect stream, so a test can push to the agent.
 	stream   grpc.BidiStreamingServer[pb.AgentMessage, pb.ServerMessage]
 	received []*pb.AgentMessage
@@ -156,11 +159,43 @@ func startFakeGateway(t *testing.T, ca *testCA, serverCA *testCA) *fakeGateway {
 		token: "bootstrap-token", heartbeatEvery: 50 * time.Millisecond,
 		closedByClient: make(chan struct{}, 8),
 	}
-	g.srv = grpc.NewServer(grpc.Creds(creds))
+	g.creds = grpc.Creds(creds)
+	g.srv = grpc.NewServer(g.creds)
 	pb.RegisterAgentGatewayServer(g.srv, g)
 	go func() { _ = g.srv.Serve(lis) }()
-	t.Cleanup(g.srv.Stop)
+	t.Cleanup(func() { g.mu.Lock(); srv := g.srv; g.mu.Unlock(); srv.Stop() })
 	return g
+}
+
+// kill stops the server abruptly, dropping every stream without a closing status:
+// what a crashed or OOM-killed replica looks like to an agent.
+func (g *fakeGateway) kill() {
+	g.mu.Lock()
+	srv := g.srv
+	g.stream = nil
+	g.mu.Unlock()
+	srv.Stop()
+}
+
+// restart brings a new server up on the address the old one had.
+func (g *fakeGateway) restart() {
+	var lis net.Listener
+	var err error
+	for range 50 {
+		if lis, err = net.Listen("tcp", g.addr); err == nil {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err != nil {
+		g.t.Fatalf("could not rebind %s: %v", g.addr, err)
+	}
+	srv := grpc.NewServer(g.creds)
+	pb.RegisterAgentGatewayServer(srv, g)
+	g.mu.Lock()
+	g.srv = srv
+	g.mu.Unlock()
+	go func() { _ = srv.Serve(lis) }()
 }
 
 func (g *fakeGateway) Enroll(_ context.Context, req *pb.EnrollRequest) (*pb.EnrollResponse, error) {

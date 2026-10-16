@@ -1,0 +1,74 @@
+# Values for the Velero Fleet Manager agent chart.
+#
+# The three you must set are printed by the control plane's "Add cluster" page:
+#   controlPlane.address, controlPlane.caBundle, enrollment.token
+
+image:
+  repository: ghcr.io/shubhambatra/vfm-agent
+  # Defaults to the chart's appVersion.
+  tag: ''
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+controlPlane:
+  # host:port of the agent gateway.
+  address: ''
+  # PEM of the control plane's internal CA. The agent trusts ONLY this CA when it
+  # talks to the control plane, so a TLS-intercepting proxy cannot sit in between.
+  caBundle: ''
+  # TLS name to verify, if it differs from the host in `address`.
+  serverName: ''
+
+enrollment:
+  # One-time token from the Add cluster page. It is only used on first start and
+  # may be removed from the release afterwards (`helm upgrade --set enrollment.token=`).
+  token: ''
+  # Or take it from an existing Secret in the release namespace.
+  existingSecret: ''
+  existingSecretKey: token
+
+velero:
+  # Namespace Velero runs in; the agent's access to velero.io resources is limited to it.
+  namespace: velero
+
+# Agent-side policy (PLAN.md §5.5). Set by the cluster owner here; the control plane
+# cannot change it. A malformed policy makes the agent refuse every change.
+policy:
+  allowRestore: true
+  restoreDeniedNamespaces: [kube-system, vfm-system, velero]
+  allowBslWrite: true
+  allowLogStreaming: true
+  logStreamDeniedNamespaces: []
+  readOnly: false
+
+# Two replicas: one leads (Lease), one stands by.
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Outbound proxy for the connection to the control plane. gRPC honours these.
+proxy:
+  httpProxy: ''
+  httpsProxy: ''
+  noProxy: ''
+
+# Extra pod settings.
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+priorityClassName: ''
+extraEnv: []
+
+logLevel: info

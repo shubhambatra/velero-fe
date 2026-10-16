@@ -154,3 +154,40 @@ func TestACancelFromTheControlPlaneReachesARunningCommand(t *testing.T) {
 		return false
 	})
 }
+
+func TestAKilledControlPlaneReplicaIsReconnectedToAndWorkResumes(t *testing.T) {
+	var runs atomic.Int32
+	gw, _, stop := pipeline(t, func(context.Context, *pb.Command) *pb.CommandResult {
+		runs.Add(1)
+		return &pb.CommandResult{Ok: true}
+	})
+	defer stop()
+
+	results := func() int {
+		n := 0
+		for _, m := range gw.messages() {
+			if m.GetResult() != nil {
+				n++
+			}
+		}
+		return n
+	}
+	gw.push(command("before"))
+	eventually(t, "the first result", func() bool { return results() == 1 })
+	_, _, connectsBefore, _ := gw.snapshot()
+
+	// The replica dies without a word, and another comes up where it was.
+	gw.kill()
+	gw.restart()
+
+	eventually(t, "a reconnect", func() bool { _, _, c, _ := gw.snapshot(); return c > connectsBefore })
+	gw.push(command("after"))
+	eventually(t, "the result of a command sent after the restart", func() bool { return results() == 2 })
+
+	if runs.Load() != 2 {
+		t.Errorf("handler ran %d times, want 2", runs.Load())
+	}
+	if enrolls, _, _, _ := gw.snapshot(); enrolls != 1 {
+		t.Errorf("the agent enrolled %d times; a replica restart must reuse its identity", enrolls)
+	}
+}

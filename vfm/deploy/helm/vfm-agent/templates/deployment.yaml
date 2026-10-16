@@ -1,0 +1,151 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vfm-agent.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "vfm-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vfm-agent.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}{{ toYaml . | nindent 8 }}{{ end }}
+      annotations:
+        # A changed policy or CA is picked up by a rollout, not silently.
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}{{ toYaml . | nindent 8 }}{{ end }}
+    spec:
+      serviceAccountName: {{ include "vfm-agent.name" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        {{- if .Values.affinity }}
+        {{- toYaml .Values.affinity | nindent 8 }}
+        {{- else }}
+        # Spread the two replicas across nodes when possible, so one node going
+        # away does not take out both the leader and the standby.
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "vfm-agent.selectorLabels" . | nindent 20 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: agent
+          image: {{ include "vfm-agent.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: VFM_CONTROL_PLANE_ADDRESS
+              value: {{ .Values.controlPlane.address | quote }}
+            - name: VFM_CONTROL_PLANE_CA_FILE
+              value: /etc/vfm/ca/ca.pem
+            {{- if .Values.controlPlane.serverName }}
+            - name: VFM_SERVER_NAME
+              value: {{ .Values.controlPlane.serverName | quote }}
+            {{- end }}
+            - name: VFM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: VFM_INSTANCE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VFM_VELERO_NAMESPACE
+              value: {{ .Values.velero.namespace | quote }}
+            - name: VFM_CREDENTIALS_SECRET
+              value: {{ include "vfm-agent.credentialsSecret" . | quote }}
+            - name: VFM_STATE_CONFIGMAP
+              value: {{ include "vfm-agent.stateConfigMap" . | quote }}
+            - name: VFM_POLICY_CONFIGMAP
+              value: {{ include "vfm-agent.policyConfigMap" . | quote }}
+            - name: VFM_LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+            # Reported in Hello so the UI can say "agent update available".
+            - name: VFM_CHART_VERSION
+              value: {{ .Chart.Version | quote }}
+            - name: VFM_IMAGE_TAG
+              value: {{ default .Chart.AppVersion .Values.image.tag | quote }}
+            {{- if or .Values.enrollment.token .Values.enrollment.existingSecret }}
+            - name: VFM_ENROLLMENT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-enrollment" (include "vfm-agent.name" .)) .Values.enrollment.existingSecret }}
+                  key: {{ .Values.enrollment.existingSecretKey }}
+                  # Absent once the token has been removed after enrollment.
+                  optional: true
+            {{- end }}
+            {{- with .Values.proxy.httpProxy }}
+            - { name: HTTP_PROXY, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.proxy.httpsProxy }}
+            - { name: HTTPS_PROXY, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.proxy.noProxy }}
+            - { name: NO_PROXY, value: {{ . | quote }} }
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - { name: health, containerPort: 8081 }
+            - { name: metrics, containerPort: 9090 }
+          livenessProbe:
+            httpGet: { path: /healthz, port: health }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /readyz, port: health }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: ca, mountPath: /etc/vfm/ca, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: ca
+          configMap:
+            name: {{ include "vfm-agent.name" . }}-ca
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }

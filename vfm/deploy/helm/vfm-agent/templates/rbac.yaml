@@ -1,0 +1,139 @@
+# The agent's permissions, and nothing beyond them (PLAN.md §12.2).
+#   - cluster-wide READ of nodes, namespaces, pods, PVCs and events, and pod logs;
+#   - velero.io resources in the Velero namespace ONLY;
+#   - Secrets: in the Velero namespace (BSL/VSL credentials) and its own credentials
+#     Secret in the release namespace — never a cluster-wide Secret read;
+#   - its own Lease and ConfigMaps in the release namespace.
+# No exec, no wildcards. A test renders this file and diffs it against §12.2.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "vfm-agent.name" . }}-{{ .Release.Namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [nodes, namespaces, pods, persistentvolumeclaims, events]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "vfm-agent.name" . }}-{{ .Release.Namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "vfm-agent.name" . }}-{{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "vfm-agent.name" . }}
+    namespace: {{ .Release.Namespace }}
+---
+# Velero namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "vfm-agent.name" . }}
+  namespace: {{ .Values.velero.namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [velero.io]
+    resources:
+      - backups
+      - restores
+      - schedules
+      - backupstoragelocations
+      - volumesnapshotlocations
+      - deletebackuprequests
+      - downloadrequests
+      - serverstatusrequests
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [velero.io]
+    resources:
+      - backuprepositories
+      - podvolumebackups
+      - podvolumerestores
+      - datauploads
+      - datadownloads
+    verbs: [get, list, watch]
+  # Credentials for backup and snapshot locations. `create` cannot be limited by
+  # name (the name is not known to the authoriser at create time), so this is
+  # namespace-scoped rather than name-scoped; it never extends beyond Velero's namespace.
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, create, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "vfm-agent.name" . }}
+  namespace: {{ .Values.velero.namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "vfm-agent.name" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "vfm-agent.name" . }}
+    namespace: {{ .Release.Namespace }}
+---
+# The agent's own namespace: its credentials, its state, its policy and its Lease.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "vfm-agent.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+rules:
+  # `create` carries no resourceNames (see above); get/update are limited to the one Secret.
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ include "vfm-agent.credentialsSecret" . }}]
+    verbs: [get, update]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ include "vfm-agent.stateConfigMap" . }}]
+    verbs: [get, update]
+  # The policy is the owner's and the agent only reads it.
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ include "vfm-agent.policyConfigMap" . }}]
+    verbs: [get]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [create]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    resourceNames: [{{ include "vfm-agent.leaseName" . }}]
+    verbs: [get, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "vfm-agent.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "vfm-agent.name" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "vfm-agent.name" . }}
+    namespace: {{ .Release.Namespace }}

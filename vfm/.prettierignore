@@ -17,3 +17,6 @@ deploy/dev/manifests/csi-hostpath/
 
 # No prettier parser for Makefiles.
 Makefile
+
+# Helm templates are Go templates, not YAML.
+deploy/helm/*/templates/

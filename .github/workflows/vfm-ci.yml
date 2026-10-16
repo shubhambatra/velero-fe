@@ -109,7 +109,25 @@ jobs:
       - name: Unit tests
         if: steps.agent.outputs.present == 'true'
         working-directory: vfm/agent
+        # The chart tests render the agent's Helm chart and diff its RBAC against
+        # PLAN.md §12.2; with this set a missing `helm` fails them instead of
+        # skipping them.
+        env:
+          VFM_REQUIRE_HELM: '1'
         run: go test -race ./...
+
+      - name: Helm lint
+        if: steps.agent.outputs.present == 'true'
+        run: |
+          printf -- '-----BEGIN CERTIFICATE-----\nMIIBabc\n-----END CERTIFICATE-----\n' > /tmp/ca.pem
+          helm lint vfm/deploy/helm/vfm-agent \
+            --set controlPlane.address=vfm.example.com:8443 \
+            --set-file controlPlane.caBundle=/tmp/ca.pem
+
+      - name: Build the agent image
+        if: steps.agent.outputs.present == 'true'
+        # Not pushed: this only proves the Dockerfile still builds.
+        run: docker build --build-arg VERSION=ci -t vfm-agent:ci vfm/agent
 
       - name: golangci-lint
         if: steps.agent.outputs.present == 'true'

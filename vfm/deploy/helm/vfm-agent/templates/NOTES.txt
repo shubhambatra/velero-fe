@@ -1,0 +1,12 @@
+The Velero Fleet Manager agent is installed in namespace {{ .Release.Namespace }}.
+
+It enrols with the control plane at {{ .Values.controlPlane.address }} on first start
+and then holds an outbound connection open; nothing connects into this cluster.
+
+Check it:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/name={{ include "vfm-agent.name" . }}
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "vfm-agent.name" . }} | grep -E 'enrolled|connected'
+
+The enrollment token is single-use. Once the cluster shows as Connected you can remove
+it from the release:
+  helm upgrade {{ .Release.Name }} <chart> -n {{ .Release.Namespace }} --reuse-values --set enrollment.token=

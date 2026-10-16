@@ -1,0 +1,27 @@
+# Owner-controlled policy (PLAN.md §5.5). The control plane cannot change this.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vfm-agent.policyConfigMap" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+data:
+  allowRestore: {{ .Values.policy.allowRestore | quote }}
+  allowBslWrite: {{ .Values.policy.allowBslWrite | quote }}
+  allowLogStreaming: {{ .Values.policy.allowLogStreaming | quote }}
+  readOnly: {{ .Values.policy.readOnly | quote }}
+  restoreDeniedNamespaces: {{ .Values.policy.restoreDeniedNamespaces | toJson | quote }}
+  logStreamDeniedNamespaces: {{ .Values.policy.logStreamDeniedNamespaces | toJson | quote }}
+---
+# The control plane's CA, which the agent pins until it has enrolled.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vfm-agent.name" . }}-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vfm-agent.labels" . | nindent 4 }}
+data:
+  ca.pem: |
+    {{- .Values.controlPlane.caBundle | trim | nindent 4 }}

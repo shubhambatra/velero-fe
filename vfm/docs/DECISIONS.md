@@ -890,14 +890,14 @@ first run is the real test of that job (recorded in PROGRESS.md).
 - **The key is born in the cluster.** ECDSA P-256, PKCS#8, generated per enrollment
   and per renewal; only a CSR leaves the process. Persisted as a
   `kubernetes.io/tls`-shaped Secret (`tls.key`, `tls.crt`, `ca.crt`) named by
-  `VFM_AGENT_CREDENTIALS_SECRET` (default `vfm-agent-credentials`), which the agent's
+  `VFM_CREDENTIALS_SECRET` (default `vfm-agent-credentials`), which the agent's
   RBAC will reach by name only (§12.2, chart on day 15). An empty Secret means "not
   enrolled", so the chart can pre-create it.
 - **Pinning.** Before enrollment the agent trusts only `controlPlane.caBundle`; after,
   only the CA stored with its identity. TLS 1.3 minimum. A server presenting a
   certificate from any other CA is refused before the token is sent (tested), so a
   man in the middle cannot harvest a bootstrap token.
-- **Token handling.** `VFM_AGENT_ENROLLMENT_TOKEN` is environment-only, with no flag,
+- **Token handling.** `VFM_ENROLLMENT_TOKEN` is environment-only, with no flag,
   so it never appears in a process list; the config log reports presence only
   (tested). It is used only when no identity is stored. If the token is spent and the
   Secret write then fails, the error says so explicitly: the operator must issue a new
@@ -1091,3 +1091,69 @@ Against a real Velero and a real API server (kind is blocked on B-2): the dynami
 against real CRDs, the state ConfigMap and policy ConfigMap against a real API server
 (fake clientset only), and RBAC for them (the chart is day 15). No UI action yet; the
 clusters page shows the Velero version but not the plugin list.
+
+---
+
+## ADR-020 — The agent chart, image and stream hardening (M2 day 15)
+
+- **Date:** 2026-10-16
+- **Status:** Accepted
+
+### Decision
+
+- **Chart `vfm/deploy/helm/vfm-agent`.** Values are exactly what the "Add cluster" page tells
+  the operator to set (`controlPlane.address`, `controlPlane.caBundle`, `enrollment.token`);
+  a server test reads the real `values.yaml` so the two cannot drift. `values.schema.json`
+  makes `helm install` fail, rather than the agent fail later, when the address or CA is
+  missing or not a certificate, when replicas are zero, or when a policy key is misspelt.
+- **RBAC is §12.2 and nothing else.** A ClusterRole with read on nodes, namespaces, pods,
+  PVCs, events and `get` on `pods/log`; a Role in the Velero namespace for `velero.io`
+  resources and Secrets; a Role in the agent's namespace for its own Secret, ConfigMaps and
+  Lease. `create` cannot be restricted by `resourceNames`, so it is the only verb granted by
+  namespace alone; `get`/`update` on the agent's own objects are limited to those names, and
+  the owner's policy ConfigMap is `get`-only. The agent does not hold the cluster-wide Secret
+  read it would need to be a skeleton key.
+- **The chart is tested against the agent, not just against itself.** `test/chart` renders it
+  with `helm template` and: diffs the RBAC against §12.2 written out in the test; asserts no
+  wildcard, no `exec`/`attach`/`portforward`, no Secret in the ClusterRole; checks every
+  `VFM_*` variable it sets against the agent's own config constants (both "missing" and
+  "invented") and feeds the rendered environment to the agent's real `config.Load`; parses the
+  rendered policy ConfigMap with the agent's real parser and checks the default equals the
+  agent's default policy; checks the token is a Secret reference, optional, and appears
+  nowhere inline. Three deliberate mutations (a Secret in the ClusterRole, a wildcard verb,
+  a wrong env prefix) each failed the suite and were reverted.
+- **Hardened pod.** Non-root (65532), `readOnlyRootFilesystem`, no privilege escalation, all
+  capabilities dropped, `RuntimeDefault` seccomp, resource requests and limits, two replicas
+  with a preferred anti-affinity and a PDB with `minAvailable: 1`. A changed policy or CA
+  rolls the pods (config checksum annotation). The enrollment token may be removed after
+  enrollment: the `secretKeyRef` is `optional`.
+- **Custom CA / proxy.** The agent pins the control plane to `controlPlane.caBundle` and
+  nothing else, so a TLS-intercepting proxy cannot sit in the middle; `HTTP_PROXY`,
+  `HTTPS_PROXY` and `NO_PROXY` are passed through for CONNECT proxies. There is no knob to
+  trust a system store for the control plane, on purpose.
+- **Image.** Two-stage build, `CGO_ENABLED=0`, `-trimpath`, stripped, onto
+  `gcr.io/distroless/static-debian12:nonroot`; both bases pinned by digest. Built (69.5 MB) and
+  run locally read-only, as 65532, with `--cap-drop ALL`; outside a cluster it fails with a clear
+  message. CI builds it on every change so the Dockerfile cannot rot.
+- **A naming mistake worth recording.** While writing the chart I found that the docs and two
+  `os.Getenv` calls used `VFM_AGENT_*` while the agent's real prefix is `VFM_`. The config
+  constants were right; the prose and two raw reads were not. The raw reads now use constants,
+  the docs are corrected, and the chart test above would have caught it.
+
+### Hardening tests (PLAN.md §16 day 15)
+
+| Scenario                                                  | Where                                                                                                                                                                            |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent killed mid-command, before any outcome was recorded | `dispatch/hardening_test.go` (re-delivery runs it exactly once more, then replays) and `commands.e2e` (a `RUNNING` command is re-delivered without regressing)                   |
+| Agent killed after recording but before sending           | `dispatch/hardening_test.go` (replayed from the persisted cache, not run again)                                                                                                  |
+| Server replica killed                                     | `gateway/pipeline_test.go` (abrupt kill, restart on the same address, agent reconnects with its identity and work resumes); `streams.e2e` and the live two-process run of day 13 |
+| Revoked certificate                                       | `gateway.e2e`, `streams.e2e`, `clusters.e2e` (disable, delete, rotate; open streams closed)                                                                                      |
+| Wrong-cluster fingerprint                                 | `streams.e2e` (Hello refused), `clusters.e2e` (re-enrolment from another cluster refused)                                                                                        |
+| Bootstrap token reuse                                     | `clusters.e2e` (replay and six concurrent enrolments, exactly one wins), `gateway.e2e`                                                                                           |
+
+### Not verified
+
+The chart installed on a real cluster, the image pulled from a registry (none is published),
+the RBAC accepted by a real API server (a rule the API server rejects would only show then),
+leader election between two real replicas, and `-race` locally. All need the kind clusters
+(B-2) or a registry; none is something a unit test can stand in for.
