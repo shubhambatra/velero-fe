@@ -14,7 +14,7 @@ export function useAccess(orgId: string, clusterId: string) {
     queryKey: ['org', orgId, 'cluster', clusterId, 'access'],
     staleTime: 60_000,
     queryFn: ({ signal }) =>
-      api<{ access?: Partial<Record<string, Level>> }>(
+      api<{ access?: Partial<Record<string, Level>>; blocked?: Record<string, string> }>(
         `/orgs/${orgId}/clusters/${clusterId}/access`,
         {
           signal,
@@ -24,7 +24,10 @@ export function useAccess(orgId: string, clusterId: string) {
   // Unknown until answered (or if the answer is malformed): callers treat that as "not yet known",
   // never as a refusal, because the server decides each request anyway.
   const level = (permission: string): Level | undefined => query.data?.access?.[permission];
-  return { loaded: query.data?.access !== undefined, level };
+  /** Why an action is unavailable: the agent's policy when that is the cause, otherwise the missing permission. */
+  const why = (permission: string): string =>
+    query.data?.blocked?.[permission] ?? lacks(permission);
+  return { loaded: query.data?.access !== undefined, level, why };
 }
 
 /** The sentence for an action the user lacks. */

@@ -747,7 +747,9 @@ paths:
   /orgs/{orgId}/clusters/{clusterId}/access:
     get:
       description: "Per permission: `cluster` (everywhere), `scoped` (only in some namespaces) or `none`.
-        A hint for the UI; each request is still authorized on its own."
+        What the cluster agent’s own policy refuses (read-only, no restores, no storage changes)
+        shows as `none`, with the reason in `blocked`. A hint for the UI; each request is still
+        authorized on its own."
       operationId: AccessController_access
       parameters:
         - name: orgId

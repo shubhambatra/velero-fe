@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ErrorNote } from '@/components/ui/field';
 import { ApiProblem } from '@/lib/api';
 import { api, errorMessage } from '@/lib/client';
-import { lacks, useAccess } from '@/lib/access';
+import { useAccess } from '@/lib/access';
 import { useRefreshInterval } from '@/lib/events';
 import { duration } from '@/lib/fleet';
 import type { BackupRow, Detail, RestoreRow } from '@/lib/resources';
@@ -129,7 +129,7 @@ function RestoreFromBackup({
   const access = useAccess(orgId, clusterId);
   const reason =
     access.level('restore:create') === 'none'
-      ? lacks('restore:create')
+      ? access.why('restore:create')
       : phase !== 'Completed' && phase !== 'PartiallyFailed'
         ? 'Only a completed backup can be restored.'
         : undefined;
@@ -175,7 +175,7 @@ function DeleteBackup({
   });
   const disabledReason =
     level === 'none'
-      ? lacks('backup:delete')
+      ? access.why('backup:delete')
       : phase === 'Deleting'
         ? 'This backup is already being deleted.'
         : undefined;

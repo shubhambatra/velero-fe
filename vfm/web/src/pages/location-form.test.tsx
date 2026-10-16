@@ -43,7 +43,7 @@ interface Call {
   body: unknown;
 }
 
-function server(access: Record<string, string> = ADMIN) {
+function server(access: Record<string, string> = ADMIN, blocked: Record<string, string> = {}) {
   const calls: Call[] = [];
   stubFetch((url, init) => {
     const method = init?.method ?? 'GET';
@@ -61,7 +61,7 @@ function server(access: Record<string, string> = ADMIN) {
         recentRestores: null,
       });
     const rest = new URL(url, 'http://x').pathname.replace('/api/v1/orgs/o1/clusters/c1/', '');
-    if (rest === 'access') return jsonResponse({ access });
+    if (rest === 'access') return jsonResponse({ access, blocked });
     if (rest.startsWith('commands/')) return jsonResponse({ id: 'k1', status: 'QUEUED' });
     if (method === 'GET' && rest === 'backup-locations')
       return jsonResponse({
@@ -228,5 +228,22 @@ describe('the storage page', () => {
     expect(await screen.findByRole('button', { name: 'Add backup location' })).toBeDisabled();
     expect(await screen.findByRole('button', { name: 'Edit archive' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Delete archive' })).toBeDisabled();
+  });
+});
+
+describe('a read-only agent', () => {
+  it('disables the storage actions and says the agent is the reason', async () => {
+    const reason = 'This cluster’s agent is set to read-only, so it refuses every change.';
+    server({ 'storage:write': 'none', 'storage:read': 'cluster' }, { 'storage:write': reason });
+    renderApp({ path: '/clusters/c1/storage' });
+    const add = await screen.findByRole('button', { name: 'Add backup location' });
+    await waitFor(() => {
+      expect(add).toHaveAttribute('title', reason);
+    });
+    expect(add).toBeDisabled();
+    const del = await screen.findByRole('button', { name: 'Delete archive' });
+    await waitFor(() => {
+      expect(del).toHaveAttribute('title', reason);
+    });
   });
 });

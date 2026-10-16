@@ -7,7 +7,7 @@ import { useToasts } from '@/components/toast-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorNote } from '@/components/ui/field';
-import { lacks, useAccess } from '@/lib/access';
+import { useAccess } from '@/lib/access';
 import {
   emptyForm,
   STEP_FIELDS,
@@ -139,7 +139,7 @@ export function BackupWizardPage({
         <Card>
           <CardHeader>
             <CardTitle>You cannot create backups here</CardTitle>
-            <CardDescription>{lacks('backup:create')}</CardDescription>
+            <CardDescription>{access.why('backup:create')}</CardDescription>
           </CardHeader>
         </Card>
       ) : (

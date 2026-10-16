@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
 import { ErrorNote } from '@/components/ui/field';
-import { lacks, useAccess } from '@/lib/access';
+import { useAccess } from '@/lib/access';
 import { api, errorMessage } from '@/lib/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { duration, phaseTone } from '@/lib/fleet';
@@ -65,7 +65,7 @@ function CreateBackupLink({ orgId, clusterId }: Props): ReactElement {
   if (access.level('backup:create') === 'none') {
     return (
       <div className="flex justify-end">
-        <Button disabled title={lacks('backup:create')}>
+        <Button disabled title={access.why('backup:create')}>
           Create backup
         </Button>
       </div>
@@ -155,7 +155,7 @@ function RestoreLink({ orgId, clusterId }: Props): ReactElement {
   if (access.level('restore:create') === 'none') {
     return (
       <div className="flex justify-end">
-        <Button disabled title={lacks('restore:create')}>
+        <Button disabled title={access.why('restore:create')}>
           Restore
         </Button>
       </div>
@@ -241,7 +241,7 @@ function NewScheduleLink({ orgId, clusterId }: Props): ReactElement {
   if (access.level('schedule:write') === 'none') {
     return (
       <div className="flex justify-end">
-        <Button disabled title={lacks('schedule:write')}>
+        <Button disabled title={access.why('schedule:write')}>
           New schedule
         </Button>
       </div>
@@ -307,7 +307,7 @@ function ScheduleActions({
         <Button
           variant="outline"
           disabled={noRun || run.isPending}
-          title={noRun ? lacks('backup:create') : undefined}
+          title={noRun ? access.why('backup:create') : undefined}
           aria-label={`Run ${name} now`}
           onClick={() => {
             run.mutate();
@@ -319,7 +319,7 @@ function ScheduleActions({
           <Button
             variant="outline"
             disabled
-            title={lacks('schedule:write')}
+            title={access.why('schedule:write')}
             aria-label={`Edit ${name}`}
           >
             Edit
@@ -337,7 +337,7 @@ function ScheduleActions({
         <Button
           variant="outline"
           disabled={noWrite || pause.isPending}
-          title={noWrite ? lacks('schedule:write') : undefined}
+          title={noWrite ? access.why('schedule:write') : undefined}
           aria-label={`${schedule.paused ? 'Resume' : 'Pause'} ${name}`}
           onClick={() => {
             pause.mutate();
@@ -348,7 +348,7 @@ function ScheduleActions({
         <Button
           variant="destructive"
           disabled={noDelete}
-          title={noDelete ? lacks('schedule:delete') : undefined}
+          title={noDelete ? access.why('schedule:delete') : undefined}
           aria-label={`Delete ${name}`}
           onClick={() => {
             remove.reset();
@@ -478,7 +478,7 @@ function LocationActions({
   });
 
   const denied = access.level('storage:write') !== 'cluster';
-  const reason = denied ? lacks('storage:write') : undefined;
+  const reason = denied ? access.why('storage:write') : undefined;
   return (
     <span className="flex flex-col gap-1">
       <span className="flex flex-wrap gap-1">
@@ -561,10 +561,10 @@ function AddLocationLinks({ orgId, clusterId }: Props): ReactElement {
   if (access.level('storage:write') !== 'cluster') {
     return (
       <div className="flex justify-end gap-2">
-        <Button disabled title={lacks('storage:write')}>
+        <Button disabled title={access.why('storage:write')}>
           Add backup location
         </Button>
-        <Button disabled title={lacks('storage:write')}>
+        <Button disabled title={access.why('storage:write')}>
           Add snapshot location
         </Button>
       </div>

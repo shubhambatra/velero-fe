@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorNote } from '@/components/ui/field';
-import { lacks, useAccess } from '@/lib/access';
+import { useAccess } from '@/lib/access';
 import type { ClusterScoped, Tri } from '@/lib/backup-form';
 import { api, errorMessage } from '@/lib/client';
 import { cn } from '@/lib/cn';
@@ -253,7 +253,7 @@ export function RestoreWizardPage({
         <Card>
           <CardHeader>
             <CardTitle>You cannot restore here</CardTitle>
-            <CardDescription>{lacks('restore:create')}</CardDescription>
+            <CardDescription>{access.why('restore:create')}</CardDescription>
           </CardHeader>
         </Card>
       ) : (

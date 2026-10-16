@@ -9,6 +9,31 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M4 day 27: write-ops test sweep
+
+Session 7, continued. CI green on day 26 (`d2b1917`).
+
+### Done
+
+- `golden-paths.e2e.test.ts`: paths 2, 3, 4, 5, 6, 7 and 10 through the real API and gateway with a scripted agent;
+  path 6 includes the credentials grep over API reads, audit, every database table and every control-plane log line.
+- Agent: a dispatcher test that no log line or message to the control plane carries a credential.
+- A gap found by the sweep and closed: the agent's policy now reaches the UI (`/access` `blocked`, disabled actions with
+  the reason) (ADR-032).
+- Test seams: `logDestination` (app module) and `logTo` (harness).
+
+### Test status
+
+Server unit **791**, e2e **466**; web **357**; Go all packages pass, golangci-lint 0, govulncheck clean; lint, typecheck,
+build clean; OpenAPI regenerated. Requirements **61/152 (40.1 %)** (R-146, R-149 verified; R-141 to R-145 partial).
+
+### Not verified
+
+Velero itself doing the work in any path (B-2); Playwright against kind; the M4 exit criterion (paths 1–11 on the
+primary and oldest supported Velero) and its human checkpoint (a real backup and restore drill).
+
+---
+
 ## 2026-10-17 — M4 day 26: storage locations
 
 Session 7, continued. CI green on day 25 (`b822c67`).

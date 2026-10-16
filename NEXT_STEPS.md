@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-17 (session 7, M4 day 26) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-17 (session 7, M4 day 27) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -173,7 +173,8 @@ criteria are still unmet (B-1, B-2).
 - **M4 day 24 done** (ADR-029): restore wizard with impact summary, `CheckNamespaces` (`web/src/pages/restore-wizard.tsx`, `web/src/lib/restore-form.ts`, `agent/internal/velero/namespaces.go`).
 - **M4 day 25 done** (ADR-030): schedules — create, update, pause/resume, delete (`agent/internal/velero/{schedule,cron}.go`, `server/src/schedules/`, `GET …/schedules/{name}`, `web/src/pages/schedule-wizard.tsx`, `web/src/components/{cron-builder,backup-fields}.tsx`, `web/src/lib/{cron,schedule-form}.ts`).
 - **M4 day 26 done** (ADR-031): storage locations — upsert, delete, set default; transient credential written by the agent to a Secret it owns (`agent/internal/velero/storage.go`, `server/src/storage/`, `server/src/commands/transient.ts`, `web/src/pages/location-form.tsx`, `web/src/lib/location-form.ts`).
-- **Next: M4 day 27 — write-ops test sweep** (plan line 737): e2e golden paths 2, 3, 4, 5, 6, 7, 10 and the grep test that credentials never appear in DB dumps, server logs, agent logs or audit (the DB-table and response halves exist in `server/test/storage.e2e.test.ts`; add server-log capture and agent-log capture). Then the M4 exit criteria; the ⛔ M3 human checkpoint is still open.
+- **M4 day 27 done** (ADR-032): write-ops sweep — golden paths 2–7 and 10 at the control plane, credentials grep over DB, API, audit and all logs, agent policy shown in the UI (`server/test/golden-paths.e2e.test.ts`, `server/src/rbac/access.controller.ts`).
+- **M4 is complete in code.** Its exit criteria (golden paths 1–11 on a real Velero, then the ⛔ human backup and restore drill on a non-kind cluster) need B-2 and the user. **Next: M5 day 28** (cluster live view and logs, plan line 744) — or, if the user wants the checkpoint first, B-2 then `smoke.sh` and the real-cluster runs.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

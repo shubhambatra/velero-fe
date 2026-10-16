@@ -10,7 +10,7 @@ import { useToasts } from '@/components/toast-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorNote } from '@/components/ui/field';
-import { lacks, useAccess } from '@/lib/access';
+import { useAccess } from '@/lib/access';
 import { STEP_FIELDS, type BackupForm, type Tri } from '@/lib/backup-form';
 import { api, errorMessage } from '@/lib/client';
 import { cn } from '@/lib/cn';
@@ -185,7 +185,7 @@ export function ScheduleWizardPage({
         <Card>
           <CardHeader>
             <CardTitle>{`You cannot ${editing ? 'change' : 'create'} schedules here`}</CardTitle>
-            <CardDescription>{lacks('schedule:write')}</CardDescription>
+            <CardDescription>{access.why('schedule:write')}</CardDescription>
           </CardHeader>
         </Card>
       ) : editing && existing.isError ? (

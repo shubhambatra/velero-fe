@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'node:http';
 import { Inject, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import type { DestinationStream } from 'pino';
 
 import { PINO_REDACT_PATHS } from './common/redact';
 import { REQUEST_ID_HEADER, requestIdOf } from './common/request-id';
@@ -50,6 +51,12 @@ function prettyTransportAvailable(): boolean {
   }
 }
 
+/**
+ * Where log lines go. Always the process's own stdout, except in tests that need to read
+ * what was logged (the credentials grep test): they set `stream` before the app is built.
+ */
+export const logDestination: { stream?: DestinationStream } = {};
+
 @Module({
   imports: [
     ConfigModule,
@@ -59,6 +66,7 @@ function prettyTransportAvailable(): boolean {
       useFactory: (env: Env) => ({
         pinoHttp: {
           level: env.LOG_LEVEL,
+          ...(logDestination.stream === undefined ? {} : { stream: logDestination.stream }),
           // Structured JSON in every real deployment (PLAN.md §4.2); pretty
           // output is a local-development affordance only.
           //

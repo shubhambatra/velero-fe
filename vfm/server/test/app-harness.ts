@@ -4,7 +4,9 @@ import cookieParser from 'cookie-parser';
 import { json } from 'express';
 import request from 'supertest';
 
-import { AppModule } from '../src/app.module';
+import { Logger as PinoLogger } from 'nestjs-pino';
+
+import { AppModule, logDestination } from '../src/app.module';
 import { ProblemExceptionFilter } from '../src/common/problem.filter';
 import { requestIdMiddleware } from '../src/common/request-id';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -72,13 +74,29 @@ export const TEST_DATABASE_URL =
 
 export const TEST_REDIS_URL = process.env.TEST_REDIS_URL ?? 'redis://localhost:56379/15';
 
-export async function createTestApp(options: { gateway?: boolean } = {}): Promise<TestApp> {
+export async function createTestApp(
+  options: {
+    gateway?: boolean;
+    /** Capture every log line the application writes, at debug level, into this sink. */
+    logTo?: (line: string) => void;
+  } = {},
+): Promise<TestApp> {
   process.env.DATABASE_URL = TEST_DATABASE_URL;
   process.env.REDIS_URL = TEST_REDIS_URL;
   process.env.NODE_ENV = 'test';
   // Errors still print, because a 500 in a test is worth seeing; the
   // per-request log lines are not.
-  process.env.LOG_LEVEL = 'error';
+  process.env.LOG_LEVEL = options.logTo === undefined ? 'error' : 'debug';
+  if (options.logTo === undefined) {
+    delete logDestination.stream;
+  } else {
+    const sink = options.logTo;
+    logDestination.stream = {
+      write: (line: string) => {
+        sink(line);
+      },
+    };
+  }
   // A fixed key: these tests assert on ciphertext round-tripping, not on
   // key secrecy, and a stable value keeps failures reproducible.
   process.env.VFM_MASTER_KEY ??= Buffer.alloc(32, 7).toString('base64');
@@ -102,6 +120,10 @@ export async function createTestApp(options: { gateway?: boolean } = {}): Promis
     .compile();
 
   const app = moduleRef.createNestApplication();
+  if (options.logTo !== undefined) {
+    // As main.ts does: service logs go through pino too, so the sink sees them.
+    app.useLogger(app.get(PinoLogger));
+  }
   app.use(requestIdMiddleware);
   app.use(cookieParser());
   app.use(json({ limit: '1mb' }));

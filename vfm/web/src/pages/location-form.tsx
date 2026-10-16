@@ -8,7 +8,7 @@ import { useToasts } from '@/components/toast-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorNote } from '@/components/ui/field';
-import { lacks, useAccess } from '@/lib/access';
+import { useAccess } from '@/lib/access';
 import { api, errorMessage } from '@/lib/client';
 import {
   emptyLocationForm,
@@ -145,7 +145,7 @@ export function LocationFormPage({
         <Card>
           <CardHeader>
             <CardTitle>You cannot change storage here</CardTitle>
-            <CardDescription>{lacks('storage:write')}</CardDescription>
+            <CardDescription>{access.why('storage:write')}</CardDescription>
           </CardHeader>
         </Card>
       ) : editing && existing.isError ? (

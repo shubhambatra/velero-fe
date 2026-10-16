@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,7 +19,9 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/dispatch"
 	pb "github.com/shubhambatra/velero-fe/vfm/agent/internal/pb/vfm/agent/v1"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/policy"
 )
 
 // marker is the credential content in these tests; it must appear in the Secret and nowhere else.
@@ -314,5 +318,70 @@ func TestNoResultOrErrorEverCarriesTheCredential(t *testing.T) {
 	}
 	if strings.Contains(strings.Join(out, "\n"), marker) {
 		t.Errorf("a result carries the credential: %v", out)
+	}
+}
+
+// syncBuffer lets the dispatcher's goroutine write while the test reads afterwards.
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+// The whole path a credential takes inside the agent: arrives in a command, goes through the
+// dispatcher (which logs every command), reaches the handler, is reported back. Every log
+// line and every message sent to the control plane must be free of it.
+func TestTheDispatcherNeverLogsOrReportsACredential(t *testing.T) {
+	logs := &syncBuffer{}
+	var sent []string
+	var mu sync.Mutex
+	c, k := storageClient(), kubefake.NewClientset()
+	h := storageHandler(c, k)
+	d := dispatch.New(dispatch.Options{
+		Send: func(m *pb.AgentMessage) bool {
+			mu.Lock()
+			defer mu.Unlock()
+			sent = append(sent, m.String())
+			return true
+		},
+		Policy: func() policy.Policy { return policy.Default() },
+		Cache:  dispatch.NewCache(dispatch.CacheSize),
+		NewID:  func() string { return "m" },
+		Logger: slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug})),
+	})
+	d.Register("upsert_bsl", h.UpsertBackupLocation)
+	// A good one, a refused one (bad bucket) and one policy refuses (read-only).
+	d.Handle(&pb.ServerMessage{Payload: &pb.ServerMessage_Command{Command: upsertBSL("primary", bslSpec(), credential("vfm-bsl-primary"))}})
+	bad := bslSpec()
+	bad.ObjectStorage.Bucket = ""
+	badCmd := upsertBSL("other", bad, credential("vfm-bsl-other"))
+	badCmd.CommandId = "0194f9d2-0000-7000-8000-0000000000bb"
+	d.Handle(&pb.ServerMessage{Payload: &pb.ServerMessage_Command{Command: badCmd}})
+	d.Wait()
+
+	if got := getLocation(t, c, backupStorageLocations, "primary"); got == nil {
+		t.Fatal("the good command did not run")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) == 0 {
+		t.Fatal("nothing was reported")
+	}
+	if logs.String() == "" {
+		t.Fatal("the dispatcher logged nothing, so this test proves nothing")
+	}
+	if all := logs.String() + strings.Join(sent, "\n"); strings.Contains(all, marker) {
+		t.Errorf("the credential reached a log or a message to the control plane:\n%s", all)
 	}
 }

@@ -1764,3 +1764,29 @@ only our Secret, VSL, refusals, no result carries the text. Server: 22 unit, 39 
 in the payload made the all-tables scan fail). Web: form library and page tests. Driven in Chrome against the real
 server and the real Go handlers (fake Kubernetes): create with a credential, make default, edit with rotation, typed
 delete; the test credential was found only in the Secret (database scan of every table, both logs, Velero object).
+
+## ADR-032 — The write-ops sweep and the agent policy in the UI (M4 day 27)
+
+### Decisions
+
+- **Golden paths are tested at the control plane with a scripted agent.** `golden-paths.e2e.test.ts` drives paths 2–7
+  and 10 through the real API, command pipeline and gateway; the "cluster" acknowledges, reports success and reports
+  objects as the agent's informers do. What it cannot show is Velero doing the work; those halves stay 🟡 until a real
+  cluster exists (B-2) and the human checkpoint.
+- **The agent's policy reaches the UI.** `GET …/access` now folds the cluster's reported agent policy into the answer:
+  `readOnly` makes every change `none` (reading logs stays), `allowRestore: false` removes `restore:create`,
+  `allowBslWrite: false` removes `storage:write`; `blocked` carries the reason per permission and the web shows it as the
+  disabled action's explanation (`useAccess().why`). The server still forwards a request made anyway; the agent refuses
+  it and the refusal is the command's outcome (PLAN §5.5). Before this the UI only showed a read-only badge.
+- **Log capture seam.** `logDestination` in `app.module.ts` lets a test read every log line (debug level, with service
+  logs routed through pino as `main.ts` does). Production never sets it. The credentials test scans those lines, every
+  table of the database, every API read afterwards and the audit log; a Go test does the same for the agent's
+  dispatcher logs and messages to the control plane. Mutation check: logging the credential in the service failed it.
+
+### Deferred
+
+Golden paths 1, 8, 9, 11 (M2 days) and 12 (M6); the paths' real-cluster halves; Playwright (plan §15) against kind.
+
+### Verified
+
+Server unit 791, e2e 466 (7 new); web 357; Go all packages (1 new); access policy unit tests; lint, typecheck, build.
