@@ -194,8 +194,10 @@ func (h *StorageHandler) writeSecret(ctx context.Context, c *pb.CredentialSecret
 	return nil
 }
 
-// removeSecret deletes the credential Secret this agent wrote for a location, if
-// there is one. Anything else is left alone.
+// removeSecret empties the credential Secret this agent wrote for a location, if there
+// is one, so a deleted location leaves no credential behind. The Secret itself stays:
+// the agent has no permission to delete Secrets (PLAN.md §12.2). Anything it did not
+// write is left alone.
 func (h *StorageHandler) removeSecret(ctx context.Context, ref map[string]any, owner string) {
 	name, _ := ref["name"].(string)
 	if name == "" {
@@ -206,7 +208,8 @@ func (h *StorageHandler) removeSecret(ctx context.Context, ref map[string]any, o
 	if err != nil || existing.Annotations[AnnotationManaged] != "true" || existing.Annotations[AnnotationLocation] != owner {
 		return
 	}
-	_ = secrets.Delete(ctx, name, metav1.DeleteOptions{})
+	existing.Data = map[string][]byte{}
+	_, _ = secrets.Update(ctx, existing, metav1.UpdateOptions{})
 }
 
 // UpsertBackupLocation is a [dispatch.Handler] for UpsertBackupStorageLocation.

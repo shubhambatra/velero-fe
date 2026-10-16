@@ -16,7 +16,7 @@ Session 7, continued. CI green on day 25 (`b822c67`).
 ### Done
 
 - Agent: `StorageHandler` (upsert and delete for backup and snapshot locations, set default), credential written to a
-  Secret the agent owns, never overwriting another; chart Role gained `delete` on Secrets (ADR-031).
+  Secret the agent owns, never overwriting another; a deleted location's Secret is emptied, not deleted (PLAN §12.2, ADR-031).
 - Server: `storage/` module (`POST/PUT/DELETE …/backup-locations`, `POST …/backup-locations/{name}/default`,
   `POST/PUT/DELETE …/snapshot-locations`), detail endpoints for both kinds; the credential is transient
   (`commands/transient.ts`), the stored payload has only a reference.

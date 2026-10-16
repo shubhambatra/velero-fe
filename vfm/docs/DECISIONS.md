@@ -1730,9 +1730,9 @@ of a stored spec), wizard create/edit and list actions. Driven in Chrome against
   `credential` out keeps the Secret the location uses now.
 - **The agent never touches a Secret it did not write.** It creates the Secret with `vfm.io/managed` and
   `vfm.io/location: <Kind>/<name>`; it updates or deletes a Secret only when both annotations match that location. A
-  credential aimed at `cloud-credentials` (Velero's own) is refused with `ALREADY_EXISTS`. Deleting a location removes
-  the Secret it wrote. This needed `delete` on Secrets in Velero's namespace in the chart's Role (namespace-scoped; the
-  agent's own check is the limit).
+  credential aimed at `cloud-credentials` (Velero's own) is refused with `ALREADY_EXISTS`. Deleting a location empties
+  the Secret it wrote (the credential is gone from the cluster) but leaves the empty Secret: PLAN §12.2 gives the
+  agent no `delete` on Secrets and the chart test pins that. A later location of the same name reuses it.
 - **Provider settings must not hold secrets.** `config` is stored and shown as it is, so a key that looks like a
   secret (password, secret, token, accesskey, privatekey, credential) is refused in the server, the form and the tests;
   `signatureVersion`-style keys are fine.

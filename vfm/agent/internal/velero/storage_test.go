@@ -235,7 +235,7 @@ func TestOnlyOneBackupLocationIsTheDefault(t *testing.T) {
 	}
 }
 
-func TestDeleteRemovesOnlyTheSecretWeWrote(t *testing.T) {
+func TestDeleteEmptiesOnlyTheSecretWeWrote(t *testing.T) {
 	c := storageClient()
 	k := kubefake.NewClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "cloud-credentials", Namespace: "velero"},
@@ -257,11 +257,11 @@ func TestDeleteRemovesOnlyTheSecretWeWrote(t *testing.T) {
 	if res := del("theirs"); !res.Ok {
 		t.Fatalf("%+v", res)
 	}
-	if _, err := k.CoreV1().Secrets("velero").Get(context.Background(), "vfm-bsl-ours", metav1.GetOptions{}); err == nil {
-		t.Error("the Secret we wrote was left behind")
+	if ours, err := k.CoreV1().Secrets("velero").Get(context.Background(), "vfm-bsl-ours", metav1.GetOptions{}); err != nil || len(ours.Data) != 0 {
+		t.Errorf("the Secret we wrote must be emptied: %+v %v", ours, err)
 	}
-	if _, err := k.CoreV1().Secrets("velero").Get(context.Background(), "cloud-credentials", metav1.GetOptions{}); err != nil {
-		t.Error("a Secret we did not write was deleted")
+	if theirs, err := k.CoreV1().Secrets("velero").Get(context.Background(), "cloud-credentials", metav1.GetOptions{}); err != nil || string(theirs.Data["cloud"]) != "velero's own" {
+		t.Error("a Secret we did not write was changed")
 	}
 	if count(t, c, backupStorageLocations) != 0 {
 		t.Error("locations remain")
@@ -294,8 +294,8 @@ func TestSnapshotLocationsUpsertAndDelete(t *testing.T) {
 	if !del.Ok || count(t, c, volumeSnapshotLocation) != 0 {
 		t.Fatalf("%+v", del)
 	}
-	if _, err := k.CoreV1().Secrets("velero").Get(context.Background(), "vfm-vsl-snaps", metav1.GetOptions{}); err == nil {
-		t.Error("the Secret was left behind")
+	if left, err := k.CoreV1().Secrets("velero").Get(context.Background(), "vfm-vsl-snaps", metav1.GetOptions{}); err != nil || len(left.Data) != 0 {
+		t.Errorf("the Secret must be emptied: %+v %v", left, err)
 	}
 }
 
