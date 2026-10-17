@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-18 (session 7, M7 day 39) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-18 (session 7, M7 day 40) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -178,7 +178,7 @@ criteria are still unmet (B-1, B-2).
 - **M5 day 28 done** (ADR-033): core inventory — `agent/internal/inventory/core.go`, `WatchScope` in `gateway.proto`, `server/src/inventory/{watch-scope.service,projections}.ts`, `GET …/inventory/{nodes,namespaces,pods,pvcs,events}`.
 - **M5 day 29 done** (ADR-034): workloads UI — `web/src/pages/workloads.tsx`, `server/src/inventory/coverage.ts`.
 - **M5 day 30 done** (ADR-035): live log sessions — `agent/internal/logs/streamer.go`, `server/src/logs/*`, `LOG_SESSION_END_REASON_COMPLETED` in `logs.proto`; routes `POST|DELETE …/log-sessions`, `GET …/log-sessions/:id/stream` (SSE: `chunk`, then one `ended`) and `GET …/log-shortcuts`. Nothing is stored; the agent is started when the first stream opens.
-- **Next: M7 day 40 — platform observability** (plan §16): the §13 metrics, Grafana dashboard JSON, structured log fields documented, an OpenTelemetry hook off by default. Then the **M7 human checkpoint**. Day 39 is done (`vfm/docs/RESILIENCE.md`, ADR-043): chaos tests, `rewrap` (G-9 closed), `ca-rotate` (G-12 closed); loss of a replica (R-121) is still untested and belongs to day 41's Helm work. **Day 38's load test did not meet the §13 targets** (`vfm/docs/LOADTEST.md`, ADR-042): the owner decides at the checkpoint whether to spend more first. Still open: G-10 and G-11 (day 38 did not address them), make the five CI jobs required in branch protection, G-4 default, A-3, G-13. M6 is not closed (golden path 12, B-2). Open: Alerts, Reports and Approvals pages in a real browser; Helm values for the new settings (`DATABASE_POOL_MAX`).
+- **Next: the M7 human checkpoint, then M8 day 41.** Day 40 is done (`vfm/docs/OBSERVABILITY.md`, ADR-044): the §13 metrics, a Grafana dashboard, alert rules, documented and pinned log fields, an off-by-default tracing hook; it also stopped the SSO callback's one-time code reaching the logs. **The checkpoint needs the owner to review `vfm/docs/THREAT_MODEL.md` and `vfm/docs/LOADTEST.md`; the load test did not meet the §13 list-latency and command-latency targets (ADR-042), and M7's exit criterion says they must be met.** Decide whether to spend more on that (replicas, a denormalised fleet summary, a cheaper coverage report, cheaper SSE delivery) before closing M7. Also open: loss of a replica (R-121, needs two processes), G-10 and G-11, the dashboard and rules imported into real Grafana and Prometheus (day 41), make the five CI jobs required in branch protection, G-4 default, A-3, G-13. M6 is not closed (golden path 12, B-2). Open: Alerts, Reports and Approvals pages in a real browser; Helm values for the new settings (`DATABASE_POOL_MAX`, `OTEL_ENABLED`, `METRICS_PORT`).
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

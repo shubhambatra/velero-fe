@@ -2236,3 +2236,35 @@ and for key and CA rotation. The host has no root, and restarting the shared dev
 - A forced `promote` before agents have renewed will lock out agents that still trust only the old CA. That is the operator's
   explicit choice, logged.
 - The shared test database's `certificate_authority` table is changed by `ca-rotation.e2e`; the suite settles it back to one ACTIVE row.
+
+## ADR-044 — Metrics, log fields and the tracing hook (M7 day 40)
+
+### Context
+
+PLAN §13 lists the metrics the control plane must expose and day 40 adds a dashboard, documented log fields and an optional
+tracing hook. The registry and the `:9090` listener existed since M0; only the runtime's own metrics were registered.
+
+### Decision
+
+- All control-plane metrics are declared in one file (`metrics/metrics.ts`) and recorded where the event happens: stream
+  attach and detach, SSE open and close, every command transition (through `announce`, which every transition already calls),
+  the REST middleware, alert delivery, rate-limit refusals. **Labels are enums and route templates only**; a test fails on any
+  other label name.
+- The work-queue depth is a gauge read from the database **at most every 5 s** whatever the scrape rate, under a pinned
+  `unscoped` call site (it spans every org by nature). Commands are the only queued work.
+- Metrics are per replica, as Prometheus expects; the dashboard sums.
+- The request log line is an **allowlist** (`serializeRequest`): the query string is dropped. Found while documenting the fields:
+  the SSO callback's one-time `code` and `state` were being written to the log in `url` and `query`. They are short-lived and
+  bound to a browser-held verifier, so this was low severity, but a log should not hold them. Whole request and response header sets
+  also went, which cuts log volume.
+- Tracing: `@opentelemetry/api` (exact version, no known advisories) is a dependency, so `withSpan` is always a no-op-safe call.
+  The SDK is **not** shipped: `OTEL_ENABLED=true` loads `@opentelemetry/sdk-node` if the operator installed it and warns and
+  continues if not. One span exists today (`command.deliver`).
+- The dashboard and alert rules are plain files under `deploy/observability/`, checked against the registry by a test.
+
+### Consequences
+
+- The dashboard has not been imported into a real Grafana and the rules not run through `promtool`; the chart (day 41) is the
+  place to do both. Tracing has not been run against a collector.
+- A new metric needs a line in `OBSERVABILITY.md`; the label allow-list in `observability.test.ts` is the review point.
+- `pnpm audit` reports two moderate findings (vitest, dev-only, present before today). Nothing high or critical.

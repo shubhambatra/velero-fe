@@ -9,6 +9,39 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-18 — M7 day 40: platform observability
+
+Session 7, continued. Resumed from `70d89d5` (CI green on all five jobs).
+
+### Done
+
+- **The §13 metrics**: connected agents, stream connects and reconnects, stream endings, SSE subscribers, command counts and
+  latency by type and status, the work-queue depth, REST latency by route template, alert deliveries, rate-limit refusals.
+  Labels bounded by construction and by a test. Catalogue: `docs/OBSERVABILITY.md`.
+- **Grafana dashboard** (16 panels) and **Prometheus alert rules** (7) in `deploy/observability/`, checked by a test against the
+  registry.
+- **Structured log fields documented and pinned** (`logfields.e2e`). Writing it down found that the SSO callback's one-time
+  `code` and `state` were in the request log (`url`, `query`); the line is now an allowlist without the query string
+  (threat model C3-I, ADR-044).
+- **Tracing hook**, off by default: `OTEL_ENABLED`, `withSpan` (one span, `command.deliver`), loads the SDK only if installed,
+  warns and continues if not.
+- **Validation**: server lint clean, 1099 unit and 646 e2e tests passed (1 skipped), build and OpenAPI unchanged.
+  `pnpm audit`: 2 moderate (vitest, dev-only, already there), 0 high or critical.
+
+### Not verified
+
+The dashboard in a real Grafana, the rules with `promtool`, tracing against a collector, `/metrics` scraped by a real Prometheus
+(all day 41 with the chart).
+
+### Next
+
+The **M7 human checkpoint**: review the threat model (`docs/THREAT_MODEL.md`) and the load-test result
+(`docs/LOADTEST.md`: targets **not all met**). Nothing in M7 should be called finished before that decision. Then M8 day 41.
+
+### Blockers
+
+B-2 (root for inotify) still holds golden path 12 and the real-agent footprint measurement.
+
 ## 2026-10-18 — M7 day 39: resilience
 
 Session 7, continued. Resumed from `07e1f77` (CI green on all five jobs).
