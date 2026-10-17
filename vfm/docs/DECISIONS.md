@@ -2070,3 +2070,46 @@ Slack URL is a bearer credential.
 - Email depends on the server's SMTP settings; without them every email delivery fails visibly.
 - No queue: delivery happens inside the evaluation tick, so a slow receiver delays the others by up to its timeout (10 s,
   three attempts). Acceptable at the scale in PLAN §14; a worker is the next step if it is not.
+
+## ADR-039 — Reports (M6 day 34)
+
+### Context
+
+PLAN §16 day 34: success rate over time, namespace coverage, RPO compliance per schedule, charts and CSV, "computed via SQL
+over `velero_resources`", and "reports match hand-computed values on seeded data".
+
+### Decision
+
+- **SQL for selection, code for arithmetic.** Raw SQL is allowed nowhere that touches tenant data (`prisma/org-scope.test.ts`):
+  it would bypass the org scope and the namespace visibility of PLAN §8.2, which both live in the Prisma layer. Each report
+  reads narrow columns through the scoped client (a time-range `WHERE`, an index on `cluster_id, kind`) and aggregates in
+  `reports/calculations.ts`, which has no I/O so every number can be checked by hand. Reads are capped (100 000 backups per
+  cluster, 20 000 for coverage); past a cap the answer says `incomplete: true` and the page says so.
+- **What a caller sees is what they may read.** Only clusters they can read, and on each only the backups, schedules and
+  namespaces their bindings reach, by the same predicate the lists use. A namespace-scoped person gets the rate of _their_
+  backups, never a figure over ones they cannot see. Any org member may ask; one with no access gets empty answers; a cluster
+  that is not theirs is 404. API tokens are not accepted yet.
+- **Success rate:** backups that finished in [from, to) by outcome (Completed; PartiallyFailed; Failed and FailedValidation),
+  per UTC day or Monday-based week, empty buckets included. **Deleted backups stay in**: an expired backup that failed
+  still failed. Rate = completed ÷ finished.
+- **Coverage:** namespaces whose newest _successful, undeleted_ backup covering them (the same rule as the namespace list) is
+  older than N hours or does not exist; never-backed-up first. Only times are returned, not backup names.
+- **RPO compliance** is the share of the period during which the newest successful backup was no older than the objective.
+  Between two successes the age grows from 0 to their distance, so the objective holds for the first `objective` of that
+  stretch and not after; this is exact, not sampled. The objective is `factor` (default 1.5, as for "schedule missed") times
+  the schedule's longest interval, or a `targetHours` for all. Measurement starts at the window's start or the schedule's
+  creation if later; a schedule with no success yet counts its creation as the starting point, so a new one has one objective
+  to make its first backup. Paused schedules and unreadable cron are left out. A success is a Completed backup carrying
+  the schedule's label **in the schedule's namespace** (a test pins that two schedules of the same name in different
+  namespaces are not mixed up).
+- **CSV** is `?format=csv` on each report, with the formula guard shared with the audit export, and each export is itself
+  audited with its row count.
+- **Charts:** recharts, as the plan names it (3.10.1, pinned). The success-rate chart is a picture of the table below it, not
+  the only copy of the data.
+
+### Consequences
+
+- A report over a very large history costs a read of up to the caps; a rollup table is the next step if that shows up.
+- Windows are at most 366 days. Anything older than the retention of `velero_resources` is not there to count.
+- `longest_gap` for a schedule with no success in the window counts from its last success (or creation) before the window,
+  so it can exceed the window.

@@ -9,6 +9,36 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M6 day 34: reports
+
+Session 7, continued. CI green on day 33 (`27a38f3`).
+
+### Done
+
+- `/orgs/{orgId}/reports/success-rate`, `/coverage` and `/rpo` (JSON or `format=csv`; CSV exports audited), limited per
+  caller to the clusters, backups, schedules and namespaces they may read (ADR-039). The arithmetic is pure
+  (`reports/calculations.ts`) and checked by hand.
+- Web: Reports page at `/reports` for every member: success-rate chart (recharts) with its table, namespaces without a recent
+  backup, RPO compliance per schedule, cluster filter, period, CSV link.
+
+### Test status
+
+Server unit **1077** (17 new), e2e **575** (17 new), web **459** (20 new, written by a forked agent from my brief and
+reviewed), shared 132. Lint, typecheck, prettier, build clean; OpenAPI regenerated.
+
+Exit criterion "reports match hand-computed values on seeded data": the e2e seeds backups with known times and phases and
+asserts figures worked out on paper in the comments (e.g. RPO: 84 h of 144 h = 58.33 %, longest gap 96 h; success rate 3/7
+for a day with deleted and validation-failed backups). Six mutations (visibility dropped from the rate, deleted backups
+excluded, deleted backups covering, any phase counted as a success, schedule matched by name only, namespaces unfiltered)
+were each caught; the fifth survived until I added a test for same-named schedules in two namespaces.
+
+### Not verified
+
+- The Reports and Alerts pages in a real browser: the throwaway app's only user is an Owner and must enrol an authenticator,
+  and I will not derive a code from the stored secret. recharts renders nothing in jsdom, so only the chart's wrapper is
+  tested; the numbers beside it are.
+- Golden path 12 on kind (B-2).
+
 ## 2026-10-17 — M6 day 33: channels, delivery and the alert pages
 
 Session 7, continued. CI green on day 32 (`85bb04c`).
