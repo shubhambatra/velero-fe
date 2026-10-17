@@ -3,6 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { z } from 'zod';
 
+import { setAuditContext } from '../audit/audit.middleware';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { RequiresSudo } from '../auth/sudo.guard';
@@ -33,22 +34,30 @@ export class RestoresController {
   @ApiOperation({
     summary: 'Restore from a backup or a schedule (velero restore create)',
     description:
-      'Needs recent re-authentication. The caller needs `restore:create` over every namespace the restore reads and writes, after namespace mapping; a user with a namespace-scoped binding must name them all and send `includeClusterResources: false`. `advancedSpec` needs `advanced:write`.',
+      'Needs recent re-authentication. When the cluster (or the org) requires approval the answer is 202 with status `PENDING_APPROVAL` and nothing is sent until someone else approves it. The caller needs `restore:create` over every namespace the restore reads and writes, after namespace mapping; a user with a namespace-scoped binding must name them all and send `includeClusterResources: false`. `advancedSpec` needs `advanced:write`.',
   })
-  create(
+  async create(
     @CurrentUser() user: AuthenticatedUser,
     @Param('orgId') orgId: string,
     @Param('clusterId') clusterId: string,
     @Body() body: unknown,
     @Req() request: Request,
   ) {
-    return this.restores.create(
+    const created = await this.restores.create(
       parseBody(orgIdParam, orgId),
       user.id,
       parseBody(orgIdParam, clusterId),
       body,
       request.apiToken,
     );
+    if (created.status === 'PENDING_APPROVAL') {
+      setAuditContext(request, {
+        targetType: 'restore_request',
+        targetId: created.id,
+        details: { pendingApproval: true },
+      });
+    }
+    return created;
   }
 
   @Post('restores/impact')

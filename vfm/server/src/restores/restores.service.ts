@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 
+import { ApprovalPolicyService } from '../approvals/approval-policy.service';
+import { ApprovalsService } from '../approvals/approvals.service';
 import { CommandsService, type CommandView } from '../commands/commands.service';
 import { parseBody } from '../common/parse-body';
 import { coveredBy } from '../inventory/projections';
@@ -26,6 +28,8 @@ export class RestoresService {
     private readonly prisma: PrismaService,
     private readonly rbac: RbacService,
     private readonly commands: CommandsService,
+    private readonly policy: ApprovalPolicyService,
+    private readonly approvals: ApprovalsService,
   ) {}
 
   async create(
@@ -67,7 +71,22 @@ export class RestoresService {
         token,
       );
     }
-    return this.commands.enqueue(orgId, clusterId, userId, 'CREATE_RESTORE', body);
+    // On a cluster that needs approval the request is recorded and waits; the agent hears of it
+    // only once someone else approves (PLAN.md §8.4).
+    const { required } = await this.policy.forCluster(orgId, clusterId);
+    const created = await this.commands.enqueue(
+      orgId,
+      clusterId,
+      userId,
+      'CREATE_RESTORE',
+      body,
+      undefined,
+      { pendingApproval: required },
+    );
+    if (required) {
+      void this.approvals.announceRequest(orgId, created.id);
+    }
+    return created;
   }
 
   /**

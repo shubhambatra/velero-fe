@@ -8,6 +8,7 @@ import { OrgSwitcher } from '@/components/org-switcher';
 import { ToastProvider } from '@/components/toasts';
 import { useLiveUpdates, useStreamStatus } from '@/lib/events';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { useWaitingCount } from '@/lib/approvals';
 import { canAdminister } from '@/lib/types';
 import { useOrgs, useSession } from '@/lib/session';
 
@@ -47,6 +48,8 @@ const ADMIN_LINKS = [
 export function AppShell({ children }: { children: ReactNode }): ReactElement {
   const session = useSession();
   const { active } = useOrgs(session.status === 'ready');
+  const count = useWaitingCount(active?.id, session.status === 'ready' && active !== undefined);
+  const waiting = count.data?.waiting ?? 0;
   const showAdmin = session.status === 'ready' && canAdminister(active?.orgRole);
   // One live stream for the active organization, for the whole signed-in app.
   useLiveUpdates(session.status === 'ready' ? active?.id : undefined);
@@ -140,6 +143,27 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
                 }}
               >
                 Reports
+              </Link>
+            )}
+
+            {session.status === 'ready' && active !== undefined && (
+              <Link
+                to="/approvals"
+                className="flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                activeProps={{
+                  className: 'bg-accent text-accent-foreground',
+                  'aria-current': 'page',
+                }}
+              >
+                Approvals
+                {waiting > 0 && (
+                  <span
+                    className="rounded-full bg-destructive px-2 text-xs text-destructive-foreground"
+                    aria-label={`${waiting.toString()} waiting for you`}
+                  >
+                    {waiting}
+                  </span>
+                )}
               </Link>
             )}
 

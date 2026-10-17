@@ -29,6 +29,8 @@ export interface ClusterView {
   lastSeenAt: Date | null;
   labels: unknown;
   grafanaUrlTemplate: string | null;
+  /** This cluster asks for restore approval by itself; the org setting may require it as well. */
+  requireRestoreApproval: boolean;
   createdAt: Date;
 }
 
@@ -57,6 +59,7 @@ const view = (c: Cluster, expectedChart: string): ClusterView => ({
   lastSeenAt: c.lastSeenAt,
   labels: c.labels,
   grafanaUrlTemplate: c.grafanaUrlTemplate,
+  requireRestoreApproval: c.requireRestoreApproval,
   createdAt: c.createdAt,
 });
 

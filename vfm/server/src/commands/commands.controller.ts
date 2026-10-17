@@ -82,6 +82,7 @@ export class CommandsController {
     description: '409 once the agent has acknowledged it or it has finished.',
   })
   cancel(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('orgId') orgId: string,
     @Param('clusterId') clusterId: string,
     @Param('commandId') commandId: string,
@@ -90,6 +91,7 @@ export class CommandsController {
       parseBody(orgIdParam, orgId),
       parseBody(orgIdParam, clusterId),
       parseBody(orgIdParam, commandId),
+      user.id,
     );
   }
 }

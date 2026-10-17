@@ -24,7 +24,11 @@ export interface OrgDetail {
   name: string;
   slug: string;
   orgRole: OrgRole;
-  settings: { mfaRequired?: boolean; allowBackupContentDownload?: boolean };
+  settings: {
+    mfaRequired?: boolean;
+    allowBackupContentDownload?: boolean;
+    requireRestoreApproval?: boolean;
+  };
 }
 
 export interface Member {

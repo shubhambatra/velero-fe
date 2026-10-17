@@ -119,6 +119,7 @@ export class OrgsService {
       name?: string | undefined;
       mfaRequired?: boolean | undefined;
       allowBackupContentDownload?: boolean | undefined;
+      requireRestoreApproval?: boolean | undefined;
     },
   ) {
     const current = await this.get(orgId);
@@ -128,6 +129,9 @@ export class OrgsService {
       ...(input.allowBackupContentDownload === undefined
         ? {}
         : { allowBackupContentDownload: input.allowBackupContentDownload }),
+      ...(input.requireRestoreApproval === undefined
+        ? {}
+        : { requireRestoreApproval: input.requireRestoreApproval }),
     };
     await this.prisma.organization.update({
       where: { id: orgId },

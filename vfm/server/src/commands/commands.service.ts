@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
   ConflictException,
+  ForbiddenException,
   Inject,
   HttpException,
   HttpStatus,
@@ -36,6 +37,7 @@ const TIMEOUT_SWEEP_EVERY_MS = 10_000;
 const TIMEOUT_LOCK_KEY = 'vfm:commands:sweeper';
 const TIMEOUT_LOCK_TTL_S = 8;
 const LIST_LIMIT = 50;
+const MAX_PENDING_APPROVALS_PER_CLUSTER = 25;
 const MAX_ERROR_TEXT = 1_000;
 
 export interface CommandView {
@@ -93,6 +95,8 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
 
   /** Tunable at runtime so a test can turn the on-connect refresh on for one case. */
   readonly options: { refreshOnConnect: boolean };
+  /** How long a request waits for approval; tests shorten it. */
+  approvalTtlMs: number;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -103,6 +107,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     @Inject(ENV) env: Env,
   ) {
     this.options = { refreshOnConnect: env.COMMANDS_REFRESH_ON_CONNECT };
+    this.approvalTtlMs = env.RESTORE_APPROVAL_TTL_HOURS * 3_600_000;
   }
 
   onApplicationBootstrap(): void {
@@ -131,6 +136,7 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     op: OpKey,
     payload: Record<string, unknown> = {},
     transient?: Transient,
+    options: { pendingApproval?: boolean } = {},
   ): Promise<CommandView> {
     const cluster = await this.prisma.inOrg(orgId, () =>
       this.prisma.cluster.findUnique({ where: { id: clusterId }, select: { status: true } }),
@@ -152,6 +158,20 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       );
     }
 
+    const pending = options.pendingApproval === true;
+    if (pending) {
+      // Requests waiting for a person are bounded too, or one user could pile them up.
+      const waiting = await this.prisma.inOrg(orgId, () =>
+        this.prisma.command.count({ where: { clusterId, status: 'PENDING_APPROVAL' } }),
+      );
+      if (waiting >= MAX_PENDING_APPROVALS_PER_CLUSTER) {
+        throw new HttpException(
+          'this cluster already has many restores waiting for approval; decide or withdraw some first',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+
     const row = await this.prisma.inOrg(orgId, () =>
       this.prisma.command.create({
         data: {
@@ -161,7 +181,10 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
           requestedById,
           op,
           payload: payload as Prisma.InputJsonValue,
-          deadlineAt: new Date(Date.now() + OPS[op].timeoutMs),
+          status: pending ? 'PENDING_APPROVAL' : 'QUEUED',
+          // A request waiting for approval has until the approval window closes; the agent's
+          // own deadline starts when it is approved.
+          deadlineAt: new Date(Date.now() + (pending ? this.approvalTtlMs : OPS[op].timeoutMs)),
         },
       }),
     );
@@ -170,12 +193,15 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       this.transients.set(row.id, { value: transient, expires: row.deadlineAt.getTime() });
     }
 
-    // Best effort: an undelivered command stays QUEUED and goes out on connect.
-    await this.deliver(row).catch((error: unknown) => {
-      this.logger.warn(
-        `could not send command ${row.id}: ${error instanceof Error ? error.message : 'unknown'}`,
-      );
-    });
+    // Best effort: an undelivered command stays QUEUED and goes out on connect. A request
+    // waiting for approval is not sent: the agent does not hear of it until it is approved.
+    if (!pending) {
+      await this.deliver(row).catch((error: unknown) => {
+        this.logger.warn(
+          `could not send command ${row.id}: ${error instanceof Error ? error.message : 'unknown'}`,
+        );
+      });
+    }
     const created = view(await this.find(orgId, clusterId, row.id));
     await this.announce(orgId, clusterId, created.id, created.status);
     return created;
@@ -206,9 +232,117 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     return rows.map(view);
   }
 
-  /** Cancels a command the agent has not yet taken (PLAN.md §5.4). */
-  async cancel(orgId: string, clusterId: string, commandId: string): Promise<CommandView> {
+  /**
+   * Releases a request that was waiting for approval: it becomes an ordinary queued command
+   * and is sent at once if the agent is connected. The approver must not be the requester,
+   * and the check is part of the same conditional `UPDATE` that changes the status, so two
+   * decisions at once cannot both win and a requester cannot approve their own request.
+   */
+  async approve(
+    orgId: string,
+    clusterId: string,
+    commandId: string,
+    approverId: string,
+  ): Promise<CommandView> {
     const row = await this.find(orgId, clusterId, commandId);
+    if (row.requestedById === approverId) {
+      throw new ForbiddenException(
+        'a restore must be approved by someone other than the person who asked for it',
+      );
+    }
+    const now = new Date();
+    const result = await this.prisma.inOrg(orgId, () =>
+      this.prisma.command.updateMany({
+        where: {
+          id: commandId,
+          status: 'PENDING_APPROVAL',
+          deadlineAt: { gt: now },
+          NOT: { requestedById: approverId },
+        },
+        data: {
+          status: 'QUEUED',
+          approvedById: approverId,
+          decidedAt: now,
+          deadlineAt: new Date(now.getTime() + OPS[row.op as OpKey].timeoutMs),
+        },
+      }),
+    );
+    if (result.count === 0) {
+      throw new ConflictException('the request is no longer waiting for approval');
+    }
+    const released = await this.find(orgId, clusterId, commandId);
+    await this.deliver(released).catch((error: unknown) => {
+      this.logger.warn(
+        `could not send command ${commandId}: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    });
+    const done = view(await this.find(orgId, clusterId, commandId));
+    await this.announce(orgId, clusterId, commandId, done.status);
+    return done;
+  }
+
+  /** Turns a waiting request down. The agent never hears of it. */
+  async reject(
+    orgId: string,
+    clusterId: string,
+    commandId: string,
+    rejecterId: string,
+    note: string | null,
+  ): Promise<CommandView> {
+    const row = await this.find(orgId, clusterId, commandId);
+    if (row.requestedById === rejecterId) {
+      throw new ForbiddenException('withdraw your own request instead of rejecting it');
+    }
+    const now = new Date();
+    const result = await this.prisma.inOrg(orgId, () =>
+      this.prisma.command.updateMany({
+        where: { id: commandId, status: 'PENDING_APPROVAL', NOT: { requestedById: rejecterId } },
+        data: {
+          status: 'REJECTED',
+          rejectedById: rejecterId,
+          decidedAt: now,
+          finishedAt: now,
+          decisionNote: note === null ? null : text(note).slice(0, 500),
+          errorCode: 'REJECTED',
+          errorMessage: 'the restore was not approved',
+        },
+      }),
+    );
+    if (result.count === 0) {
+      throw new ConflictException('the request is no longer waiting for approval');
+    }
+    await this.announce(orgId, clusterId, commandId, 'REJECTED');
+    return view(await this.find(orgId, clusterId, commandId));
+  }
+
+  /** Cancels a command the agent has not yet taken (PLAN.md §5.4). */
+  async cancel(
+    orgId: string,
+    clusterId: string,
+    commandId: string,
+    userId?: string,
+  ): Promise<CommandView> {
+    const row = await this.find(orgId, clusterId, commandId);
+    if (row.status === 'PENDING_APPROVAL') {
+      // Withdrawing a request is the requester's to do; anyone else who can read the cluster
+      // must not be able to quietly cancel someone's restore.
+      if (userId === undefined || row.requestedById !== userId) {
+        throw new ForbiddenException(
+          'only the person who asked can withdraw a restore that is waiting for approval',
+        );
+      }
+      const done = await this.prisma.inOrg(orgId, () =>
+        this.prisma.command.updateMany({
+          where: { id: commandId, status: 'PENDING_APPROVAL' },
+          data: { status: 'CANCELLED', finishedAt: new Date(), decidedAt: new Date() },
+        }),
+      );
+      if (done.count === 0) {
+        throw new ConflictException('the request has already been decided');
+      }
+      await this.announce(orgId, clusterId, commandId, 'CANCELLED');
+      return view(await this.find(orgId, clusterId, commandId));
+    }
     const result = await this.prisma.inOrg(orgId, () =>
       this.prisma.command.updateMany({
         where: { id: commandId, status: { in: statusesAccepting('cancelled') } },
@@ -283,6 +417,33 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     );
 
     let expired = 0;
+    // Requests nobody decided in time: nothing was ever sent, so there is no agent to tell.
+    const unanswered = await this.prisma.unscoped(
+      'the command timeout sweeper spans every org',
+      () =>
+        this.prisma.command.findMany({
+          where: { status: 'PENDING_APPROVAL', deadlineAt: { lt: now } },
+          select: { id: true, orgId: true, clusterId: true },
+        }),
+    );
+    for (const command of unanswered) {
+      const result = await this.prisma.inOrg(command.orgId, () =>
+        this.prisma.command.updateMany({
+          where: { id: command.id, status: 'PENDING_APPROVAL' },
+          data: {
+            status: 'TIMED_OUT',
+            finishedAt: now,
+            decidedAt: now,
+            errorCode: 'APPROVAL_EXPIRED',
+            errorMessage: 'nobody approved the restore in time',
+          },
+        }),
+      );
+      expired += result.count;
+      if (result.count > 0) {
+        await this.announce(command.orgId, command.clusterId, command.id, 'TIMED_OUT');
+      }
+    }
     for (const command of overdue) {
       const result = await this.prisma.inOrg(command.orgId, () =>
         this.prisma.command.updateMany({

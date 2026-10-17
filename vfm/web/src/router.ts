@@ -4,6 +4,7 @@ import {
   auditRoute,
   alertsRoute,
   reportsRoute,
+  approvalsRoute,
   backupDetailRoute,
   newBackupRoute,
   newRestoreRoute,
@@ -70,6 +71,7 @@ export const routeTree = rootRoute.addChildren([
   auditRoute,
   alertsRoute,
   reportsRoute,
+  approvalsRoute,
 ]);
 
 export const router = createRouter({

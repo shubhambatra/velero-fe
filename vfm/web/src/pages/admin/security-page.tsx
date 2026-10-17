@@ -14,8 +14,11 @@ export function SecurityPage({ orgId }: { orgId: string }): ReactElement {
     queryFn: ({ signal }) => api<OrgDetail>(`/orgs/${orgId}`, { signal }),
   });
   const update = useMutation({
-    mutationFn: (patch: { mfaRequired?: boolean; allowBackupContentDownload?: boolean }) =>
-      api(`/orgs/${orgId}`, { method: 'PATCH', body: patch }),
+    mutationFn: (patch: {
+      mfaRequired?: boolean;
+      allowBackupContentDownload?: boolean;
+      requireRestoreApproval?: boolean;
+    }) => api(`/orgs/${orgId}`, { method: 'PATCH', body: patch }),
     onSuccess: () => client.invalidateQueries({ queryKey: key }),
   });
   const settings = org.data?.settings;
@@ -54,6 +57,23 @@ export function SecurityPage({ orgId }: { orgId: string }): ReactElement {
               }}
             />
             <span>Allow downloading backup contents</span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              disabled={settings === undefined || update.isPending}
+              checked={settings?.requireRestoreApproval === true}
+              onChange={(e) => {
+                update.mutate({ requireRestoreApproval: e.target.checked });
+              }}
+            />
+            <span>
+              Require approval of restores
+              <span className="block text-sm text-muted-foreground">
+                Another person who may restore the same namespaces must approve each restore before
+                it is sent. Applies to every cluster; a cluster cannot opt out.
+              </span>
+            </span>
           </label>
         </CardContent>
       </Card>

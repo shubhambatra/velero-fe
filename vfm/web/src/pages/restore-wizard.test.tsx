@@ -69,6 +69,7 @@ function server(
     impactFails?: boolean;
     post?: (path: string, body: unknown) => Response | undefined;
     backup?: unknown;
+    approval?: { required: boolean; fromOrg: boolean; fromCluster: boolean };
   } = {},
 ) {
   const calls: Call[] = [];
@@ -90,6 +91,10 @@ function server(
     const u = new URL(url, 'http://x');
     const rest = u.pathname.replace('/api/v1/orgs/o1/clusters/c1/', '');
     if (rest === 'access') return jsonResponse({ access: options.access ?? ALL });
+    if (rest === 'restore-approval')
+      return jsonResponse(
+        options.approval ?? { required: false, fromOrg: false, fromCluster: false },
+      );
     if (rest.startsWith('commands/k-impact'))
       return jsonResponse(
         options.impactFails
@@ -328,6 +333,50 @@ describe('the restore wizard', () => {
     await user.click(await screen.findByRole('button', { name: 'Start restore' }));
     expect(await screen.findByText(/recent re-authentication required/)).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Review' })).toBeVisible();
+  });
+
+  describe('when the cluster requires approval', () => {
+    const REQUIRED = { required: true, fromOrg: false, fromCluster: true };
+
+    it('says so before the request is made, and does not follow it as a running command', async () => {
+      const user = userEvent.setup();
+      const calls = server({
+        approval: REQUIRED,
+        post: (path) =>
+          path === 'restores'
+            ? jsonResponse({ id: 'k1', status: 'PENDING_APPROVAL' }, { status: 202 })
+            : undefined,
+      });
+      renderApp({ path: '/clusters/c1/restores/new?backup=nightly-1' });
+      await screen.findByRole('heading', { name: 'Source' });
+      await next(user);
+      await next(user);
+      await next(user);
+      expect(await screen.findByText(/This cluster requires approval/)).toBeVisible();
+      await user.click(screen.getByRole('button', { name: 'Request restore' }));
+      await waitFor(() => {
+        expect(calls.some((c) => c.path === 'restores')).toBe(true);
+      });
+      expect(await screen.findByRole('heading', { name: 'Waiting for approval' })).toBeVisible();
+      expect(screen.getByRole('link', { name: 'Go to approvals' })).toHaveAttribute(
+        'href',
+        '/approvals',
+      );
+      expect(screen.queryByText('Restore from nightly-1')).toBeNull();
+      expect(screen.queryByRole('button', { name: /restore$/i })).toBeNull();
+    });
+
+    it('says nothing of the kind when approval is not required', async () => {
+      const user = userEvent.setup();
+      server();
+      renderApp({ path: '/clusters/c1/restores/new?backup=nightly-1' });
+      await screen.findByRole('heading', { name: 'Source' });
+      await next(user);
+      await next(user);
+      await next(user);
+      expect(await screen.findByRole('button', { name: 'Start restore' })).toBeVisible();
+      expect(screen.queryByText(/requires approval/)).toBeNull();
+    });
   });
 
   describe('for a user limited to some namespaces', () => {

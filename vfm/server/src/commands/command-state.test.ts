@@ -18,6 +18,8 @@ const EVENTS: CommandEvent[] = [
   'failed',
   'cancelled',
   'timed_out',
+  'approved',
+  'rejected',
 ];
 
 describe('command state machine', () => {
@@ -38,6 +40,8 @@ describe('command state machine', () => {
 
   it('never moves backwards, whatever order messages arrive in', () => {
     const rank: Record<CommandStatus, number> = {
+      PENDING_APPROVAL: -1,
+      REJECTED: 4,
       QUEUED: 0,
       SENT: 1,
       ACKED: 2,
@@ -91,5 +95,38 @@ describe('command state machine', () => {
         }
       }
     }
+  });
+
+  describe('a restore waiting for approval', () => {
+    it('can be approved into the queue, rejected, withdrawn or timed out, and nothing else', () => {
+      expect(transition('PENDING_APPROVAL', 'approved')).toBe('QUEUED');
+      expect(transition('PENDING_APPROVAL', 'rejected')).toBe('REJECTED');
+      expect(transition('PENDING_APPROVAL', 'cancelled')).toBe('CANCELLED');
+      expect(transition('PENDING_APPROVAL', 'timed_out')).toBe('TIMED_OUT');
+      for (const event of ['sent', 'acked', 'running', 'succeeded', 'failed'] as const) {
+        expect(transition('PENDING_APPROVAL', event), event).toBeNull();
+      }
+    });
+
+    it('is not something that can be approved or rejected once the agent has it', () => {
+      for (const status of NON_TERMINAL) {
+        expect(transition(status, 'approved'), status).toBeNull();
+        expect(transition(status, 'rejected'), status).toBeNull();
+      }
+    });
+
+    it('is not in flight: not delivered, not counted, not accepted by agent events', () => {
+      expect(NON_TERMINAL).not.toContain('PENDING_APPROVAL');
+      for (const event of EVENTS) {
+        expect(statusesAccepting(event)).not.toContain('PENDING_APPROVAL');
+      }
+    });
+
+    it('leaves a rejected request rejected', () => {
+      expect(TERMINAL.has('REJECTED')).toBe(true);
+      for (const event of EVENTS) {
+        expect(transition('REJECTED', event), event).toBeNull();
+      }
+    });
   });
 });

@@ -1152,10 +1152,11 @@ paths:
       tags:
         - inventory
     post:
-      description: "Needs recent re-authentication. The caller needs `restore:create` over every namespace
-        the restore reads and writes, after namespace mapping; a user with a namespace-scoped
-        binding must name them all and send `includeClusterResources: false`. `advancedSpec` needs
-        `advanced:write`."
+      description: "Needs recent re-authentication. When the cluster (or the org) requires approval the
+        answer is 202 with status `PENDING_APPROVAL` and nothing is sent until someone else approves
+        it. The caller needs `restore:create` over every namespace the restore reads and writes,
+        after namespace mapping; a user with a namespace-scoped binding must name them all and send
+        `includeClusterResources: false`. `advancedSpec` needs `advanced:write`."
       operationId: RestoresController_create
       parameters:
         - name: orgId
@@ -1804,6 +1805,117 @@ paths:
       summary: Which of these namespaces exist now (the restore wizard’s impact summary)
       tags:
         - restores
+  /orgs/{orgId}/approvals:
+    get:
+      operationId: ApprovalsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Restore requests waiting for approval, or decided in the last 30 days
+      tags:
+        - approvals
+  /orgs/{orgId}/approvals/count:
+    get:
+      operationId: ApprovalsController_count
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: How many waiting requests the caller may decide
+      tags:
+        - approvals
+  /orgs/{orgId}/approvals/{commandId}/approve:
+    post:
+      description: The approver needs `restore:create` over the namespaces the restore will write. The
+        restore is queued and sent to the agent.
+      operationId: ApprovalsController_approve
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: commandId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Approve a restore request (someone other than its requester; sudo required)
+      tags:
+        - approvals
+  /orgs/{orgId}/approvals/{commandId}/reject:
+    post:
+      operationId: ApprovalsController_reject
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: commandId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Reject a restore request (someone other than its requester)
+      tags:
+        - approvals
+  /orgs/{orgId}/clusters/{clusterId}/restore-approval:
+    get:
+      operationId: ClusterApprovalController_get
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Whether restores on this cluster need approval, and why
+      tags:
+        - approvals
+    put:
+      operationId: ClusterApprovalController_put
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Ask for approval of restores on this cluster, or stop asking (sudo)
+      tags:
+        - approvals
   /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/pause:
     post:
       description: 'Body: `{ "paused": true }` or `{ "paused": false }`.'

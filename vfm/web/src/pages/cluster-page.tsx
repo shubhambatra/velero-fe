@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 
 import { ClusterShell } from '@/components/cluster-shell';
+import { RestoreApprovalCard } from '@/components/restore-approval-card';
 import { Time } from '@/components/time';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -252,6 +253,8 @@ export function ClusterPage({
               )}
             </CardContent>
           </Card>
+
+          <RestoreApprovalCard orgId={orgId} clusterId={clusterId} />
 
           {data.locations !== null && (
             <Card>

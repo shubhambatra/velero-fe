@@ -29,12 +29,14 @@ export const updateOrgSchema = z
     name: z.string().trim().min(1).max(120).optional(),
     mfaRequired: z.boolean().optional(),
     allowBackupContentDownload: z.boolean().optional(),
+    requireRestoreApproval: z.boolean().optional(),
   })
   .refine(
     (v) =>
       v.name !== undefined ||
       v.mfaRequired !== undefined ||
-      v.allowBackupContentDownload !== undefined,
+      v.allowBackupContentDownload !== undefined ||
+      v.requireRestoreApproval !== undefined,
     'nothing to update',
   );
 

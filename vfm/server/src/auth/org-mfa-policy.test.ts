@@ -7,14 +7,17 @@ describe('parseOrgSettings', () => {
     expect(parseOrgSettings({})).toStrictEqual({
       mfaRequired: false,
       allowBackupContentDownload: false,
+      requireRestoreApproval: false,
     });
     expect(parseOrgSettings(null)).toStrictEqual({
       mfaRequired: false,
       allowBackupContentDownload: false,
+      requireRestoreApproval: false,
     });
     expect(parseOrgSettings(undefined)).toStrictEqual({
       mfaRequired: false,
       allowBackupContentDownload: false,
+      requireRestoreApproval: false,
     });
   });
 
@@ -22,6 +25,7 @@ describe('parseOrgSettings', () => {
     expect(parseOrgSettings({ mfaRequired: true })).toStrictEqual({
       mfaRequired: true,
       allowBackupContentDownload: false,
+      requireRestoreApproval: false,
     });
   });
 
@@ -29,6 +33,7 @@ describe('parseOrgSettings', () => {
     expect(parseOrgSettings({ mfaRequired: true, somethingNewer: 42 })).toStrictEqual({
       mfaRequired: true,
       allowBackupContentDownload: false,
+      requireRestoreApproval: false,
     });
   });
 
@@ -37,10 +42,12 @@ describe('parseOrgSettings', () => {
     expect(parseOrgSettings({ mfaRequired: 'yes' })).toStrictEqual({
       mfaRequired: false,
       allowBackupContentDownload: false,
+      requireRestoreApproval: false,
     });
     expect(parseOrgSettings('not an object')).toStrictEqual({
       mfaRequired: false,
       allowBackupContentDownload: false,
+      requireRestoreApproval: false,
     });
   });
 });
@@ -140,5 +147,13 @@ describe('mfaObligationFor (PLAN.md §8.3)', () => {
         }),
       ).toStrictEqual({ required: true, reason: 'org_role' });
     });
+  });
+});
+
+describe('requireRestoreApproval', () => {
+  it('is off unless the org turned it on, and survives garbage', () => {
+    expect(parseOrgSettings({}).requireRestoreApproval).toBe(false);
+    expect(parseOrgSettings({ requireRestoreApproval: true }).requireRestoreApproval).toBe(true);
+    expect(parseOrgSettings({ requireRestoreApproval: 'yes' }).requireRestoreApproval).toBe(false);
   });
 });

@@ -32,6 +32,11 @@ export const orgSettingsSchema = z.object({
    * cluster, so it takes an explicit org decision on top of the role.
    */
   allowBackupContentDownload: z.boolean().default(false),
+  /**
+   * Restores on every cluster of the org need another person's approval (PLAN.md §8.4). Off by
+   * default. A cluster can ask for approval on its own, but cannot opt out of this.
+   */
+  requireRestoreApproval: z.boolean().default(false),
 });
 
 export type OrgSettings = z.infer<typeof orgSettingsSchema>;

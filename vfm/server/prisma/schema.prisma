@@ -530,6 +530,10 @@ model Cluster {
   labels             Json    @default("{}")
   grafanaUrlTemplate String? @map("grafana_url_template")
 
+  /// Restores on this cluster need another person's approval (PLAN.md §8.4). Adds to the org
+  /// setting, never removes it: either one turns approval on.
+  requireRestoreApproval Boolean @default(false) @map("require_restore_approval")
+
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -613,6 +617,11 @@ model CertificateAuthority {
 }
 
 enum CommandStatus {
+  /// A restore waiting for someone other than its requester to approve it (PLAN.md §8.4). Not
+  /// sent to the agent, not counted as unfinished work, and timed out if nobody decides.
+  PENDING_APPROVAL
+  /// Turned down by an approver; terminal.
+  REJECTED
   QUEUED
   SENT
   ACKED
@@ -656,6 +665,13 @@ model Command {
   /// How many times it was written to a stream. More than one means it was
   /// re-delivered after a reconnect.
   attempts Int @default(0)
+
+  /// Who approved it and who rejected it, when it went through approval. No foreign keys: history outlives users.
+  approvedById String?   @map("approved_by_id") @db.Uuid
+  rejectedById String?   @map("rejected_by_id") @db.Uuid
+  decidedAt    DateTime? @map("decided_at") @db.Timestamptz(6)
+  /// The approver's reason for turning it down, bounded.
+  decisionNote String?   @map("decision_note")
 
   deadlineAt DateTime  @map("deadline_at") @db.Timestamptz(6)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

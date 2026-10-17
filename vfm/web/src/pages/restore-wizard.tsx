@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorNote } from '@/components/ui/field';
 import { useAccess } from '@/lib/access';
+import { useApprovalPolicy } from '@/lib/approvals';
 import type { ClusterScoped, Tri } from '@/lib/backup-form';
 import { api, errorMessage } from '@/lib/client';
 import { cn } from '@/lib/cn';
@@ -194,14 +195,21 @@ export function RestoreWizardPage({
   const blocked = rows?.some((r) => r.effect === 'blocked') === true;
 
   const { follow } = useToasts();
+  const approval = useApprovalPolicy(orgId, clusterId);
+  const [waiting, setWaiting] = useState(false);
   const navigate = useNavigate();
   const create = useMutation({
     mutationFn: () =>
-      api<{ id: string }>(`/orgs/${orgId}/clusters/${clusterId}/restores`, {
+      api<{ id: string; status?: string }>(`/orgs/${orgId}/clusters/${clusterId}/restores`, {
         method: 'POST',
         body: toBody(form),
       }),
     onSuccess: (command) => {
+      if (command.status === 'PENDING_APPROVAL') {
+        // Nothing has been sent to the agent: someone else has to approve it first.
+        setWaiting(true);
+        return;
+      }
       follow({
         orgId,
         clusterId,
@@ -249,7 +257,23 @@ export function RestoreWizardPage({
         </>
       }
     >
-      {createLevel === 'none' ? (
+      {waiting ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Waiting for approval</CardTitle>
+            <CardDescription>
+              Your restore request was recorded. It is not sent to the cluster until another person
+              who may restore these namespaces approves it. You can withdraw it from the approvals
+              page.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link to="/approvals" className="underline">
+              Go to approvals
+            </Link>
+          </CardContent>
+        </Card>
+      ) : createLevel === 'none' ? (
         <Card>
           <CardHeader>
             <CardTitle>You cannot restore here</CardTitle>
@@ -586,6 +610,12 @@ export function RestoreWizardPage({
                     {blocked && (
                       <ErrorNote message="A target namespace is being deleted. Wait until it is gone, or choose another target." />
                     )}
+                    {approval.data?.required === true && (
+                      <p role="status" className="text-sm font-medium">
+                        This cluster requires approval: your restore will wait until another person
+                        approves it.
+                      </p>
+                    )}
                     <ErrorNote message={create.isError ? errorMessage(create.error) : undefined} />
                   </>
                 )}
@@ -610,7 +640,11 @@ export function RestoreWizardPage({
                       onClick={submit}
                       disabled={create.isPending || blocked}
                     >
-                      {create.isPending ? 'Starting…' : 'Start restore'}
+                      {create.isPending
+                        ? 'Starting…'
+                        : approval.data?.required === true
+                          ? 'Request restore'
+                          : 'Start restore'}
                     </Button>
                   )}
                 </div>
