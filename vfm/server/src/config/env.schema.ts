@@ -171,6 +171,11 @@ export const envSchema = z.object({
   /** `0` binds an ephemeral port, which the tests use. */
   GATEWAY_PORT: z.coerce.number().int().min(0).max(65_535).default(8443),
   /**
+   * Live log sessions one person may hold open (PLAN.md §5.6 caps a whole cluster at 10), so
+   * one person cannot take every slot of a cluster.
+   */
+  LOG_SESSIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),
+  /**
    * Hostnames and IPs written into the gateway's TLS certificate. Agents verify
    * the server against the internal CA **and** this name, so it must include
    * whatever the Helm command tells them to dial.

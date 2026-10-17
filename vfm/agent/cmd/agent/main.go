@@ -37,6 +37,7 @@ import (
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/inventory"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/kube"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/leader"
+	"github.com/shubhambatra/velero-fe/vfm/agent/internal/logs"
 	pb "github.com/shubhambatra/velero-fe/vfm/agent/internal/pb/vfm/agent/v1"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/policy"
 	"github.com/shubhambatra/velero-fe/vfm/agent/internal/velero"
@@ -228,6 +229,17 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 			NewID:     gateway.NewMessageID,
 		}).Handle)
 
+		streamer := logs.New(logs.Options{
+			Source:      logs.KubeSource{Client: kubeClient.Clientset()},
+			Policy:      current.get,
+			SendWait:    func(ctx context.Context, m *pb.AgentMessage) error { return manager.SendWait(ctx, m) },
+			NewID:       gateway.NewMessageID,
+			Logger:      logger,
+			MaxSessions: cfg.MaxLogSessions,
+			Timeout:     cfg.LogSessionTimeout,
+			BytesPerSec: cfg.LogBytesPerSecond,
+		})
+
 		syncer := inventory.New(inventory.Options{
 			Dynamic:           kubeClient.Dynamic(),
 			Discovery:         kubeClient.Clientset().Discovery(),
@@ -256,13 +268,19 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 			Hello:             helloBuilder(kubeClient, current.get),
 			AgentVersion:      version,
 			HeartbeatInterval: cfg.HeartbeatInterval,
+			ActiveLogSessions: streamer.Active,
 			OnMessage: func(m *pb.ServerMessage) {
 				dispatcher.Handle(m)
 				syncer.HandleServerMessage(m)
+				streamer.HandleServerMessage(m)
 			},
 			OnConnection: func(connected bool) {
 				logger.Info("control-plane connection state", "connected", connected)
 				syncer.SetConnected(connected)
+				if !connected {
+					// A session cannot outlive the stream it reports on.
+					streamer.Disconnected()
+				}
 			},
 			Logger: logger,
 		})

@@ -23,9 +23,10 @@ const ASKED = [
   'schedule:delete',
   'storage:write',
   'advanced:write',
+  'logs:read',
 ] as const;
 
-const READ_ONLY_ALLOWS: ReadonlySet<string> = new Set(['backup:logs', 'restore:logs']);
+const READ_ONLY_ALLOWS: ReadonlySet<string> = new Set(['backup:logs', 'restore:logs', 'logs:read']);
 
 /**
  * Permissions the cluster's own agent policy refuses, with the reason (PLAN.md §5.5, §12).
@@ -36,6 +37,10 @@ export function policyBlocks(policy: unknown): Record<string, string> {
   const p =
     typeof policy === 'object' && policy !== null ? (policy as Record<string, unknown>) : {};
   const out: Record<string, string> = {};
+  // Reading is not a change, so read-only mode leaves it alone; this switch is its own.
+  if (p.allowLogStreaming === false) {
+    out['logs:read'] = 'This cluster’s agent policy does not allow streaming logs.';
+  }
   if (p.readOnly === true) {
     for (const permission of ASKED) {
       if (!READ_ONLY_ALLOWS.has(permission)) {

@@ -31,6 +31,8 @@ const (
 	LogSessionEndReason_LOG_SESSION_END_REASON_EVICTED_BY_LIMIT LogSessionEndReason = 4
 	LogSessionEndReason_LOG_SESSION_END_REASON_DENIED_BY_POLICY LogSessionEndReason = 5
 	LogSessionEndReason_LOG_SESSION_END_REASON_ERROR            LogSessionEndReason = 6
+	// The container's log ended by itself (it exited, or `previous` was fully read).
+	LogSessionEndReason_LOG_SESSION_END_REASON_COMPLETED LogSessionEndReason = 7
 )
 
 // Enum value maps for LogSessionEndReason.
@@ -43,6 +45,7 @@ var (
 		4: "LOG_SESSION_END_REASON_EVICTED_BY_LIMIT",
 		5: "LOG_SESSION_END_REASON_DENIED_BY_POLICY",
 		6: "LOG_SESSION_END_REASON_ERROR",
+		7: "LOG_SESSION_END_REASON_COMPLETED",
 	}
 	LogSessionEndReason_value = map[string]int32{
 		"LOG_SESSION_END_REASON_UNSPECIFIED":      0,
@@ -52,6 +55,7 @@ var (
 		"LOG_SESSION_END_REASON_EVICTED_BY_LIMIT": 4,
 		"LOG_SESSION_END_REASON_DENIED_BY_POLICY": 5,
 		"LOG_SESSION_END_REASON_ERROR":            6,
+		"LOG_SESSION_END_REASON_COMPLETED":        7,
 	}
 )
 
@@ -440,7 +444,7 @@ const file_vfm_agent_v1_logs_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x129\n" +
 	"\x06reason\x18\x02 \x01(\x0e2!.vfm.agent.v1.LogSessionEndReasonR\x06reason\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\xa6\x02\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage*\xcc\x02\n" +
 	"\x13LogSessionEndReason\x12&\n" +
 	"\"LOG_SESSION_END_REASON_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eLOG_SESSION_END_REASON_STOPPED\x10\x01\x12#\n" +
@@ -448,7 +452,8 @@ const file_vfm_agent_v1_logs_proto_rawDesc = "" +
 	"\x1eLOG_SESSION_END_REASON_TIMEOUT\x10\x03\x12+\n" +
 	"'LOG_SESSION_END_REASON_EVICTED_BY_LIMIT\x10\x04\x12+\n" +
 	"'LOG_SESSION_END_REASON_DENIED_BY_POLICY\x10\x05\x12 \n" +
-	"\x1cLOG_SESSION_END_REASON_ERROR\x10\x06B\xbd\x01\n" +
+	"\x1cLOG_SESSION_END_REASON_ERROR\x10\x06\x12$\n" +
+	" LOG_SESSION_END_REASON_COMPLETED\x10\aB\xbd\x01\n" +
 	"\x10com.vfm.agent.v1B\tLogsProtoP\x01ZLgithub.com/shubhambatra/velero-fe/vfm/agent/internal/pb/vfm/agent/v1;agentv1\xa2\x02\x03VAX\xaa\x02\fVfm.Agent.V1\xca\x02\fVfm\\Agent\\V1\xe2\x02\x18Vfm\\Agent\\V1\\GPBMetadata\xea\x02\x0eVfm::Agent::V1b\x06proto3"
 
 var (

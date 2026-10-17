@@ -49,6 +49,9 @@ const (
 	EnvResyncInterval          = EnvPrefix + "RESYNC_INTERVAL"
 	EnvCoreInventory           = EnvPrefix + "CORE_INVENTORY"
 	EnvPodScopeThreshold       = EnvPrefix + "POD_SCOPE_THRESHOLD"
+	EnvMaxLogSessions          = EnvPrefix + "MAX_LOG_SESSIONS"
+	EnvLogSessionTimeout       = EnvPrefix + "LOG_SESSION_TIMEOUT"
+	EnvLogBytesPerSecond       = EnvPrefix + "LOG_BYTES_PER_SECOND"
 	EnvImageTag                = EnvPrefix + "IMAGE_TAG"
 	EnvStateConfigMap          = EnvPrefix + "STATE_CONFIGMAP"
 	EnvVeleroNamespace         = EnvPrefix + "VELERO_NAMESPACE"
@@ -93,6 +96,9 @@ var (
 	settingResyncInterval          = setting{EnvResyncInterval, "resync-interval"}
 	settingCoreInventory           = setting{EnvCoreInventory, "core-inventory"}
 	settingPodScopeThreshold       = setting{EnvPodScopeThreshold, "pod-scope-threshold"}
+	settingMaxLogSessions          = setting{EnvMaxLogSessions, "max-log-sessions"}
+	settingLogSessionTimeout       = setting{EnvLogSessionTimeout, "log-session-timeout"}
+	settingLogBytesPerSecond       = setting{EnvLogBytesPerSecond, "log-bytes-per-second"}
 	settingEnrollmentToken         = setting{env: EnvEnrollmentToken}
 	settingClusterID               = setting{EnvClusterID, "cluster-id"}
 	settingClusterName             = setting{EnvClusterName, "cluster-name"}
@@ -179,6 +185,13 @@ type Config struct {
 	// namespaces the control plane asks about (PLAN.md §7.1).
 	PodScopeThreshold int
 
+	// MaxLogSessions is how many live log sessions run at once; the oldest ends when one
+	// more is asked (PLAN.md §5.6). LogSessionTimeout is how long one may run, and
+	// LogBytesPerSecond how fast one may read, by waiting rather than dropping.
+	MaxLogSessions    int
+	LogSessionTimeout time.Duration
+	LogBytesPerSecond int
+
 	// EnrollmentToken is the one-time bootstrap token. Environment only, and
 	// never logged; unused once the agent holds a certificate.
 	EnrollmentToken string
@@ -249,6 +262,9 @@ func Default() *Config {
 		ResyncInterval:     10 * time.Minute,
 		CoreInventory:      true,
 		PodScopeThreshold:  20000,
+		MaxLogSessions:     10,
+		LogSessionTimeout:  30 * time.Minute,
+		LogBytesPerSecond:  2 << 20,
 		HealthAddr:         ":8081",
 		MetricsAddr:        ":9090",
 		LogLevel:           slog.LevelInfo,
@@ -317,6 +333,9 @@ func (c *Config) applyEnv(getenv func(string) (string, bool), probs *problems) {
 	env.duration(settingResyncInterval, &c.ResyncInterval)
 	env.boolean(settingCoreInventory, &c.CoreInventory)
 	env.integer(settingPodScopeThreshold, &c.PodScopeThreshold)
+	env.integer(settingMaxLogSessions, &c.MaxLogSessions)
+	env.duration(settingLogSessionTimeout, &c.LogSessionTimeout)
+	env.integer(settingLogBytesPerSecond, &c.LogBytesPerSecond)
 	env.str(settingEnrollmentToken, &c.EnrollmentToken)
 	env.str(settingClusterID, &c.ClusterID)
 	env.str(settingClusterName, &c.ClusterName)
@@ -379,6 +398,12 @@ func (c *Config) applyFlags(args []string, probs *problems) error {
 		"report nodes, namespaces, pod summaries, PVCs and events (the live view)")
 	fs.IntVar(&c.PodScopeThreshold, settingPodScopeThreshold.flag, c.PodScopeThreshold,
 		"pod count above which pods are reported only for namespaces the control plane asks about")
+	fs.IntVar(&c.MaxLogSessions, settingMaxLogSessions.flag, c.MaxLogSessions,
+		"live log sessions at once; the oldest ends when one more is asked")
+	fs.DurationVar(&c.LogSessionTimeout, settingLogSessionTimeout.flag, c.LogSessionTimeout,
+		"how long one live log session may run")
+	fs.IntVar(&c.LogBytesPerSecond, settingLogBytesPerSecond.flag, c.LogBytesPerSecond,
+		"bytes per second one live log session may read; it waits rather than drops")
 	fs.StringVar(&c.ClusterID, settingClusterID.flag, c.ClusterID,
 		"cluster ID issued by the control plane at enrollment")
 	fs.StringVar(&c.ClusterName, settingClusterName.flag, c.ClusterName,
@@ -536,6 +561,15 @@ func (c *Config) validate(probs *problems) {
 	if c.PodScopeThreshold < 100 {
 		probs.add(settingPodScopeThreshold, "must be at least 100")
 	}
+	if c.MaxLogSessions < 1 || c.MaxLogSessions > 100 {
+		probs.add(settingMaxLogSessions, "must be between 1 and 100")
+	}
+	if c.LogSessionTimeout < 10*time.Second || c.LogSessionTimeout > 24*time.Hour {
+		probs.add(settingLogSessionTimeout, "must be between 10s and 24h")
+	}
+	if c.LogBytesPerSecond < 64*1024 {
+		probs.add(settingLogBytesPerSecond, "must be at least 65536")
+	}
 	if c.ShutdownTimeout < time.Second {
 		probs.add(settingShutdownTimeout, "must be at least 1s")
 	}
@@ -649,6 +683,8 @@ func (c *Config) LogValue() slog.Value {
 		slog.String("resync_interval", c.ResyncInterval.String()),
 		slog.Bool("core_inventory", c.CoreInventory),
 		slog.Int("pod_scope_threshold", c.PodScopeThreshold),
+		slog.Int("max_log_sessions", c.MaxLogSessions),
+		slog.String("log_session_timeout", c.LogSessionTimeout.String()),
 		// Presence only: the token is a credential.
 		slog.Bool("enrollment_token_set", c.EnrollmentToken != ""),
 		slog.String("cluster_id", c.ClusterID),

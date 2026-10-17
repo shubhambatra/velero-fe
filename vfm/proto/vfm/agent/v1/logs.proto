@@ -41,6 +41,8 @@ enum LogSessionEndReason {
   LOG_SESSION_END_REASON_EVICTED_BY_LIMIT = 4;
   LOG_SESSION_END_REASON_DENIED_BY_POLICY = 5;
   LOG_SESSION_END_REASON_ERROR = 6;
+  // The container's log ended by itself (it exited, or `previous` was fully read).
+  LOG_SESSION_END_REASON_COMPLETED = 7;
 }
 
 message LogSessionEnded {

@@ -17,6 +17,8 @@ export enum LogSessionEndReason {
   LOG_SESSION_END_REASON_EVICTED_BY_LIMIT = 4,
   LOG_SESSION_END_REASON_DENIED_BY_POLICY = 5,
   LOG_SESSION_END_REASON_ERROR = 6,
+  /** LOG_SESSION_END_REASON_COMPLETED - The container's log ended by itself (it exited, or `previous` was fully read). */
+  LOG_SESSION_END_REASON_COMPLETED = 7,
   UNRECOGNIZED = -1,
 }
 
@@ -43,6 +45,9 @@ export function logSessionEndReasonFromJSON(object: any): LogSessionEndReason {
     case 6:
     case 'LOG_SESSION_END_REASON_ERROR':
       return LogSessionEndReason.LOG_SESSION_END_REASON_ERROR;
+    case 7:
+    case 'LOG_SESSION_END_REASON_COMPLETED':
+      return LogSessionEndReason.LOG_SESSION_END_REASON_COMPLETED;
     case -1:
     case 'UNRECOGNIZED':
     default:
@@ -66,6 +71,8 @@ export function logSessionEndReasonToJSON(object: LogSessionEndReason): string {
       return 'LOG_SESSION_END_REASON_DENIED_BY_POLICY';
     case LogSessionEndReason.LOG_SESSION_END_REASON_ERROR:
       return 'LOG_SESSION_END_REASON_ERROR';
+    case LogSessionEndReason.LOG_SESSION_END_REASON_COMPLETED:
+      return 'LOG_SESSION_END_REASON_COMPLETED';
     case LogSessionEndReason.UNRECOGNIZED:
     default:
       return 'UNRECOGNIZED';

@@ -28,3 +28,8 @@ deploy/dev/data/
 .turbo/
 playwright-report/
 test-results/
+
+# The repository root ignores runtime `logs/` directories. These two are source code
+# (PLAN.md §14), so they are listed back in.
+!agent/internal/logs/
+!server/src/logs/

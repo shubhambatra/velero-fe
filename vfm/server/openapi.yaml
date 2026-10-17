@@ -2071,6 +2071,103 @@ paths:
       summary: A detail file of a restore; 204 when none is held
       tags:
         - downloads
+  /orgs/{orgId}/clusters/{clusterId}/log-sessions:
+    post:
+      description: Returns the session to stream from. Needs `logs:read` on the pod’s namespace, an agent
+        policy that allows it, and a connected agent. Every start is audited with the namespace, pod
+        and container — never the log.
+      operationId: LogSessionsController_start
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Start a live log session for one container
+      tags:
+        - logs
+  /orgs/{orgId}/clusters/{clusterId}/log-sessions/{sessionId}:
+    delete:
+      operationId: LogSessionsController_stop
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Stop a live log session
+      tags:
+        - logs
+  /orgs/{orgId}/clusters/{clusterId}/log-sessions/{sessionId}/stream:
+    get:
+      description: Nothing is stored, so lines produced while no stream is open are not replayed. The
+        agent starts the session when the first stream opens.
+      operationId: LogSessionsController_stream
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "Server-sent events for a log session: `chunk` events, then one `ended`"
+      tags:
+        - logs
+  /orgs/{orgId}/clusters/{clusterId}/log-shortcuts:
+    get:
+      description: Found by the controller that owns each pod. Empty when Velero’s namespace is not known
+        yet or its pods are not named as Velero names them; the pod picker still works.
+      operationId: LogSessionsController_shortcuts
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: The Velero server and node-agent pods, for one-click log views
+      tags:
+        - logs
   /stream:
     get:
       description: Events carry no object names. Re-read through the REST API on an event.

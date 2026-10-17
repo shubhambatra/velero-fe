@@ -20,6 +20,7 @@ import { EventsModule } from './events/events.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { BackupsModule } from './backups/backups.module';
 import { DownloadsModule } from './downloads/downloads.module';
+import { LogsModule } from './logs/logs.module';
 import { RestoresModule } from './restores/restores.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { StorageModule } from './storage/storage.module';
@@ -109,6 +110,7 @@ export const logDestination: { stream?: DestinationStream } = {};
     SchedulesModule,
     StorageModule,
     DownloadsModule,
+    LogsModule,
     EventsModule,
     AuthModule,
     HealthModule,

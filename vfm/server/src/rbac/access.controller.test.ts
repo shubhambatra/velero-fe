@@ -30,6 +30,15 @@ describe('what the agent policy blocks', () => {
     expect(blocked['backup:create']).toMatch(/read-only/);
     expect(blocked['backup:logs']).toBeUndefined();
     expect(blocked['restore:logs']).toBeUndefined();
+    expect(blocked['logs:read']).toBeUndefined();
+  });
+
+  it('blocks live logs when the policy turns streaming off, read-only or not', () => {
+    expect(Object.keys(policyBlocks({ allowLogStreaming: false }))).toEqual(['logs:read']);
+    expect(policyBlocks({ allowLogStreaming: false, readOnly: true })['logs:read']).toMatch(
+      /does not allow streaming logs/,
+    );
+    expect(policyBlocks({ allowLogStreaming: true })).toEqual({});
   });
 
   it('blocks only restores, or only storage, when the policy says so', () => {

@@ -74,6 +74,8 @@ type Options struct {
 	AgentVersion      string
 	HeartbeatInterval time.Duration
 
+	// ActiveLogSessions is reported in every heartbeat.
+	ActiveLogSessions func() int
 	// OnMessage receives every ServerMessage after the handshake. It runs on
 	// the stream's goroutine and must not block.
 	OnMessage func(*pb.ServerMessage)
@@ -155,7 +157,10 @@ func (m *Manager) dropStaleInventory() {
 	for {
 		select {
 		case msg := <-m.outbox:
-			if msg.GetSnapshot() == nil && msg.GetEvents() == nil {
+			// A log session does not survive its stream, so what is left of one is noise.
+			// The bytes of a download are owed to a command and stay.
+			session := msg.GetLogEnded() != nil || msg.GetLogChunk().GetSessionId() != ""
+			if msg.GetSnapshot() == nil && msg.GetEvents() == nil && !session {
 				keep = append(keep, msg)
 			}
 			continue
@@ -169,6 +174,13 @@ func (m *Manager) dropStaleInventory() {
 		default:
 		}
 	}
+}
+
+func (m *Manager) activeLogSessions() uint32 {
+	if m.opts.ActiveLogSessions == nil {
+		return 0
+	}
+	return uint32(max(0, m.opts.ActiveLogSessions())) //nolint:gosec // bounded by the session limit
 }
 
 // NewMessageID is a UUIDv7 message id (PLAN.md §5.2).
@@ -360,8 +372,9 @@ func (m *Manager) session(ctx context.Context) error {
 			if err := stream.Send(&pb.AgentMessage{
 				MessageId: NewMessageID(),
 				Payload: &pb.AgentMessage_Heartbeat{Heartbeat: &pb.Heartbeat{
-					SentAt:         timestamppb.New(m.opts.Now()),
-					BufferedEvents: uint32(len(m.outbox)), //nolint:gosec // bounded by the channel capacity
+					SentAt:            timestamppb.New(m.opts.Now()),
+					BufferedEvents:    uint32(len(m.outbox)), //nolint:gosec // bounded by the channel capacity
+					ActiveLogSessions: m.activeLogSessions(),
 				}},
 			}); err != nil {
 				return err

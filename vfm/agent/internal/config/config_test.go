@@ -97,6 +97,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 		EnvResyncInterval:          "5m",
 		EnvCoreInventory:           "false",
 		EnvPodScopeThreshold:       "5000",
+		EnvMaxLogSessions:          "4",
+		EnvLogSessionTimeout:       "5m",
+		EnvLogBytesPerSecond:       "262144",
 		EnvEnrollmentToken:         "tok-from-chart",
 		EnvClusterID:               "018f3b2c-7e4a-7c3d-9b1e-2a4c6e8f0a12",
 		EnvClusterName:             "prod-eu-1",
@@ -135,6 +138,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 		ResyncInterval:          5 * time.Minute,
 		CoreInventory:           false,
 		PodScopeThreshold:       5000,
+		MaxLogSessions:          4,
+		LogSessionTimeout:       5 * time.Minute,
+		LogBytesPerSecond:       262144,
 		EnrollmentToken:         "tok-from-chart",
 		ClusterID:               "018f3b2c-7e4a-7c3d-9b1e-2a4c6e8f0a12",
 		ClusterName:             "prod-eu-1",
@@ -386,6 +392,32 @@ func TestLoadRejectsMalformedValues(t *testing.T) {
 				t.Errorf("error does not name %s; named %v", test.wantKey, keys)
 			}
 		})
+	}
+}
+
+// TestLogSessionLimitsAreBounded keeps a typo from disabling the limits of PLAN.md §5.6.
+func TestLogSessionLimitsAreBounded(t *testing.T) {
+	for _, bad := range []map[string]string{
+		{EnvMaxLogSessions: "0"},
+		{EnvMaxLogSessions: "101"},
+		{EnvLogSessionTimeout: "1s"},
+		{EnvLogSessionTimeout: "48h"},
+		{EnvLogBytesPerSecond: "10"},
+	} {
+		env := minimalEnv()
+		for k, v := range bad {
+			env[k] = v
+		}
+		if _, err := Load(nil, envOf(env)); err == nil {
+			t.Errorf("%v was accepted", bad)
+		}
+	}
+	cfg, err := Load(nil, envOf(minimalEnv()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MaxLogSessions != 10 || cfg.LogSessionTimeout != 30*time.Minute {
+		t.Errorf("defaults are %d and %v, want the plan's 10 and 30m", cfg.MaxLogSessions, cfg.LogSessionTimeout)
 	}
 }
 

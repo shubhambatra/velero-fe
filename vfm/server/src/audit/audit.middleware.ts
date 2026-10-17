@@ -11,6 +11,8 @@ export interface AuditContext {
   orgId?: string;
   targetType?: string;
   targetId?: string;
+  /** Facts about the action that are not secrets (a pod name, never a log line). */
+  details?: Record<string, unknown>;
 }
 
 declare module 'express' {
@@ -111,6 +113,7 @@ export class AuditMiddleware implements NestMiddleware {
       requestId: req.requestId ?? null,
       outcome: outcome,
       details: {
+        ...context.details,
         status,
         fields,
         // For a token, the person it acts as.
