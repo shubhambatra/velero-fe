@@ -22,7 +22,7 @@ Session 7, continued. Resumed from `70d89d5` (CI green on all five jobs).
   registry.
 - **Structured log fields documented and pinned** (`logfields.e2e`). Writing it down found that the SSO callback's one-time
   `code` and `state` were in the request log (`url`, `query`); the line is now an allowlist without the query string
-  (threat model C3-I, ADR-044).
+  (threat model C5-I, ADR-044).
 - **Tracing hook**, off by default: `OTEL_ENABLED`, `withSpan` (one span, `command.deliver`), loads the SDK only if installed,
   warns and continues if not.
 - **Validation**: server lint clean, 1099 unit and 646 e2e tests passed (1 skipped), build and OpenAPI unchanged.
