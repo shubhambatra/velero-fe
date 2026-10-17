@@ -109,6 +109,8 @@ export async function createTestApp(
   // A quiet connect: suites that assert on exactly which commands an agent
   // receives turn the on-connect Velero refresh on for the one case that tests it.
   process.env.COMMANDS_REFRESH_ON_CONNECT = 'false';
+  // Alerts are evaluated by hand in tests.
+  process.env.ALERT_EVAL_INTERVAL_SECONDS = '0';
   process.env.HOST = '127.0.0.1';
 
   Logger.overrideLogger(false);

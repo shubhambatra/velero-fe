@@ -2168,6 +2168,89 @@ paths:
       summary: The Velero server and node-agent pods, for one-click log views
       tags:
         - logs
+  /orgs/{orgId}/alerts/rules:
+    get:
+      operationId: AlertsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List alert rules, with how many of each are firing (Owner/Admin)
+      tags:
+        - alerts
+    post:
+      operationId: AlertsController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Create an alert rule (Owner/Admin)
+      tags:
+        - alerts
+  /orgs/{orgId}/alerts/rules/{ruleId}:
+    patch:
+      operationId: AlertsController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: ruleId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Change an alert rule (Owner/Admin)
+      tags:
+        - alerts
+    delete:
+      operationId: AlertsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: ruleId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Delete an alert rule and its history (Owner/Admin, sudo required)
+      tags:
+        - alerts
+  /orgs/{orgId}/alerts/events:
+    get:
+      operationId: AlertsController_events
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Alert history, newest first (Owner/Admin)
+      tags:
+        - alerts
   /stream:
     get:
       description: Events carry no object names. Re-read through the REST API on an event.

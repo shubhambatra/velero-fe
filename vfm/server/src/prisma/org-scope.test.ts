@@ -236,6 +236,8 @@ describe('static guard over the source tree', () => {
       .sort();
 
     expect(sites).toEqual([
+      'alerts/alerts.service.ts: the alert evaluator spans every org',
+      'alerts/alerts.service.ts: the alert evaluator spans every org',
       'audit/audit.service.ts: audit events may precede org selection and outlive the org',
       'auth/mfa.service.ts: mfa obligation spans all of a user’s orgs',
       'clusters/enrollment.service.ts: a bootstrap token identifies its cluster and org',

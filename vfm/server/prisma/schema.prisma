@@ -148,6 +148,8 @@ model Organization {
   commands        Command[]
   veleroResources VeleroResource[]
   veleroFiles     VeleroFile[]
+  alertRules      AlertRule[]
+  alertEvents     AlertEvent[]
 
   @@map("organizations")
 }
@@ -536,6 +538,7 @@ model Cluster {
   commands        Command[]
   veleroResources VeleroResource[]
   veleroFiles     VeleroFile[]
+  alertEvents     AlertEvent[]
 
   @@unique([orgId, name])
   @@index([orgId, status])
@@ -759,4 +762,74 @@ model VeleroFile {
   @@index([expiresAt])
   @@index([orgId])
   @@map("velero_files")
+}
+
+enum AlertRuleType {
+  BACKUP_FAILED
+  SCHEDULE_MISSED
+  AGENT_DISCONNECTED
+  BSL_UNAVAILABLE
+  BACKUP_EXPIRING
+}
+
+enum AlertState {
+  FIRING
+  RESOLVED
+}
+
+/// What to watch and who to tell (PLAN.md §9, §16 day 32). `name` is an addition to the plan's
+/// columns: the rules page needs something to show. `scope` is `{ clusterIds?: string[] }`
+/// (empty or missing: every cluster of the org); `params` depends on `type` and is validated
+/// in `alerts/rule-params.ts`; `channelIds` are notification channel ids (the table arrives
+/// with day 33, so there is no foreign key yet).
+model AlertRule {
+  id String @id @db.Uuid
+
+  orgId String @map("org_id") @db.Uuid
+  name  String
+
+  type       AlertRuleType
+  scope      Json          @default("{}")
+  params     Json          @default("{}")
+  channelIds Json          @default("[]") @map("channel_ids")
+  enabled    Boolean       @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  events AlertEvent[]
+
+  @@index([orgId])
+  @@map("alert_rules")
+}
+
+/// One occurrence of a condition: FIRING from the evaluation that first saw it until the one
+/// that no longer does, then RESOLVED. At most one FIRING row exists per (rule, fingerprint),
+/// enforced by a partial unique index in the migration (Prisma cannot declare one).
+model AlertEvent {
+  id String @id @db.Uuid
+
+  orgId     String @map("org_id") @db.Uuid
+  ruleId    String @map("rule_id") @db.Uuid
+  clusterId String @map("cluster_id") @db.Uuid
+
+  state       AlertState
+  /// What the condition is about, stable across evaluations: `backup:ns/name`, `agent`, ...
+  fingerprint String
+  /// What a notification says; bounded and free of anything secret (see `alerts/conditions.ts`).
+  payload     Json       @default("{}")
+
+  firedAt        DateTime  @default(now()) @map("fired_at") @db.Timestamptz(6)
+  resolvedAt     DateTime? @map("resolved_at") @db.Timestamptz(6)
+  lastNotifiedAt DateTime? @map("last_notified_at") @db.Timestamptz(6)
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  rule    AlertRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  cluster Cluster      @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, firedAt])
+  @@index([ruleId, state])
+  @@index([clusterId])
+  @@map("alert_events")
 }
