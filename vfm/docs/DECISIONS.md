@@ -1871,3 +1871,79 @@ message under concurrent requests. Web: 8 page tests. Driven in Chrome against t
 syncer (fake Kubernetes objects, including a pod carrying env vars and annotations): the namespaces table, Show pods,
 a pod's containers, the events tab; the agent received the pod scope; no database table, server log or agent log
 contains the planted secret.
+
+## ADR-035 — Live log sessions (M5 day 30)
+
+### Context
+
+PLAN §5.6 and §7.2 want a container's log streamed on demand through the agent, shown in the browser, audited at the
+start, and stored nowhere. The control plane runs as several replicas, and the replica that holds an agent's stream is not
+necessarily the one holding a browser's connection.
+
+### Decisions
+
+- **A session is Redis state plus a channel, never a row.** `vfm:logsess:{id}` holds who asked for what; chunks are
+  published on `vfm:logs:{id}` and read by the replica that holds the browser's SSE connection. Nothing is written to
+  Postgres, and a grep of every table for a planted log line finds nothing.
+- **`POST …/log-sessions` records and audits; it does not start anything.** The agent is asked to start when the first
+  stream is opened, after the replica has subscribed, so the first lines are not lost to a subscriber that is not there
+  yet. A session nobody opens is forgotten after a minute and the agent is never bothered. Stored nowhere also means no
+  replay: lines produced while no stream is open are gone, and the API says so.
+- **Checks, in order:** `logs:read` on the pod's namespace (a person who may read `dev` may not read `prod`); the agent's
+  own policy as it reported it in `Hello` (`allowLogStreaming`, `logStreamDeniedNamespaces`, with `*`), so the control
+  plane says no first with the reason; a connected agent (409 otherwise); a per-person limit (`LOG_SESSIONS_PER_USER`,
+  default 5, so one person cannot take the cluster's 10 slots). The agent checks its policy again before reading anything.
+- **Browser sessions only.** No route here opts in to API tokens. A session can be seen, stopped and streamed only by the
+  person who started it, and any other person, cluster or organization path gets the same 404 as a session that does not
+  exist.
+- **Revocation reaches a running stream.** Every 30 seconds a stream re-checks the login and the permission and ends with
+  `revoked` (and the agent is told to stop) if either is gone.
+- **The owner replica watches for idleness.** Whoever took the `POST` ends a session that has had no subscriber for 60
+  seconds (subscribers refresh a short-lived key). If that replica dies, the agent's own 30-minute hard timeout is the
+  backstop. When an agent disconnects, the replica that held its stream ends every session of that cluster.
+- **A chunk is accepted only for the cluster the session belongs to**, is at most 64 KB (larger ends the session), and is
+  decoded as UTF-8 with a per-session decoder so a character split across chunks survives and bytes that are not text
+  become U+FFFD. A chunk for a session the control plane does not know makes it tell the agent to stop.
+- **Agent (`internal/logs`).** `pods/log` with follow, read in chunks of at most 64 KB; at most
+  `VFM_MAX_LOG_SESSIONS` (10) at once, the oldest ending with `EVICTED_BY_LIMIT`; a hard timeout
+  (`VFM_LOG_SESSION_TIMEOUT`, 30 minutes); a per-session byte rate (`VFM_LOG_BYTES_PER_SECOND`, 2 MiB/s) applied by
+  **waiting, not dropping**, so a chatty container slows its own viewer and not the shared stream; names validated as
+  Kubernetes names before they reach the API server; a read that is blocked is released by closing the body when the
+  session ends. An unknown API failure is reported with a fixed sentence, never quoted. The content of a log never reaches
+  the agent's own log. Sessions end without a message when the stream drops, and what was queued for a dead stream is
+  discarded on the next one.
+- **Why a session ended** is part of the protocol: `LOG_SESSION_END_REASON_COMPLETED = 7` was added (the container's log
+  ended by itself, or a previous container was read in full), because "stopped" means a person stopped it. A deleted pod is
+  told from an exited container by asking whether the pod still exists.
+- **A previous container** is read once and never followed (`follow` is false whatever was asked).
+- **Velero shortcuts** (`GET …/log-shortcuts`) find the server and node-agent pods in Velero's namespace by the controller
+  that owns each pod (Deployment `velero`, DaemonSet `node-agent` or the older `restic`), because the inventory keeps no
+  pod labels and that is not about to change. An installation that names them otherwise gets an empty list and the pod
+  picker. Asking also marks the namespace as wanted, so a large cluster reports its pods. Velero's namespace is taken from
+  the inventory's storage locations.
+- **Audit.** The start is audited by the existing middleware, extended so a handler can add non-secret details:
+  namespace, pod, container and whether it was a previous container, the session as the target, the actor, the outcome.
+  A refusal is audited with the same facts. Stopping and streaming are not separate audit events; the start is the access.
+- **The source tree needed an ignore exception.** The repository root ignores every directory called `logs/`, which would
+  have kept the two new source directories out of the commit; `vfm/.gitignore` lists them back in.
+
+### Deferred
+
+The log viewer (follow, pause, search, wrap, download) is day 31; so are the UI shortcuts and the pod row's logs button.
+Replaying lines to a stream that reconnects needs storage that this design deliberately does not have. A per-namespace
+rate or session limit; metrics for sessions and bytes (M7).
+
+### Verified
+
+Go: 13 streamer tests (order and size of chunks, options passed on, every end reason, policy before reading, bad names,
+eviction of the oldest, ten at once, hard timeout, disconnect, duplicate start, rate by waiting, no content in the agent's
+log) and a config bounds test. Server: policy, request and pod-matching units; 27 e2e over two replicas with a scripted
+agent (order across replicas, stop both ways, split characters, each end reason, namespace and role refusals, ownership,
+API tokens refused, agent policy, not-connected, per-person limit, idle and never-opened sessions, agent disconnect,
+permission taken away, an unknown session, another cluster's chunk, an oversized chunk, the audit of success and refusal,
+a canary line found in no table, shortcuts, previous container). Six mutations (cluster check, ownership, policy, RBAC,
+chunk size, lazy start) and a seventh for a leak found on the way were each caught by a test. Run live: the real Go
+streamer and gateway manager against the real server, Redis and SSE with a synthetic log source: median 2 ms and worst
+12.5 ms over 1 000 lines on ten concurrent sessions, no gaps; abandoned sessions ended by the idle timeout; a previous
+container ended `completed`. Not verified: a real `pods/log` (B-2), a browser viewer (day 31), the 30-minute timeout end
+to end.

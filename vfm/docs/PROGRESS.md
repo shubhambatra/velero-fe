@@ -9,6 +9,43 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M5 day 30: live log sessions
+
+Session 7, continued. CI green on day 29 (`45fd02a`).
+
+### Done
+
+- Agent: `internal/logs` — `pods/log` follow in chunks of at most 64 KB, a limit on sessions with the oldest ended, a hard
+  timeout, a byte rate applied by waiting, policy checked first, names validated; wired into the connection (heartbeat
+  reports active sessions, a dropped stream ends them). New settings `VFM_MAX_LOG_SESSIONS`, `VFM_LOG_SESSION_TIMEOUT`,
+  `VFM_LOG_BYTES_PER_SECOND` (ADR-035).
+- Protocol: `LOG_SESSION_END_REASON_COMPLETED`.
+- Server: `logs` module — start, stop and SSE stream, state in Redis so any replica can serve any session, idle and agent
+  disconnect handling, revocation while streaming, shortcuts for Velero's own pods, the audit of starts and refusals;
+  `logs:read` shown in `/access` with the agent policy's reason; `LOG_SESSIONS_PER_USER`.
+- Repository: `vfm/.gitignore` lists back the two `logs/` source directories the root ignore would have dropped.
+
+### Test status
+
+Server unit **834**, e2e **507**; web **363** (unchanged); Go all packages pass (14 new), golangci-lint 0; lint, typecheck,
+build, `buf lint` clean; OpenAPI regenerated. Requirements **70/152 (46.1 %)** (R-078, R-079 verified; R-080, R-047
+partial).
+
+### Driven for real
+
+The real Go streamer and gateway manager against the real server, Valkey and SSE (synthetic log source, throwaway
+database): median latency 2 ms, worst 12.5 ms over 1 000 lines on ten concurrent sessions, no sequence gaps; sessions
+nobody closed ended by the idle timeout; one eviction when an eleventh was asked; a previous container ended
+`completed`; a failing pod ended `error` with a fixed sentence. A leak found there (the per-person list kept a session that
+was never opened) is fixed and tested.
+
+### Not verified
+
+A real `pods/log` and a real cluster (B-2); a browser viewer (day 31); the full 30-minute timeout; lines lost while a
+stream is reconnecting (nothing is stored, by design).
+
+---
+
 ## 2026-10-17 — M5 day 29: workloads UI
 
 Session 7, continued. CI green on day 28 (`3a38529`).

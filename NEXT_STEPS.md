@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-17 (session 7, M5 day 29) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-17 (session 7, M5 day 30) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -177,7 +177,8 @@ criteria are still unmet (B-1, B-2).
 - **M4 is complete in code.** Its exit criteria (golden paths 1–11 on a real Velero, then the ⛔ human backup and restore drill on a non-kind cluster) need B-2 and the user.
 - **M5 day 28 done** (ADR-033): core inventory — `agent/internal/inventory/core.go`, `WatchScope` in `gateway.proto`, `server/src/inventory/{watch-scope.service,projections}.ts`, `GET …/inventory/{nodes,namespaces,pods,pvcs,events}`.
 - **M5 day 29 done** (ADR-034): workloads UI — `web/src/pages/workloads.tsx`, `server/src/inventory/coverage.ts`.
-- **Next: M5 day 30 — live log sessions** (plan line 752): start/stop sessions, agent `pods/log` follow streaming, limits and timeouts (plan §5.6), SSE fan-out, audit of session starts, Velero server/node-agent shortcuts, previous-container logs. `StartLogSession`/`StopLogSession` messages and `LogChunk` exist in the protocol; `Policy.CheckLogSession` and `logs:read` exist. Nothing is stored. The pods table is the natural place for a "Logs" action per container.
+- **M5 day 30 done** (ADR-035): live log sessions — `agent/internal/logs/streamer.go`, `server/src/logs/*`, `LOG_SESSION_END_REASON_COMPLETED` in `logs.proto`; routes `POST|DELETE …/log-sessions`, `GET …/log-sessions/:id/stream` (SSE: `chunk`, then one `ended`) and `GET …/log-shortcuts`. Nothing is stored; the agent is started when the first stream opens.
+- **Next: M5 day 31 — log viewer polish and tests** (plan line 755): the web log viewer (virtualized list with `@tanstack/react-virtual`, ANSI colours, follow, pause, wrap, search in the buffer, timestamps, download the visible buffer, a 50 000-line ring buffer), a logs button on each pod container row and the Velero server / node-agent shortcuts from `GET …/log-shortcuts`, and the day's tests: limits, permission denial, `logStreamDeniedNamespaces` server- and agent-side, cleanup when the browser disconnects (most of the server half already has e2e coverage in `server/test/logs.e2e.test.ts`). The stream has no replay (nothing is stored): the viewer must say so when it reconnects, and `ended` carries `reason` (`completed`, `stopped`, `pod_gone`, `timeout`, `evicted`, `denied`, `error`, `idle`, `revoked`) and a short message. `/access` now reports `logs:read` and the agent policy's reason in `blocked`. M5 exit criteria (latency under 2 s from kind, 10 sessions stable) need B-2; they held against a synthetic source (median 2 ms).
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---
