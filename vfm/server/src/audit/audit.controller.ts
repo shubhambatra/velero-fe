@@ -1,3 +1,4 @@
+import { RateLimit } from '../common/rate-limit';
 import { Controller, Get, Param, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -80,6 +81,7 @@ export class AuditController {
     return this.audit.list(id, filter, { limit, cursor });
   }
 
+  @RateLimit('audit-export', 10, 60)
   @Get('export')
   @ApiOperation({ summary: 'Audit log as CSV (Owner/Admin); the export is itself audited' })
   async export(

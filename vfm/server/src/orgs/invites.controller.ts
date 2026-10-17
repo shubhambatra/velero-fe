@@ -1,3 +1,4 @@
+import { RateLimit } from '../common/rate-limit';
 import {
   BadRequestException,
   Body,
@@ -100,6 +101,7 @@ export class InvitesController {
     }
   }
 
+  @RateLimit('invite-register', 20, 3600, 'ip')
   @Public()
   @Post('invites/register')
   @ApiOperation({

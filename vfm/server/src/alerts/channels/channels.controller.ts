@@ -1,3 +1,4 @@
+import { RateLimit } from '../../common/rate-limit';
 import {
   Body,
   Controller,
@@ -97,6 +98,7 @@ export class ChannelsController {
     await this.channels.remove(id, parseBody(orgIdParam, channelId));
   }
 
+  @RateLimit('channel-test', 10, 60)
   @Post(':channelId/test')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Send a test message through a channel (Owner/Admin); one attempt' })

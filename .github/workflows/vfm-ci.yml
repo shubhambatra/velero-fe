@@ -3,6 +3,16 @@ name: VFM CI
 # Velero Fleet Manager lives in the vfm/ subtree alongside the legacy
 # application (see vfm/docs/DECISIONS.md ADR-003). This workflow is
 # path-filtered so legacy-only commits are unaffected, and vice versa.
+#
+# BRANCH PROTECTION: these checks must be marked *required* on main, or a red scan
+# does not stop a merge (threat model G-15, vfm/docs/THREAT_MODEL.md):
+#   - "TypeScript lint, typecheck and tests"
+#   - "Go lint and tests"            (includes the agent image Trivy scan and its SBOM)
+#   - "Dependency vulnerability scan" (pnpm audit, govulncheck, Trivy filesystem scan)
+#   - "Control-plane end-to-end tests"
+#   - "Proto lint and breaking-change check"
+# Third-party actions are pinned to a commit SHA (tag in the trailing comment); to update
+# one, resolve the new tag to its SHA and review the diff. Token permissions are read-only.
 
 on:
   push:
@@ -31,19 +41,24 @@ env:
   # Pinned in vfm/docs/DECISIONS.md ADR-002 and ADR-004.
   GO_VERSION: '1.27.2'
   NODE_VERSION: '22'
+  # An exact release, not @latest: a scanner that changes under a build is a build that changes.
+  # Chosen at least two weeks after release; raise it deliberately.
+  GOVULNCHECK_VERSION: 'v1.8.0'
 
 jobs:
   typescript:
     name: TypeScript lint, typecheck and tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       # Pinned to v4 deliberately: v5 activates the `packageManager` field of
       # the repository-root package.json, which belongs to the legacy Nx
       # workspace (pnpm 7.27.0 with an unverifiable sha1) and fails before any
       # step of ours runs. VFM's own pnpm is activated by the next step.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -68,7 +83,9 @@ jobs:
     name: Go lint and tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Check whether the agent module is buildable yet
         id: agent
@@ -90,7 +107,7 @@ jobs:
             echo 'agent module not present yet — skipping' >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         if: steps.agent.outputs.present == 'true'
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -129,9 +146,41 @@ jobs:
         # Not pushed: this only proves the Dockerfile still builds.
         run: docker build --build-arg VERSION=ci -t vfm-agent:ci agent
 
+      # The image is what customers run, so it is scanned as built (PLAN.md §12.1). The SBOM is
+      # written first and never fails; the scan after it is the gate.
+      - name: SBOM of the agent image
+        if: steps.agent.outputs.present == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: vfm-agent:ci
+          format: cyclonedx
+          output: sbom-agent-image.cdx.json
+          exit-code: '0'
+
+      - name: Trivy image scan
+        if: steps.agent.outputs.present == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: vfm-agent:ci
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Keep the agent image SBOM
+        if: always() && steps.agent.outputs.present == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-agent-image
+          path: sbom-agent-image.cdx.json
+          if-no-files-found: warn
+          retention-days: 90
+
       - name: golangci-lint
         if: steps.agent.outputs.present == 'true'
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           version: v2.14.0
           # Build golangci-lint with the job's Go (GO_VERSION). The prebuilt
@@ -164,9 +213,11 @@ jobs:
       TEST_DATABASE_URL: postgresql://vfm:vfm-ci-password@localhost:5432/vfm_test?schema=public
       TEST_REDIS_URL: redis://localhost:6379/15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -213,8 +264,9 @@ jobs:
     name: Proto lint and breaking-change check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Check whether any proto definitions exist yet
@@ -246,7 +298,7 @@ jobs:
       # PLAN.md §5.7: buf lint plus a breaking-change check against main. The
       # BSR is not used, so push and archive are off (the action's default is to
       # push on branch builds, which needs a token).
-      - uses: bufbuild/buf-action@v1
+      - uses: bufbuild/buf-action@8c6a16e16f12ba20b6470afa9c2ba9b5ba8c97c3 # v1
         if: steps.proto.outputs.present == 'true'
         with:
           input: vfm/proto
@@ -264,9 +316,11 @@ jobs:
     # PLAN.md §12.1: fail on high/critical. Applies from day 1, not in a
     # later hardening phase.
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -288,7 +342,7 @@ jobs:
             echo 'present=false' >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         if: steps.agent.outputs.present == 'true'
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -298,14 +352,14 @@ jobs:
         if: steps.agent.outputs.present == 'true'
         working-directory: vfm/agent
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
           "$(go env GOPATH)/bin/govulncheck" ./...
 
-      # Image scanning is added alongside the first Dockerfile (agent image,
-      # M2 day 15). Until then Trivy scans the source tree for vulnerable
-      # dependencies, misconfigured manifests and committed secrets.
+      # Trivy scans the source tree for vulnerable dependencies, misconfigured
+      # manifests and committed secrets. The agent image is scanned in the Go job,
+      # where it is built.
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: vfm
@@ -324,3 +378,23 @@ jobs:
           # everything we ship, and §12.2's agent RBAC gets its own
           # chart-render diff test in M2 day 15.
           skip-dirs: vfm/deploy/dev/manifests
+
+      - name: SBOM of the source tree
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: vfm
+          format: cyclonedx
+          output: sbom-source.cdx.json
+          exit-code: '0'
+          skip-dirs: vfm/deploy/dev/manifests
+
+      - name: Keep the source SBOM
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-source
+          path: sbom-source.cdx.json
+          if-no-files-found: warn
+          retention-days: 90

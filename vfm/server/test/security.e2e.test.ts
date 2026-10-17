@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/restrict-template-expressions -- response bodies are untyped JSON on purpose */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/restrict-template-expressions -- response bodies are untyped JSON on purpose */
 import 'reflect-metadata';
 
 import http from 'node:http';
@@ -170,6 +170,15 @@ describe('security (e2e)', () => {
       expect(res.status).toBe(400);
     });
 
+    it('answers 502, not a crash, when a registered provider cannot be reached, and says nothing of where it tried', async () => {
+      const { res } = await create('https://idp.invalid');
+      expect(res.status).toBe(201);
+      const started = await h.api().get(`/api/v1/auth/oidc/${res.body.id}/start`);
+      expect(started.status).toBe(502);
+      expect(JSON.stringify(started.body)).not.toContain('idp.invalid');
+      expect(started.body.detail).toBe('the identity provider could not be reached');
+    });
+
     it('does not connect to a stored issuer once the operator has withdrawn the permission', async () => {
       const { res } = await create(base);
       expect(res.status).toBe(201);
@@ -178,6 +187,72 @@ describe('security (e2e)', () => {
       const started = await h.api().get(`/api/v1/auth/oidc/${res.body.id}/start`);
       expect(hits).toBe(0);
       expect(started.headers.location ?? '').not.toContain('127.0.0.1');
+    });
+  });
+
+  describe('how often one caller may knock (threat model G-3)', () => {
+    it('limits the routes anyone can call, per address, and says when to come back', async () => {
+      const knock = () => h.api().get('/api/v1/auth/oidc/providers?org=nobody');
+      for (let i = 0; i < 120; i += 1) {
+        await knock().expect(200);
+      }
+      const refused = await knock().expect(429);
+      expect(Number(refused.get('Retry-After'))).toBeGreaterThan(0);
+      expect(Number(refused.get('Retry-After'))).toBeLessThanOrEqual(60);
+      expect(refused.body.detail).toBe('too many requests; try again later');
+      // Another route has its own budget.
+      await h.api().get('/api/v1/auth/setup').expect(200);
+    }, 60_000);
+
+    it('limits first-run setup attempts, so the one-time token cannot be ground down', async () => {
+      const attempt = () =>
+        h
+          .api()
+          .post('/api/v1/auth/setup')
+          .send({ token: 'wrong', email: 'a@b.co', password: 'canopy-vellum-ratchet-82' });
+      for (let i = 0; i < 10; i += 1) {
+        expect((await attempt()).status).not.toBe(429);
+      }
+      await attempt().expect(429);
+    });
+
+    it('counts a signed-in person as themselves, not as their address', async () => {
+      const { call, orgId } = await world.admin();
+      const report = () => call('get', `/orgs/${orgId}/reports/coverage`);
+      for (let i = 0; i < 30; i += 1) {
+        await report().expect(200);
+      }
+      const refused = await report().expect(429);
+      expect(refused.get('Retry-After')).toBeDefined();
+      // Someone else behind the same address is not affected.
+      const other = await world.member(call, orgId, 'other@acme.test');
+      await other.call('get', `/orgs/${orgId}/reports/coverage`).expect(200);
+    }, 60_000);
+
+    it('lets the budget start again when the window ends', async () => {
+      const { call, orgId } = await world.admin();
+      for (let i = 0; i < 31; i += 1) {
+        await call('get', `/orgs/${orgId}/reports/coverage`);
+      }
+      await call('get', `/orgs/${orgId}/reports/coverage`).expect(429);
+      const keys = await h.redis.connection.keys('vfm:rl:reports:*');
+      expect(keys).toHaveLength(1);
+      await h.redis.connection.del(...keys);
+      await call('get', `/orgs/${orgId}/reports/coverage`).expect(200);
+      // The counter has an expiry, so it cannot outlive its window.
+      const again = await h.redis.connection.keys('vfm:rl:reports:*');
+      expect(await h.redis.connection.ttl(again[0] as string)).toBeGreaterThan(0);
+    }, 60_000);
+
+    it('keeps working when the counter cannot be read', async () => {
+      const { call, orgId } = await world.admin();
+      const original = h.redis.connection.incr.bind(h.redis.connection);
+      (h.redis.connection as any).incr = () => Promise.reject(new Error('redis down'));
+      try {
+        await call('get', `/orgs/${orgId}/reports/coverage`).expect(200);
+      } finally {
+        (h.redis.connection as any).incr = original;
+      }
     });
   });
 });

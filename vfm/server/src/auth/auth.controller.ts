@@ -1,3 +1,4 @@
+import { RateLimit } from '../common/rate-limit';
 import {
   BadRequestException,
   Body,
@@ -61,6 +62,7 @@ export class AuthController {
     private readonly factorThrottle: FactorThrottleService,
   ) {}
 
+  @RateLimit('setup-status', 60, 60, 'ip')
   @Public()
   @Get('setup')
   @ApiOperation({
@@ -72,6 +74,7 @@ export class AuthController {
     return { open: await this.setup.isOpen() };
   }
 
+  @RateLimit('setup', 10, 3600, 'ip')
   @Public()
   @Post('setup')
   @HttpCode(HttpStatus.CREATED)

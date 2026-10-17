@@ -33,6 +33,7 @@ export class OidcLoginError extends Error {
       | 'unknown_state'
       | 'provider_unavailable'
       | 'idp_error'
+      | 'idp_unreachable'
       | 'token_exchange_failed'
       | 'email_unverified'
       | 'unknown_user'
@@ -372,6 +373,13 @@ export class OidcLoginService {
         // The token and key requests that follow go through the same guard.
         config[client.customFetch] = fetcher;
         return config;
+      })
+      .catch((error: unknown) => {
+        // Not the library's text, which can name the issuer's address: the name of the failure is enough to diagnose.
+        this.logger.warn(
+          `could not reach identity provider ${provider.id}: ${error instanceof Error ? error.name : 'unknown'}`,
+        );
+        throw new OidcLoginError('idp_unreachable');
       });
   }
 }

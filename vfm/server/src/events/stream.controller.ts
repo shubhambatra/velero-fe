@@ -1,3 +1,4 @@
+import { RateLimit } from '../common/rate-limit';
 import {
   BadRequestException,
   Controller,
@@ -62,6 +63,7 @@ export class StreamController {
     private readonly sessions: SessionService,
   ) {}
 
+  @RateLimit('event-stream', 30, 60)
   @Get()
   @ApiOperation({
     summary: 'Server-sent events: cluster status, inventory changes and command progress',

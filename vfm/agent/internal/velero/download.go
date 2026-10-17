@@ -187,6 +187,10 @@ func (h *DownloadHandler) waitForURL(ctx context.Context, resource dynamic.Resou
 // not a destination at all. Private ranges stay allowed, because object storage inside a
 // customer's network (MinIO, Ceph) is a legitimate place for a backup location.
 func refusedAddress(ip net.IP) bool {
+	// Something that is not an address names no destination.
+	if len(ip) != net.IPv4len && len(ip) != net.IPv6len {
+		return true
+	}
 	if v4 := ip.To4(); v4 != nil {
 		ip = v4
 	}

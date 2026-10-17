@@ -1,3 +1,4 @@
+import { RateLimit } from '../common/rate-limit';
 import { Controller, Get, Param, Query, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -76,6 +77,7 @@ export class ReportsController {
     });
   }
 
+  @RateLimit('reports', 30, 60)
   @Get('success-rate')
   @ApiOperation({
     summary:
@@ -125,6 +127,7 @@ export class ReportsController {
     );
   }
 
+  @RateLimit('reports', 30, 60)
   @Get('coverage')
   @ApiOperation({
     summary: 'Namespaces with no successful backup in the last N hours, or ever',
@@ -164,6 +167,7 @@ export class ReportsController {
     );
   }
 
+  @RateLimit('reports', 30, 60)
   @Get('rpo')
   @ApiOperation({
     summary:

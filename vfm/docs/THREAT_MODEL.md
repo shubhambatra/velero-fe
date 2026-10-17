@@ -206,16 +206,16 @@ unambiguous.
 
 The global guards apply to every route. The `@Public()` routes, each with its reason:
 
-| Route                                                 | Why it is public                                                  | Limits                                                  |
-| ----------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
-| `GET/POST /auth/setup`                                | First-run bootstrap, gated by a one-time token printed to the log | token hash in Redis, single use; **G-3** no rate limit  |
-| `POST /auth/login`                                    | It is the login                                                   | per-account and per-IP throttles                        |
-| `GET /healthz`, `GET /readyz`                         | Orchestrator probes                                               | return no data                                          |
-| `GET /auth/oidc/providers`, `/:id/start`, `/callback` | Starting and finishing a login                                    | state and nonce, PKCE; issuer is guarded (C11); **G-3** |
-| `POST /invites/register`                              | Accepting an emailed invitation                                   | the invitation token is the credential                  |
+| Route                                                 | Why it is public                                                  | Limits                                                                  |
+| ----------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `GET/POST /auth/setup`                                | First-run bootstrap, gated by a one-time token printed to the log | token hash in Redis, single use; **G-3** no rate limit                  |
+| `POST /auth/login`                                    | It is the login                                                   | per-account and per-IP throttles                                        |
+| `GET /healthz`, `GET /readyz`                         | Orchestrator probes                                               | return no data                                                          |
+| `GET /auth/oidc/providers`, `/:id/start`, `/callback` | Starting and finishing a login                                    | state and nonce, PKCE; issuer is guarded (C11); 60 a minute per address |
+| `POST /invites/register`                              | Accepting an emailed invitation                                   | the invitation token is the credential                                  |
 
 `@AllowsMfaPending` is limited to the MFA routes, sudo and logout. Routes using `checkInHandler` defer the permission check to
-the service; each is covered by its feature's e2e, and day 37 adds a generated test over the OpenAPI document (G-6).
+the service; each is covered by its feature's e2e, and `security-matrix.e2e` now covers every operation of the contract at once.
 
 ## 7. Documented manual checks
 

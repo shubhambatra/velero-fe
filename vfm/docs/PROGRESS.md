@@ -9,6 +9,45 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M7 day 37: security test suite
+
+Session 7, continued. CI green on day 36 (`d57cba3`). Two forks did the CI hardening and the Go fuzz targets while I did the
+server side; both were told which files were theirs.
+
+### Done
+
+- **Every operation of the contract, as four callers** (`security-matrix.e2e`, 130+ operations read from `openapi.yaml`):
+  nobody (only the nine documented public operations answer), a user of another organization (their session with the victim's
+  org id and ids; their own org id with the victim's object ids; their own cluster under the victim's org), and a member with
+  no role. None succeeds, none answers 5xx, none leaks a canary name. Removing a guard from three unrelated routes was caught
+  with no per-route test. The public and member-allowed lists must name real operations, so they cannot rot.
+- **Rate limits** (`common/rate-limit.ts`): setup, registration, SSO, reports, exports, live streams and test sends.
+- **A seeded hostile agent** (`agent-fuzz.e2e`, 1 500 messages of every kind, ids of another cluster included): the other
+  cluster is unchanged, nothing malformed is stored, no unhandled error is logged. Weakening a validator is caught.
+- **Go fuzz targets** (15, five packages) over the owner policy, restore scope, names, download URL and address checks, spec
+  builders, the dispatcher and certificate parsing.
+- **CI**: actions pinned by SHA, `govulncheck` pinned, the agent image scanned (HIGH/CRITICAL fail) and SBOMs uploaded, no
+  persisted credentials.
+
+### Found by running them, and fixed
+
+1. An anonymous request to start SSO for a provider whose IdP cannot be reached answered 500 (502 now).
+2. **A restore naming `kube-*` slipped past the protected-namespace check** (Velero accepts patterns): found by fuzzing.
+3. `refusedAddress` allowed addresses of odd lengths (found by fuzzing).
+4. A first version of my hostile-agent test did not catch weakening the name check, because the name was also checked against
+   the object's own name; it now corrupts both together and catches it.
+
+### Test status
+
+Server unit **1087**, e2e **631** (12 new), Go all packages pass with the fuzz seed corpora, golangci-lint 0 issues,
+govulncheck clean; web 478 and shared 132 unchanged.
+
+### Not verified
+
+- The workflow changes run only in CI (no `actionlint` here): see the next push. Whether the image scan finds something
+  fixable HIGH or CRITICAL is unknown until then.
+- `go test -fuzz` ran 20 s per target, not hours.
+
 ## 2026-10-17 — M7 day 36: threat model
 
 Session 7, continued. CI green on day 35 (`6ca4560`). The survey was split between two forked agents (control plane and web;

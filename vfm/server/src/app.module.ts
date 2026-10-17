@@ -1,3 +1,4 @@
+import { RateLimitGuard } from './common/rate-limit';
 import type { IncomingMessage } from 'node:http';
 
 import { Inject, Module } from '@nestjs/common';
@@ -128,6 +129,8 @@ export const logDestination: { stream?: DestinationStream } = {};
     // a new controller is protected the moment it exists (PLAN.md §12.1).
     { provide: APP_GUARD, useClass: SessionGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
+    // After the session, so a signed-in caller is counted as themselves.
+    { provide: APP_GUARD, useClass: RateLimitGuard },
     // Last: the session must be resolved before its re-authentication age can
     // be judged (PLAN.md §8.3 sudo mode).
     { provide: APP_GUARD, useClass: SudoGuard },

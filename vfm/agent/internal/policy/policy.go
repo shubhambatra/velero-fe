@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -21,6 +22,14 @@ import (
 
 	pb "github.com/shubhambatra/velero-fe/vfm/agent/internal/pb/vfm/agent/v1"
 )
+
+// namespaceName is what a plain namespace name looks like (an RFC 1123 label). Anything
+// else in a namespace filter is a pattern or garbage, and a pattern can stand for a
+// protected namespace without ever spelling it.
+var namespaceName = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
+
+// plainName reports whether s can only ever mean the one namespace it names.
+func plainName(s string) bool { return namespaceName.MatchString(s) }
 
 // Policy is the set of rules in the `vfm-agent-policy` ConfigMap.
 type Policy struct {
@@ -214,7 +223,18 @@ func (p Policy) CheckRestoreScope(included, excluded []string, mapping map[strin
 		return &Denial{Reason: "restores are not permitted into any namespace on this cluster"}
 	}
 
+	// Velero accepts patterns (`kube-*`, `kube-?ystem`, `[k]ube-system`) in the namespace filters,
+	// so a spec that names no protected namespace can still reach one. Where a namespace is
+	// protected, only plain names are accepted in what a restore reads and writes.
+	for _, ns := range included {
+		if ns != "*" && !plainName(ns) {
+			return &Denial{Reason: fmt.Sprintf("the namespace filter %q is not a plain namespace name; patterns are not permitted on a cluster with protected namespaces", ns)}
+		}
+	}
 	for _, target := range mapping {
+		if !plainName(target) {
+			return &Denial{Reason: fmt.Sprintf("the mapped namespace %q is not a plain namespace name", target)}
+		}
 		if slices.Contains(denied, target) {
 			return &Denial{Reason: fmt.Sprintf("restoring into namespace %q is not permitted on this cluster", target)}
 		}

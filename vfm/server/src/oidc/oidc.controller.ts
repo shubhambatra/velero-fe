@@ -1,4 +1,15 @@
-import { Controller, Get, Logger, NotFoundException, Param, Query, Req, Res } from '@nestjs/common';
+import { RateLimit } from '../common/rate-limit';
+import {
+  Controller,
+  Get,
+  Logger,
+  BadGatewayException,
+  NotFoundException,
+  Param,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Inject } from '@nestjs/common';
@@ -30,6 +41,7 @@ export class OidcController {
     private readonly audit: AuditService,
   ) {}
 
+  @RateLimit('oidc-providers', 120, 60, 'ip')
   @Public()
   @Get('providers')
   @ApiOperation({
@@ -43,6 +55,7 @@ export class OidcController {
     return { providers: await this.providers.publicForOrgSlug(org.toLowerCase()) };
   }
 
+  @RateLimit('oidc', 60, 60, 'ip')
   @Public()
   @Get(':providerId/start')
   @ApiOperation({ summary: 'Begin SSO: redirects to the identity provider' })
@@ -52,6 +65,10 @@ export class OidcController {
       started = await this.login.start(providerId);
     } catch (error: unknown) {
       if (error instanceof OidcLoginError) {
+        if (error.reason === 'idp_unreachable') {
+          // The provider exists but cannot be used right now: say so, rather than 404 or 500.
+          throw new BadGatewayException('the identity provider could not be reached');
+        }
         throw new NotFoundException('provider not found');
       }
       throw error;
@@ -69,6 +86,7 @@ export class OidcController {
     response.redirect(302, started.url);
   }
 
+  @RateLimit('oidc', 60, 60, 'ip')
   @Public()
   @Get('callback')
   @ApiOperation({
