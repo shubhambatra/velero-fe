@@ -9,6 +9,31 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-18 — M7 day 38: load test
+
+Session 7, continued. Resumed from `6d61c0a` (CI green) with the load tool and the first server fixes uncommitted.
+
+### Done
+
+- **Fake-agent load test**: `agent/cmd/loadtest` plus `server/test/loadtest-provision.e2e.test.ts` (200 clusters, 100 users, real
+  enrolment and mTLS, SSE browsers, commands, reconnect storm, §13 target check). Method in `docs/LOADTEST.md`.
+- **Server fixes**: fixed-query reports and RBAC matrix, shared fleet/coverage caches, SSE coalescing and a per-user permission
+  matrix, a 2 s RBAC fact cache, `DATABASE_POOL_MAX` (ADR-042).
+- **Validation**: server lint clean, 1088+ unit tests, 631 e2e passed (1 skipped), Go vet/build/tests for the loadtest package.
+
+### Result (honest)
+
+Held: 200 agents, reconnect storm in 12.4 s, event to browser p95 1.03 s. **Not held**: list p95 1.3-1.7 s (target 300 ms),
+command to agent p95 2.2 s (target 1 s), coverage report p50 11 s. Agent footprint and 50k/20k sizes were not measured.
+
+### Next
+
+M7 day 39 (observability), with the load-test follow-ups in `docs/LOADTEST.md` "What remains".
+
+### Blockers
+
+B-2 (root for inotify) still holds golden path 12 and the real-agent footprint measurement.
+
 ## 2026-10-17 — M7 day 37: security test suite
 
 Session 7, continued. CI green on day 36 (`d57cba3`). Two forks did the CI hardening and the Go fuzz targets while I did the

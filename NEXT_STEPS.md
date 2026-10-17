@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-17 (session 7, M7 day 37) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-18 (session 7, M7 day 38) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -178,7 +178,7 @@ criteria are still unmet (B-1, B-2).
 - **M5 day 28 done** (ADR-033): core inventory — `agent/internal/inventory/core.go`, `WatchScope` in `gateway.proto`, `server/src/inventory/{watch-scope.service,projections}.ts`, `GET …/inventory/{nodes,namespaces,pods,pvcs,events}`.
 - **M5 day 29 done** (ADR-034): workloads UI — `web/src/pages/workloads.tsx`, `server/src/inventory/coverage.ts`.
 - **M5 day 30 done** (ADR-035): live log sessions — `agent/internal/logs/streamer.go`, `server/src/logs/*`, `LOG_SESSION_END_REASON_COMPLETED` in `logs.proto`; routes `POST|DELETE …/log-sessions`, `GET …/log-sessions/:id/stream` (SSE: `chunk`, then one `ended`) and `GET …/log-shortcuts`. Nothing is stored; the agent is started when the first stream opens.
-- **Next: M7 day 38 — fake-agent load test** (plan line 787): simulate 200 clusters with realistic objects, measure the PLAN §13 targets, fix the hot spots (indexes, batching, SSE fan-out), write `docs/LOADTEST.md`. The threat model's open items that touch it: G-10 (per-agent message budget) and G-11 (enrollment flood). Day 37 closed G-3 (rate limits), G-6 (every operation of the contract is called as nobody, as another org and as a role-less member) and changed CI (G-15: SHA-pinned actions, pinned govulncheck, agent image scan, SBOMs) — **the CI changes are proven only by their first run; check it, and make the five jobs required in branch protection**. Open decisions for the owner: G-4 default (cluster-scoped restore), A-3, G-13. M6 is not closed (golden path 12, B-2). Open: Alerts, Reports and Approvals pages in a real browser; Helm values for the new settings.
+- **Next: M7 day 39 — observability** (plan §16). **Day 38 ran the load test and the targets are NOT all met** (`vfm/docs/LOADTEST.md`, ADR-042): list p95 1.3-1.7 s vs 300 ms, command to agent p95 2.2 s vs 1 s, coverage report p50 11 s; agents, reconnect storm and event to browser held. Follow-ups listed there: replicas (re-measure), denormalised fleet summary, cheaper coverage report and SSE delivery, a calmer simulator profile, real agent footprint (needs B-2). The owner decides at the M7 checkpoint whether to spend more before day 40. Still open from day 37: make the five CI jobs required in branch protection; G-4 default, A-3, G-13. M6 is not closed (golden path 12, B-2). Open: Alerts, Reports and Approvals pages in a real browser; Helm values for the new settings (`DATABASE_POOL_MAX`).
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

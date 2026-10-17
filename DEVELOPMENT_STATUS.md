@@ -111,7 +111,7 @@ progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1
 | M4 — Velero write operations (days 21–27)     | 717–740    | not started                                                                                                                             |
 | M5 — Cluster live view and logs (days 28–31)  | 744–758    | days 28–31 done                                                                                                                         |
 | M6 — Alerts, reports, approvals (days 32–35)  | 762–776    | days 32–35 done (alerts, channels, reports, restore approval); exit criterion golden path 12 needs kind (B-2)                           |
-| M7 — Hardening, scale, security (days 36–40)  | 780–797    | days 36–37 done (threat model; security suite); days 38–40 not started                                                                  |
+| M7 — Hardening, scale, security (days 36–40)  | 780–797    | days 36–38 done (threat model; security suite; load test run, **targets not all met**, see `vfm/docs/LOADTEST.md`); days 39–40 not started                                                                  |
 | M8 — Packaging, docs, release (days 41–44)    | 801–815    | not started                                                                                                                             |
 
 ---
@@ -776,8 +776,8 @@ make them obvious.
 
 | ID    | Requirement                                                                                                   | Lines | Milestone | Status |
 | ----- | ------------------------------------------------------------------------------------------------------------- | ----- | --------- | ------ |
-| R-118 | Scale: 200 clusters, 100 concurrent users, 50 k Velero objects, 20 k pods per cluster                         | 536   | M7        | ⬜     |
-| R-119 | Latency: list p95 < 300 ms, command to agent < 1 s p95, resource event to browser < 3 s p95                   | 537   | M7        | ⬜     |
+| R-118 | Scale: 200 clusters, 100 concurrent users, 50 k Velero objects, 20 k pods per cluster                         | 536   | M7        | 🟡 2026-10-18: measured, see `vfm/docs/LOADTEST.md`; not met     |
+| R-119 | Latency: list p95 < 300 ms, command to agent < 1 s p95, resource event to browser < 3 s p95                   | 537   | M7        | 🟡 2026-10-18: measured, see `vfm/docs/LOADTEST.md`; not met     |
 | R-120 | Agent footprint < 100 MiB and < 100 m CPU steady state on a 5 k-pod cluster                                   | 538   | M7        | ⬜     |
 | R-121 | Survive loss of one replica with no lost commands; agents reconnect within 60 s                               | 539   | M2/M7     | ⬜     |
 | R-122 | Documented backup procedure for VFM's own database, including a Velero schedule example                       | 540   | M8        | ⬜     |

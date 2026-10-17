@@ -2183,3 +2183,26 @@ on kind, except the load test's realism (day 38), which uses a fake agent by des
 
 - The M7 exit criteria and the human checkpoint at its end do not include the unrun items; they are listed there.
 - If golden path 12 fails when it is finally run, the fix lands in M6's code, not M7's.
+
+## ADR-042 — Load-test findings and the fixes taken (M7 day 38)
+
+### Context
+
+The fake-agent load test (`docs/LOADTEST.md`) ran 200 agents and 100 browsers against one Node process. Agents, reconnects and
+event delivery held. List endpoints and command latency did not (list p95 1.3-2.1 s against 300 ms; commands 2.2 s against 1 s).
+A CPU profile put 31 % in Prisma's JS layer; Postgres itself was not slow.
+
+### Decision
+
+- Reports, fleet and SSE permission checks use a fixed number of queries; fleet aggregates and coverage inputs are shared for 5 s.
+- `RbacService` caches cluster-in-org and per-user facts for 2 s (`rbacOptions.cacheMs`). **A revoked grant can keep working for
+  up to 2 s.** This is accepted because sessions, MFA and token revocation are checked separately and uncached. Tests set it to 0.
+- `DATABASE_POOL_MAX` is configurable (default 30).
+- Inventory SSE events are coalesced per cluster for 250 ms. A 1 s window was tried and rejected (worse latency, same volume).
+- The targets are **reported as not met**, not tuned around. The next step is replicas, a denormalised fleet summary, a cheaper
+  coverage report and cheaper SSE delivery, and the owner decides at the M7 checkpoint.
+
+### Consequences
+
+- Mutating tests need the caches off; the harness does that. A test of the cached path is `rbac-cache.test.ts`.
+- R-118/R-119/R-120 stay open.
