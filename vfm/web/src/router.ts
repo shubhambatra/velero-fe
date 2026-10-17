@@ -3,6 +3,7 @@ import { createRouter } from '@tanstack/react-router';
 import {
   auditRoute,
   alertsRoute,
+  reportsRoute,
   backupDetailRoute,
   newBackupRoute,
   newRestoreRoute,
@@ -68,6 +69,7 @@ export const routeTree = rootRoute.addChildren([
   securityRoute,
   auditRoute,
   alertsRoute,
+  reportsRoute,
 ]);
 
 export const router = createRouter({

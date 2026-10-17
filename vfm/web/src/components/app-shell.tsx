@@ -132,6 +132,19 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
 
             {session.status === 'ready' && active !== undefined && (
               <Link
+                to="/reports"
+                className="rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                activeProps={{
+                  className: 'bg-accent text-accent-foreground',
+                  'aria-current': 'page',
+                }}
+              >
+                Reports
+              </Link>
+            )}
+
+            {session.status === 'ready' && active !== undefined && (
+              <Link
                 to="/tokens"
                 className="rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
                 activeProps={{

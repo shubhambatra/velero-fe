@@ -2339,6 +2339,53 @@ paths:
       summary: Send a test message through a channel (Owner/Admin); one attempt
       tags:
         - alerts
+  /orgs/{orgId}/reports/success-rate:
+    get:
+      operationId: ReportsController_successRate
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Backups that finished, by outcome, per day or week and cluster, with the success rate
+      tags:
+        - reports
+  /orgs/{orgId}/reports/coverage:
+    get:
+      operationId: ReportsController_coverage
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Namespaces with no successful backup in the last N hours, or ever
+      tags:
+        - reports
+  /orgs/{orgId}/reports/rpo:
+    get:
+      description: The objective is `factor` (default 1.5) times the schedule’s longest interval, or
+        `targetHours` for every schedule. Paused schedules are left out.
+      operationId: ReportsController_rpo
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "Per schedule: the share of the time the newest successful backup was within the objective"
+      tags:
+        - reports
   /stream:
     get:
       description: Events carry no object names. Re-read through the REST API on an event.

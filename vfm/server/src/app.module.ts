@@ -11,6 +11,7 @@ import { ConfigModule, ENV } from './config/config.module';
 import type { Env } from './config/env.schema';
 import { AuditModule } from './audit/audit.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { ReportsModule } from './reports/reports.module';
 import { AuthModule } from './auth/auth.module';
 import { CsrfGuard } from './auth/csrf.guard';
 import { SessionGuard } from './auth/session.guard';
@@ -113,6 +114,7 @@ export const logDestination: { stream?: DestinationStream } = {};
     DownloadsModule,
     LogsModule,
     AlertsModule,
+    ReportsModule,
     EventsModule,
     AuthModule,
     HealthModule,

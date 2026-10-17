@@ -14,6 +14,7 @@ import { BackupsPage, RestoresPage, SchedulesPage, StoragePage } from '@/pages/c
 import { ClusterPage } from '@/pages/cluster-page';
 import { ClustersPage } from '@/pages/clusters-page';
 import { TokensPage } from '@/pages/tokens-page';
+import { ReportsPage } from '@/pages/reports-page';
 import { AlertsPage } from '@/pages/admin/alerts-page';
 import { AuditPage } from '@/pages/admin/audit-page';
 import { MembersPage } from '@/pages/admin/members-page';
@@ -89,6 +90,7 @@ function memberRoute(
   }) as unknown as ReturnType<typeof createRoute>;
 }
 
+export const reportsRoute = memberRoute('/reports', (id) => <ReportsPage orgId={id} />);
 export const tokensRoute = memberRoute('/tokens', (id) => <TokensPage orgId={id} />);
 export const clustersRoute = memberRoute('/clusters', (id) => <ClustersPage orgId={id} />);
 
