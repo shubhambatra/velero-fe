@@ -9,6 +9,38 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M5 day 31: the log viewer
+
+Session 7, continued. CI green on day 30 (`317d20d`).
+
+### Done
+
+- Web: `LogViewer` (virtualized with `@tanstack/react-virtual`, ANSI colours, follow, pause, wrap, search with next/previous,
+  download, a 50 000-line buffer that says when it dropped lines), `useLiveLog` (start, follow the stream, stop, clean up),
+  `LiveLogsPanel` (tail length, timestamps, previous container, restart), a Logs button on every container of the pods view,
+  and the Velero server / node-agent shortcut buttons (ADR-036).
+- The day's tests: limits and refusals (403, 409, 429, agent policy) shown to the person, a stream that drops is not
+  reconnected, closing the panel, leaving the page and `pagehide` each end the session, a start answered after a stop is
+  ended. The server half (limits, denied namespaces, cleanup) was already covered by the day 30 e2e.
+
+### Test status
+
+Web **417** (54 new); server and Go unchanged from day 30. Lint, typecheck, prettier and build clean. Five mutations of the
+hook (no stop on release, silent reconnect, no `pagehide`, late start kept, no credentials) were each caught.
+
+In a real browser (a throwaway harness page, deleted): colours, wrapping with measured row heights, wheel-scrolling up
+holds the position while lines arrive, Follow, Pause with a count of new lines, Resume, unwrapped horizontal scroll,
+a 60 000-line burst (about 0.5 s, 43 rows in the DOM, 21 800 dropped and said so), search over 50 000 lines (40 ms after
+replacing a parser pass with one regular expression; it had blocked for 1 s).
+
+### Deferred
+
+- Jumping to a far-away search match was not confirmed in a visible tab: the automation window stayed hidden, which stops
+  the frame callbacks the virtualizer corrects its scroll with. A second jump on a timer was added; it needs a look in a
+  visible browser.
+- The viewer against a real cluster (B-2) and the human UI review of M5.
+- Backup and restore logs still use the older paged `LogView`, not this viewer.
+
 ## 2026-10-17 — M5 day 30: live log sessions
 
 Session 7, continued. CI green on day 29 (`45fd02a`).

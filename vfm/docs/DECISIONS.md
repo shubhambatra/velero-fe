@@ -1947,3 +1947,36 @@ streamer and gateway manager against the real server, Redis and SSE with a synth
 12.5 ms over 1 000 lines on ten concurrent sessions, no gaps; abandoned sessions ended by the idle timeout; a previous
 container ended `completed`. Not verified: a real `pods/log` (B-2), a browser viewer (day 31), the 30-minute timeout end
 to end.
+
+## ADR-036 — The log viewer (M5 day 31)
+
+### Context
+
+PLAN §7.3 and §11 want a log viewer that stays usable on a log of any length and on a page left open: virtualized, ANSI
+colours, follow, pause, wrap, search, download, a 50 000-line buffer. The control plane keeps no log (ADR-035), so the
+viewer's buffer is the only copy a person has.
+
+### Decision
+
+- **Dependency:** `@tanstack/react-virtual` 3.14.13, the one the plan names (pinned, more than two weeks old). No ANSI library:
+  `lib/ansi.ts` reads only SGR colour codes into data (text plus style), never markup, and drops every other escape and
+  control character, so a log line cannot put HTML, a link or a cursor movement on the page. Colour starts afresh on each line.
+- **Buffer:** `LineBuffer` keeps the last 50 000 complete lines, holds a partial last line until its newline, cuts a line at
+  16 384 characters, and counts what it dropped, which the viewer says. It replaces its array rather than mutating it, so a
+  snapshot handed to React stays valid and Pause is a held snapshot.
+- **Rendering:** chunks are batched into one state update per 100 ms. Pause freezes the shown snapshot while lines keep
+  arriving behind it. Follow turns itself off when the person scrolls up. Search runs over the whole buffer on plain text
+  and takes you to its first match; Enter or the arrows step through the rest.
+- **No silent reconnect:** `EventSource` would retry into a session that may be gone, with a gap it cannot fill. On an
+  error the stream is closed and the view says the connection was lost; the person restarts it.
+- **Cleanup:** closing the panel or leaving the page closes the stream and sends `DELETE`; `pagehide` sends it with
+  `keepalive` for a closing tab; a start whose answer arrives after a stop is ended at once. The server's 60 s idle timeout
+  remains the backstop.
+- **Entry points:** a Logs button per container on the pods view, and Velero server / node agent buttons from
+  `log-shortcuts` that are simply absent when there is nothing to offer or the person may not read logs there.
+
+### Consequences
+
+- Lines produced while a stream is down are lost, by design. A burst of 60 000 lines costs about 0.5 s to buffer.
+- A search over 50 000 lines costs about 40 ms and reruns as lines arrive while a search is set.
+- Highlighting marks the matching rows, not the matching words.
