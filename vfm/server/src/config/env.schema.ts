@@ -160,6 +160,17 @@ export const envSchema = z.object({
   MAIL_FROM: z.string().min(3).default('Velero Fleet Manager <no-reply@localhost>'),
 
   /**
+   * Distributed tracing (docs/OBSERVABILITY.md). Off by default and, when off, costs nothing: spans are
+   * no-ops until an SDK is registered. Turning it on loads `@opentelemetry/sdk-node` if it is installed
+   * (it is not shipped, to keep the dependency tree small) and exports to the standard
+   * `OTEL_EXPORTER_OTLP_ENDPOINT`.
+   */
+  OTEL_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+
+  /**
    * The agent gateway (PLAN.md §5, §10): a gRPC listener separate from the REST
    * port because it speaks mTLS and holds long-lived streams. `GATEWAY_ENABLED`
    * is `false` only for tools and tests that never talk to agents.

@@ -247,6 +247,7 @@ describe('static guard over the source tree', () => {
       'commands/commands.service.ts: an agent reports on commands by id',
       'commands/commands.service.ts: the command timeout sweeper spans every org',
       'commands/commands.service.ts: the command timeout sweeper spans every org',
+      'commands/commands.service.ts: the unfinished-commands gauge spans every org',
       'crypto/rewrap.service.ts: re-wrapping stored secrets spans every org',
       'crypto/rewrap.service.ts: re-wrapping stored secrets spans every org',
       'downloads/download-cache.service.ts: expired cached files span every org',

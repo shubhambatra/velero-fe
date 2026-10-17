@@ -24,6 +24,9 @@ describe('validateEnv', () => {
     expect(env.METRICS_PORT).toBe(9090);
     expect(env.LOG_LEVEL).toBe('info');
     expect(env.LOG_PRETTY).toBe(false);
+    // Tracing is opt-in.
+    expect(env.OTEL_ENABLED).toBe(false);
+    expect(validateEnv({ ...minimal, OTEL_ENABLED: 'true' }).OTEL_ENABLED).toBe(true);
   });
 
   it('coerces numeric ports from their string environment form', () => {

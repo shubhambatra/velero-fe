@@ -1,0 +1,60 @@
+# Prometheus alerting rules for the VFM control plane itself (PLAN.md §13 and the Phase 8 checklist).
+# Every metric named here is checked against the registry by `src/metrics/observability.test.ts`.
+groups:
+  - name: vfm-control-plane
+    rules:
+      - alert: VfmMetricsMissing
+        expr: absent(vfm_agents_connected)
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: No VFM control-plane metrics are being scraped.
+          description: The control plane is down, or Prometheus cannot reach its metrics port (9090, never public).
+
+      - alert: VfmListLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(vfm_http_request_duration_seconds_bucket[5m]))) > 0.3
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: REST p95 latency above the 300 ms target for 10 minutes.
+          description: See the per-route panel, then docs/LOADTEST.md for what saturates a single replica.
+
+      - alert: VfmServerErrors
+        expr: sum(rate(vfm_http_request_duration_seconds_count{status_class="5xx"}[5m])) / sum(rate(vfm_http_request_duration_seconds_count[5m])) > 0.05
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: More than 5% of REST requests are failing with 5xx.
+          description: 503s with Retry-After mean PostgreSQL or Redis is unreachable; check /readyz.
+
+      - alert: VfmCommandQueueBacklog
+        expr: sum(vfm_commands_unfinished{status=~"QUEUED|SENT"}) > 20
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Commands are waiting to reach, or be acknowledged by, their agents.
+          description: Usually an agent that is offline or slow; commands time out on their own deadline.
+
+      - alert: VfmAgentsFlapping
+        expr: sum(rate(vfm_agent_stream_connects_total{kind="reconnect"}[10m])) > 0.2
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Agents are reconnecting more than once every five seconds, fleet-wide.
+          description: A network problem between agents and the gateway, or a replica restarting repeatedly.
+
+      - alert: VfmEventLoopLag
+        expr: max(vfm_nodejs_eventloop_lag_p99_seconds) > 0.5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: A control-plane replica's event loop is lagging.
+          description: One loop serves every request and stream on a replica; add replicas or find the hot endpoint.
+
+      - alert: VfmAlertDeliveriesFailing
+        expr: sum(rate(vfm_alert_deliveries_total{ok="false"}[15m])) > 0
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: Alert notifications are being refused by their channels.
+          description: Check the channel's URL or credentials on the Alerts page.

@@ -10,6 +10,7 @@ import type { Request } from 'express';
 
 import { RedisService } from '../redis/redis.service';
 import { ThrottledException } from './throttled.exception';
+import { rateLimited } from '../metrics/metrics';
 
 const RATE_LIMIT = 'vfm:rateLimit';
 
@@ -75,6 +76,7 @@ export class RateLimitGuard implements CanActivate {
       }
       if (count > rule.limit) {
         const ttl = await this.redis.connection.ttl(key);
+        rateLimited.inc({ name: rule.name });
         throw new ThrottledException(
           'too many requests; try again later',
           ttl > 0 ? ttl : rule.windowSeconds,

@@ -28,7 +28,14 @@ import { CommandAckState } from '../gateway/pb/vfm/agent/v1/command';
 import { ServerMessage, type AgentMessage } from '../gateway/pb/vfm/agent/v1/gateway';
 import { StreamsService } from '../streams/streams.service';
 import { clean, sanitizeVeleroStatus } from '../streams/hello';
-import { NON_TERMINAL, statusesAccepting } from './command-state';
+import {
+  commandDuration,
+  commandsTotal,
+  commandsUnfinished,
+  onSampleUnfinished,
+} from '../metrics/metrics';
+import { withSpan } from '../metrics/tracing';
+import { NON_TERMINAL, statusesAccepting, TERMINAL } from './command-state';
 import { isOp, OPS, TransientUnavailableError, type OpKey, type Transient } from './ops';
 
 /** A cluster with this many unfinished commands refuses more: a stuck agent must not grow the table without bound. */
@@ -108,6 +115,57 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
   ) {
     this.options = { refreshOnConnect: env.COMMANDS_REFRESH_ON_CONNECT };
     this.approvalTtlMs = env.RESTORE_APPROVAL_TTL_HOURS * 3_600_000;
+    onSampleUnfinished(() => this.sampleUnfinished());
+  }
+
+  /** The op and start time of commands seen in flight, so a final status can be timed without a lookup each time. */
+  private readonly inFlight = new Map<string, { op: string; createdAt: Date }>();
+  private unfinishedAt = 0;
+
+  /** Feeds the work-queue gauge; read from the database at most every 5 s, however often Prometheus scrapes. */
+  private async sampleUnfinished(): Promise<void> {
+    if (Date.now() - this.unfinishedAt < 5_000) return;
+    this.unfinishedAt = Date.now();
+    const rows = await this.prisma.unscoped('the unfinished-commands gauge spans every org', () =>
+      this.prisma.command.groupBy({
+        by: ['status'],
+        where: { status: { in: [...NON_TERMINAL, 'PENDING_APPROVAL'] } },
+        _count: { _all: true },
+      }),
+    );
+    commandsUnfinished.reset();
+    for (const status of [...NON_TERMINAL, 'PENDING_APPROVAL']) {
+      commandsUnfinished.set({ status }, rows.find((r) => r.status === status)?._count._all ?? 0);
+    }
+  }
+
+  /** Counts a transition and, at a final status, times the command. A failure here must never fail the command. */
+  private async observe(orgId: string, commandId: string, status: string): Promise<void> {
+    try {
+      let known = this.inFlight.get(commandId);
+      if (known === undefined) {
+        const row = await this.prisma.inOrg(orgId, () =>
+          this.prisma.command.findUnique({
+            where: { id: commandId },
+            select: { op: true, createdAt: true },
+          }),
+        );
+        if (row === null) return;
+        known = { op: row.op, createdAt: row.createdAt };
+        if (this.inFlight.size > 5_000) this.inFlight.clear();
+        this.inFlight.set(commandId, known);
+      }
+      commandsTotal.inc({ op: known.op, status });
+      if (TERMINAL.has(status as CommandRow['status'])) {
+        commandDuration.observe(
+          { op: known.op, status },
+          (Date.now() - known.createdAt.getTime()) / 1000,
+        );
+        this.inFlight.delete(commandId);
+      }
+    } catch {
+      // Metrics are best effort.
+    }
   }
 
   onApplicationBootstrap(): void {
@@ -208,12 +266,13 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
   }
 
   /** Tells subscribed browsers a command moved; they re-read it through the REST API. */
-  private announce(
+  private async announce(
     orgId: string,
     clusterId: string,
     commandId: string,
     status: string,
   ): Promise<void> {
+    await this.observe(orgId, commandId, status);
     return this.events.publish({ type: 'command', orgId, clusterId, commandId, status });
   }
 
@@ -505,7 +564,12 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
       },
     });
 
-    if (!(await this.streams.send(row.clusterId, message))) {
+    const sent = await withSpan(
+      'command.deliver',
+      { 'vfm.cluster_id': row.clusterId, 'vfm.command_id': row.id, 'vfm.op': row.op },
+      () => this.streams.send(row.clusterId, message),
+    );
+    if (!sent) {
       return false;
     }
     await this.prisma.inOrg(row.orgId, async () => {

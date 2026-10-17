@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { AgentMessage, ServerMessage } from '../gateway/pb/vfm/agent/v1/gateway';
 import { sanitizeHello, SUPPORTED_PROTOCOL_VERSIONS, type SanitizedHello } from './hello';
+import { agentsConnected, agentStreamConnects, agentStreamEnds } from '../metrics/metrics';
 
 /** PLAN.md §5.2 / §5.6 defaults, sent to every agent in `HelloAck`. */
 const HEARTBEAT_INTERVAL_S = 15;
@@ -120,6 +121,8 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
   private readonly connectedHandlers: ConnectedHandler[] = [];
   private readonly disconnectedHandlers: DisconnectedHandler[] = [];
   private subscriber: Redis | undefined;
+  /** Clusters this replica has had a stream from, to tell a reconnect from a first connection. */
+  private readonly seen = new Set<string>();
   private timers: NodeJS.Timeout[] = [];
 
   constructor(
@@ -405,6 +408,9 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       this.close(previous, status.ABORTED, 'superseded by a newer connection');
     }
     this.streams.set(clusterId, live);
+    agentsConnected.set(this.streams.size);
+    agentStreamConnects.inc({ kind: this.seen.has(clusterId) ? 'reconnect' : 'first' });
+    this.seen.add(clusterId);
 
     await this.redis.connection.set(
       ROUTE_KEY(clusterId),
@@ -533,8 +539,17 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
 
   private async unregister(live: LiveStream): Promise<void> {
     const { clusterId, orgId } = live.identity;
+    agentStreamEnds.inc({
+      reason:
+        live.closing === undefined
+          ? 'dropped'
+          : live.closing.details.includes('superseded')
+            ? 'superseded'
+            : 'closed',
+    });
     if (this.streams.get(clusterId) === live) {
       this.streams.delete(clusterId);
+      agentsConnected.set(this.streams.size);
       // Only the stream that was still the registered one: when a newer stream on
       // this replica has already replaced it, running these would wipe that
       // stream's state.

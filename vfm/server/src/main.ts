@@ -16,6 +16,7 @@ import { ProblemExceptionFilter } from './common/problem.filter';
 import { ENV } from './config/config.module';
 import type { Env } from './config/env.schema';
 import { startMetricsServer } from './metrics/metrics.server';
+import { startTracing } from './metrics/tracing';
 import { applySecurity, bodyErrors, MAX_JSON_BODY } from './security';
 
 /**
@@ -79,6 +80,7 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
 
+  const stopTracing = await startTracing(env.OTEL_ENABLED);
   const metrics = startMetricsServer(env.HOST, env.METRICS_PORT);
 
   await app.listen(env.PORT, env.HOST);
@@ -88,6 +90,7 @@ async function bootstrap(): Promise<void> {
 
   const closeMetrics = (): void => {
     metrics.close();
+    void stopTracing();
   };
   process.once('SIGTERM', closeMetrics);
   process.once('SIGINT', closeMetrics);

@@ -39,6 +39,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { TokensModule } from './tokens/tokens.module';
 import { UsersModule } from './users/users.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 /**
  * Whether `pino-pretty` can actually be loaded.
@@ -62,9 +63,32 @@ function prettyTransportAvailable(): boolean {
  */
 export const logDestination: { stream?: DestinationStream } = {};
 
+/** What a request log line may say about the request. Never the query string, never headers beyond these. */
+export function serializeRequest(req: {
+  id?: unknown;
+  method?: string;
+  url?: string;
+  remoteAddress?: string;
+  headers?: Record<string, unknown>;
+}): Record<string, unknown> {
+  const agent = req.headers?.['user-agent'];
+  return {
+    id: req.id,
+    method: req.method,
+    url: req.url?.split('?')[0],
+    remoteAddress: req.remoteAddress,
+    ...(typeof agent === 'string' ? { userAgent: agent.slice(0, 200) } : {}),
+  };
+}
+
+export function serializeResponse(res: { statusCode?: number }): Record<string, unknown> {
+  return { statusCode: res.statusCode };
+}
+
 @Module({
   imports: [
     ConfigModule,
+    MetricsModule,
     LoggerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ENV],
@@ -82,6 +106,9 @@ export const logDestination: { stream?: DestinationStream } = {};
             ? { transport: { target: 'pino-pretty', options: { singleLine: true } } }
             : {}),
           redact: { paths: [...PINO_REDACT_PATHS], censor: '[REDACTED]' },
+          // A short allowlist, not the whole request: the query string carries one-time codes (the SSO
+          // callback's `code` and `state`) and the full header set is noise at best. docs/OBSERVABILITY.md.
+          serializers: { req: serializeRequest, res: serializeResponse },
           // Correlate log lines with the id the client sees (PLAN.md §10).
           genReqId: (req: IncomingMessage) =>
             requestIdOf(req as unknown as { requestId?: string }) ?? '',

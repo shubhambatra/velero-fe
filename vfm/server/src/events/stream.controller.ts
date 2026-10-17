@@ -19,6 +19,7 @@ import { permissionForKindName } from '../inventory/kinds';
 import { OrgAccessService } from '../orgs/org-access.service';
 import { RbacService } from '../rbac/rbac.service';
 import { EventsService, type PlatformEvent } from './events.service';
+import { sseConnects, sseSubscribers } from '../metrics/metrics';
 
 /** Concurrent streams per user: a runaway tab loop must not exhaust the server. */
 export const MAX_STREAMS_PER_USER = 10;
@@ -92,6 +93,8 @@ export class StreamController {
       throw new HttpException('too many open event streams', HttpStatus.TOO_MANY_REQUESTS);
     }
     this.open.set(user.id, current + 1);
+    sseSubscribers.inc();
+    sseConnects.inc();
 
     response.status(200).set({
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -220,6 +223,7 @@ export class StreamController {
       clearTimeout(flushTimer);
       clearInterval(ping);
       clearInterval(sessionCheck);
+      sseSubscribers.dec();
       const left = (this.open.get(user.id) ?? 1) - 1;
       if (left <= 0) {
         this.open.delete(user.id);

@@ -9,6 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AlertNotifier, type AlertNotification } from '../notifier';
 import { EgressError } from './egress';
 import { ChannelsService } from './channels.service';
+import { alertDeliveries } from '../../metrics/metrics';
 
 /** Tunable so tests need not wait; production values are the defaults. */
 export const deliveryOptions = {
@@ -96,6 +97,7 @@ export class ChannelNotifier extends AlertNotifier {
           },
         }),
       );
+      alertDeliveries.inc({ kind: n.kind, ok: error === null ? 'true' : 'false' });
       if (error === null) delivered += 1;
       else this.logger.warn(`alert ${n.kind} to channel "${channel.name}" failed: ${error}`);
     }
