@@ -2206,3 +2206,33 @@ A CPU profile put 31 % in Prisma's JS layer; Postgres itself was not slow.
 
 - Mutating tests need the caches off; the harness does that. A test of the cached path is `rbac-cache.test.ts`.
 - R-118/R-119/R-120 stay open.
+
+## ADR-043 — Resilience tests by fault proxy; master-key re-wrap and CA rotation as operator CLIs (M7 day 39)
+
+### Context
+
+Day 39 asks for chaos-style tests (Postgres and Redis restarts, a partition, a slow agent) with no lost or duplicated commands,
+and for key and CA rotation. The host has no root, and restarting the shared dev containers would break other work.
+
+### Decision
+
+- Faults are injected with an in-process TCP proxy that resets connections and refuses new ones (`test/chaos-proxy.ts`). The
+  app is started through it (`createTestApp({ databaseUrl, redisUrl })`) and so is the agent link. Real services, real
+  protocols, deterministic, runs in CI.
+- A lost database or cache now answers **503 with `Retry-After: 5`** and a fixed sentence, not 500 (`isDependencyOutage`). A
+  client and a load balancer should retry the one and not the other. It is logged as one warning line, without a stack.
+- `rewrap` (G-9) and `ca-rotate` (G-12) are **CLIs, not REST endpoints**: there is no platform-administrator role in the model
+  (R-083 stops at org roles), and an endpoint that can replace the CA would be the most dangerous in the API. They start only
+  config, database and key ring, so they run next to a live server. The cost: they are not in the audit log (see
+  `RESILIENCE.md`).
+- CA rotation reuses the bundle agents already receive: states ACTIVE / STAGED / RETIRING on `certificate_authority` (new
+  column `state`, migration `20261018000000_ca_rotation`). Only ACTIVE signs; ACTIVE and RETIRING verify; the bundle holds all
+  three. `promote` and `retire` wait one `AGENT_CERT_LIFETIME` (7 days) because that is the longest an agent can go without
+  renewing and learning the new CA. Replicas poll every 30 s and the gateway reissues its server certificate when the set changes.
+
+### Consequences
+
+- Replica loss (R-121) is still unproven; it needs two processes (day 41).
+- A forced `promote` before agents have renewed will lock out agents that still trust only the old CA. That is the operator's
+  explicit choice, logged.
+- The shared test database's `certificate_authority` table is changed by `ca-rotation.e2e`; the suite settles it back to one ACTIVE row.

@@ -9,6 +9,39 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-18 — M7 day 39: resilience
+
+Session 7, continued. Resumed from `07e1f77` (CI green on all five jobs).
+
+### Done
+
+- **Chaos suite** (`resilience.e2e`, 4 tests) through a cut-and-restore TCP proxy: PostgreSQL outage, Redis outage, a
+  partition between agent and server, a slow agent. No lost or duplicated command in any of them. Method and what is **not**
+  covered: `docs/RESILIENCE.md`.
+- **Found and fixed by it**: a lost database or cache answered 500 with a driver message in the log; it now answers 503 with
+  `Retry-After` and a fixed sentence (`isDependencyOutage`, unit-tested).
+- **G-9 closed**: `node dist/rewrap.js [--dry-run]` re-wraps the four encrypted columns onto the primary master key
+  (`rewrap.e2e`: dry run, all columns, repeat, an unreadable value left alone).
+- **G-12 closed**: `node dist/ca-rotate.js stage|promote|retire|unstage|status`, with the wait enforced
+  (`ca-rotation.e2e`: an agent with an old certificate keeps working through promote and stops after retire; Go test that a
+  two-CA bundle is kept and trusted). Migration `20261018000000_ca_rotation`. ADR-043.
+- **Validation**: server lint clean, 1092 unit and 640 e2e tests passed (1 skipped), Go vet and tests clean, OpenAPI unchanged.
+  Two mutations were caught by the new tests (redeliver twice; trust only the ACTIVE CA).
+
+### Not done
+
+Loss of a replica (R-121), a real container restart, transport backpressure, clock skew (listed in `RESILIENCE.md`).
+G-10 and G-11, scheduled for day 38, were not addressed and stay open.
+
+### Next
+
+M7 day 40 — platform observability (metrics, Grafana dashboard JSON, log fields, optional OpenTelemetry hook), then the
+M7 human checkpoint, where the day 38 load-test result (targets not all met) needs a decision.
+
+### Blockers
+
+B-2 (root for inotify) still holds golden path 12 and the real-agent footprint measurement.
+
 ## 2026-10-18 — M7 day 38: load test
 
 Session 7, continued. Resumed from `6d61c0a` (CI green) with the load tool and the first server fixes uncommitted.

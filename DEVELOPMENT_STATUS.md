@@ -102,17 +102,17 @@ tokens; clusters and channels are still to come.
 **Milestone view** (task completion, shown for orientation only — not the
 progress figure): M0 days 1–3 of the plan's 44 days are the scope of session 1.
 
-| Milestone                                     | Plan lines | State                                                                                                                                   |
-| --------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 — Foundation (days 1–3)                    | 616–633    | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1                                  |
-| M1 — Identity, orgs, RBAC (days 4–9)          | 637–662    | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next**                                                             |
-| M2 — Agent protocol, enrollment (days 10–15)  | 666–692    | **days 10–15 built and verified in parts** (ADR-015…020); exit criteria NOT met — no cluster install (B-2); ⛔ human checkpoint pending |
-| M3 — Read-only Velero visibility (days 16–20) | 696–713    | **days 16–18 done** (agent inventory sync ADR-021; ingest and event stream ADR-022; fleet and cluster overview ADR-023); day 19 next    |
-| M4 — Velero write operations (days 21–27)     | 717–740    | not started                                                                                                                             |
-| M5 — Cluster live view and logs (days 28–31)  | 744–758    | days 28–31 done                                                                                                                         |
-| M6 — Alerts, reports, approvals (days 32–35)  | 762–776    | days 32–35 done (alerts, channels, reports, restore approval); exit criterion golden path 12 needs kind (B-2)                           |
-| M7 — Hardening, scale, security (days 36–40)  | 780–797    | days 36–38 done (threat model; security suite; load test run, **targets not all met**, see `vfm/docs/LOADTEST.md`); days 39–40 not started                                                                  |
-| M8 — Packaging, docs, release (days 41–44)    | 801–815    | not started                                                                                                                             |
+| Milestone                                     | Plan lines | State                                                                                                                                                                                                           |
+| --------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 — Foundation (days 1–3)                    | 616–633    | **days 1–3 committed; exit criteria NOT met** — `make smoke` is blocked on B-2 and the Go agent on B-1                                                                                                          |
+| M1 — Identity, orgs, RBAC (days 4–9)          | 637–662    | **days 4–9 built and verified; the ⛔ human checkpoint (line 662) is next**                                                                                                                                     |
+| M2 — Agent protocol, enrollment (days 10–15)  | 666–692    | **days 10–15 built and verified in parts** (ADR-015…020); exit criteria NOT met — no cluster install (B-2); ⛔ human checkpoint pending                                                                         |
+| M3 — Read-only Velero visibility (days 16–20) | 696–713    | **days 16–18 done** (agent inventory sync ADR-021; ingest and event stream ADR-022; fleet and cluster overview ADR-023); day 19 next                                                                            |
+| M4 — Velero write operations (days 21–27)     | 717–740    | not started                                                                                                                                                                                                     |
+| M5 — Cluster live view and logs (days 28–31)  | 744–758    | days 28–31 done                                                                                                                                                                                                 |
+| M6 — Alerts, reports, approvals (days 32–35)  | 762–776    | days 32–35 done (alerts, channels, reports, restore approval); exit criterion golden path 12 needs kind (B-2)                                                                                                   |
+| M7 — Hardening, scale, security (days 36–40)  | 780–797    | days 36–39 done (threat model; security suite; load test run, **targets not all met**, see `vfm/docs/LOADTEST.md`; resilience tests, key re-wrap and CA rotation, `vfm/docs/RESILIENCE.md`); day 40 not started |
+| M8 — Packaging, docs, release (days 41–44)    | 801–815    | not started                                                                                                                                                                                                     |
 
 ---
 
@@ -774,17 +774,17 @@ make them obvious.
 
 ### §13 Non-functional requirements (lines 532–545)
 
-| ID    | Requirement                                                                                                   | Lines | Milestone | Status |
-| ----- | ------------------------------------------------------------------------------------------------------------- | ----- | --------- | ------ |
-| R-118 | Scale: 200 clusters, 100 concurrent users, 50 k Velero objects, 20 k pods per cluster                         | 536   | M7        | 🟡 2026-10-18: measured, see `vfm/docs/LOADTEST.md`; not met     |
-| R-119 | Latency: list p95 < 300 ms, command to agent < 1 s p95, resource event to browser < 3 s p95                   | 537   | M7        | 🟡 2026-10-18: measured, see `vfm/docs/LOADTEST.md`; not met     |
-| R-120 | Agent footprint < 100 MiB and < 100 m CPU steady state on a 5 k-pod cluster                                   | 538   | M7        | ⬜     |
-| R-121 | Survive loss of one replica with no lost commands; agents reconnect within 60 s                               | 539   | M2/M7     | ⬜     |
-| R-122 | Documented backup procedure for VFM's own database, including a Velero schedule example                       | 540   | M8        | ⬜     |
-| R-123 | Zero-downtime rolling upgrade; migrations backward compatible for one release (expand → migrate → contract)   | 541   | M8        | ⬜     |
-| R-124 | The listed Prometheus metrics plus a Grafana dashboard JSON                                                   | 542   | M7        | ⬜     |
-| R-125 | `docs/AIRGAP.md`, image list, chart packaging, registry overrides, verified by an e2e run with egress blocked | 543   | M8        | ⬜     |
-| R-126 | `tools/fake-agent` load simulator proving the §13 targets                                                     | 545   | M7        | ⬜     |
+| ID    | Requirement                                                                                                   | Lines | Milestone | Status                                                                                                                        |
+| ----- | ------------------------------------------------------------------------------------------------------------- | ----- | --------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| R-118 | Scale: 200 clusters, 100 concurrent users, 50 k Velero objects, 20 k pods per cluster                         | 536   | M7        | 🟡 2026-10-18: measured, see `vfm/docs/LOADTEST.md`; not met                                                                  |
+| R-119 | Latency: list p95 < 300 ms, command to agent < 1 s p95, resource event to browser < 3 s p95                   | 537   | M7        | 🟡 2026-10-18: measured, see `vfm/docs/LOADTEST.md`; not met                                                                  |
+| R-120 | Agent footprint < 100 MiB and < 100 m CPU steady state on a 5 k-pod cluster                                   | 538   | M7        | ⬜                                                                                                                            |
+| R-121 | Survive loss of one replica with no lost commands; agents reconnect within 60 s                               | 539   | M2/M7     | 🟡 2026-10-18: outage and partition behaviour tested on one process; loss of a replica not yet run (`vfm/docs/RESILIENCE.md`) |
+| R-122 | Documented backup procedure for VFM's own database, including a Velero schedule example                       | 540   | M8        | ⬜                                                                                                                            |
+| R-123 | Zero-downtime rolling upgrade; migrations backward compatible for one release (expand → migrate → contract)   | 541   | M8        | ⬜                                                                                                                            |
+| R-124 | The listed Prometheus metrics plus a Grafana dashboard JSON                                                   | 542   | M7        | ⬜                                                                                                                            |
+| R-125 | `docs/AIRGAP.md`, image list, chart packaging, registry overrides, verified by an e2e run with egress blocked | 543   | M8        | ⬜                                                                                                                            |
+| R-126 | `tools/fake-agent` load simulator proving the §13 targets                                                     | 545   | M7        | ⬜                                                                                                                            |
 
 ### §14 Repository and dev environment (lines 549–579)
 
