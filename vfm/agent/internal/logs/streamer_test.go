@@ -6,8 +6,10 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -42,6 +44,13 @@ func (p *pipeSource) Open(_ context.Context, ns, pod string, opts *corev1.PodLog
 	return r, nil
 }
 
+// openedLog is what the streamer asked the API server for, read under the lock Open writes under.
+func (p *pipeSource) openedLog() []*corev1.PodLogOptions {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]*corev1.PodLogOptions(nil), p.opened...)
+}
+
 func (p *pipeSource) PodExists(context.Context, string, string) (bool, error) {
 	return p.exists, nil
 }
@@ -73,7 +82,7 @@ type harness struct {
 func newHarness(t *testing.T, mutate func(*Options)) *harness {
 	t.Helper()
 	h := &harness{src: newSource(), out: make(chan *pb.AgentMessage, 256), logbuf: &bytes.Buffer{}, pol: policy.Default()}
-	n := 0
+	var ids atomic.Int64
 	opts := Options{
 		Source: h.src,
 		Policy: func() policy.Policy { return h.pol },
@@ -85,7 +94,7 @@ func newHarness(t *testing.T, mutate func(*Options)) *harness {
 				return ctx.Err()
 			}
 		},
-		NewID:  func() string { n++; return "m" },
+		NewID:  func() string { return "m" + strconv.FormatInt(ids.Add(1), 10) },
 		Logger: slog.New(slog.NewJSONHandler(h.logbuf, nil)),
 	}
 	if mutate != nil {
@@ -189,7 +198,7 @@ func TestPassesTheRequestedOptionsAndNeverFollowsAPreviousContainer(t *testing.T
 	h.s.HandleServerMessage(req)
 	h.src.pipe(t, "shop/web-1")
 
-	o := h.src.opened[0]
+	o := h.src.openedLog()[0]
 	if o.Container != "app" || *o.TailLines != 50 || *o.SinceSeconds != 300 || !o.Timestamps || !o.Previous {
 		t.Fatalf("options %+v", o)
 	}
@@ -226,7 +235,7 @@ func TestPolicyRefusesBeforeAnythingIsRead(t *testing.T) {
 			if e.GetReason() != pb.LogSessionEndReason_LOG_SESSION_END_REASON_DENIED_BY_POLICY {
 				t.Fatalf("reason %v", e.GetReason())
 			}
-			if len(h.src.opened) != 0 || h.s.Active() != 0 {
+			if len(h.src.openedLog()) != 0 || h.s.Active() != 0 {
 				t.Fatal("a refused session read the log or was kept")
 			}
 		})
@@ -248,7 +257,7 @@ func TestRefusesNamesThatAreNotKubernetesNames(t *testing.T) {
 		if e := h.ended(t); e.GetReason() != pb.LogSessionEndReason_LOG_SESSION_END_REASON_ERROR {
 			t.Fatalf("%+v: %v", tc, e)
 		}
-		if len(h.src.opened) != 0 {
+		if len(h.src.openedLog()) != 0 {
 			t.Fatalf("%+v reached the API server", tc)
 		}
 	}
@@ -390,8 +399,8 @@ func TestADuplicateStartChangesNothing(t *testing.T) {
 	h.src.pipe(t, "shop/web-1")
 	h.s.HandleServerMessage(start("s1", "shop", "web-1"))
 	h.quiet(t)
-	if h.s.Active() != 1 || len(h.src.opened) != 1 {
-		t.Fatalf("active %d opened %d", h.s.Active(), len(h.src.opened))
+	if h.s.Active() != 1 || len(h.src.openedLog()) != 1 {
+		t.Fatalf("active %d opened %d", h.s.Active(), len(h.src.openedLog()))
 	}
 }
 
