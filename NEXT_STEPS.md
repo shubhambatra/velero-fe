@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-17 (session 7, M6 day 35) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-17 (session 7, M7 day 36) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -178,7 +178,7 @@ criteria are still unmet (B-1, B-2).
 - **M5 day 28 done** (ADR-033): core inventory — `agent/internal/inventory/core.go`, `WatchScope` in `gateway.proto`, `server/src/inventory/{watch-scope.service,projections}.ts`, `GET …/inventory/{nodes,namespaces,pods,pvcs,events}`.
 - **M5 day 29 done** (ADR-034): workloads UI — `web/src/pages/workloads.tsx`, `server/src/inventory/coverage.ts`.
 - **M5 day 30 done** (ADR-035): live log sessions — `agent/internal/logs/streamer.go`, `server/src/logs/*`, `LOG_SESSION_END_REASON_COMPLETED` in `logs.proto`; routes `POST|DELETE …/log-sessions`, `GET …/log-sessions/:id/stream` (SSE: `chunk`, then one `ended`) and `GET …/log-shortcuts`. Nothing is stored; the agent is started when the first stream opens.
-- **Next: close M6, then M7.** M6 days 32–35 are built. Its exit criteria are golden path 12 (failed backup → webhook → resolves when fixed, on kind with a really broken BSL: needs B-2) and reports matching hand-computed values (done). M6 is not closed until golden path 12 runs. M7 (plan line 780, days 36–40) is hardening, scale and the security review; the plan's first rule is not to start a milestone before the previous one's exit criteria pass, so the choice of how to proceed while B-2 stands is the user's: clear B-2 and run golden path 12, or record the deviation and start M7. Open: the Alerts, Reports and Approvals pages in a real browser (an authenticator is needed); Helm values for `ALERT_EVAL_INTERVAL_SECONDS`, `ALERT_WEBHOOK_ALLOW_PRIVATE`, `ALERT_WEBHOOK_ALLOW_HTTP`, `RESTORE_APPROVAL_TTL_HOURS`; API tokens for the reports. Still open from M5: viewer in a visible browser, M5 exit criteria on kind (B-2).
+- **Next: M7 day 37 — security test suite** (plan line 784): tests generated from the OpenAPI document that every operation refuses a caller of another org and one without permission (closes G-6); a headers/CSP check (done for the API in `security.e2e`); agent payload fuzzing (malformed, oversized, wrong-cluster); `govulncheck`, `pnpm audit` and Trivy in CI with fail thresholds, including an **image** scan and pinned actions (G-15). The threat model (`docs/THREAT_MODEL.md`) lists what is still open: G-1 control-plane chart (day 41), G-3 rate limits on public and expensive routes, G-4 the restore policy for cluster-scoped resources (needs the owner's decision on the default), G-8 retention jobs, G-9 and G-12 key and CA rotation (day 39), G-13 Redis auth. M6 is not closed: golden path 12 needs B-2 (ADR-041). Open: Alerts, Reports and Approvals pages not driven in a real browser; Helm values for the new settings (`ALERT_*`, `OIDC_ALLOW_*`, `RESTORE_APPROVAL_TTL_HOURS`); the viewer in a visible browser; M5 exit criteria on kind.
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

@@ -9,6 +9,41 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M7 day 36: threat model
+
+Session 7, continued. CI green on day 35 (`6ca4560`). The survey was split between two forked agents (control plane and web;
+agent, gateway and chart), read-only; I wrote the document, made the fixes and ran every test.
+
+### Done
+
+- `docs/THREAT_MODEL.md`: STRIDE for 13 components with the mitigation, the test that proves it (or a numbered manual check),
+  an inventory of unauthenticated routes, 6 accepted risks and 15 gaps with the day that closes each.
+- ADR-041: M7 started before M6's golden path 12 could run (B-2); recorded as a deviation, M6 stays open.
+- Nine findings fixed, each with a test that fails without the fix (each mutated and seen to fail):
+  1. The agent's signed-URL fetch followed redirects and could be aimed at loopback or the cloud metadata address.
+  2. Unlimited guesses at the second factor and at the sudo password: now one budget per user, 5 failures, 10 minutes.
+  3. OIDC discovery, token and key requests could be aimed anywhere by an org Admin: same egress guard as webhooks.
+  4. Storage writes needed no recent login and were open to API tokens, against PLAN §8.3: now sudo.
+  5. A revoked agent kept its stream if the Redis push was lost: streams re-check every minute.
+  6. `renew` could issue a certificate to a cluster disabled a moment earlier.
+  7. Over-large or malformed JSON gave 500 (and the parser's message can quote the body): 413 / 400, fixed sentence.
+  8. No test asserted any security header: the e2e app now runs under `applySecurity`, and headers and CSP are asserted.
+  9. (day 35) any reader could cancel a held restore: only the requester.
+
+### Test status
+
+Server unit **1087**, e2e **619** (21 new), agent Go all packages pass (4 new), golangci-lint 0 issues, govulncheck clean;
+web 478 and shared 132 unchanged. Lint, typecheck, prettier, OpenAPI clean.
+
+A test run that overlapped another against the same database failed 114 tests; I re-ran alone and all passed. Two e2e runs
+must not share the test database.
+
+### Not done, and why
+
+Fifteen gaps stay open (section 8 of the document); the reviewer decides which are acceptable. The three that need a decision:
+the default for restoring cluster-scoped resources (G-4), whether the private-network risk of storage locations (A-3) is
+acceptable, and whether production start-up should refuse a Redis without a password (G-13).
+
 ## 2026-10-17 — M6 day 35: restore approval
 
 Session 7, continued. CI green on day 34 (`325a753`). The web side was built by a forked agent from a written contract

@@ -2159,3 +2159,27 @@ PLAN §8.4: when `requireRestoreApproval` is on, a restore request becomes `PEND
 - A requester who has lost read access to the cluster cannot withdraw (cancel needs `cluster:read`); the request expires.
 - The approvals list is computed per request on each read, with a rights check per cluster; fine at the scale of PLAN §14,
   and the badge refetches once a minute per open tab.
+
+## ADR-041 — Starting M7 before M6's golden path 12 has run
+
+### Context
+
+PLAN §0 rule 1: do not start the next milestone until every exit criterion of the current one passes. M6's criteria are
+"golden path 12 passes" and "reports match hand-computed values on seeded data". The second holds (ADR-039). The first
+needs a real Velero with a deliberately broken storage location on the kind clusters, which cannot be built on this host
+until `fs.inotify.max_user_instances` is raised with root (blocker B-2, open since M0). The same blocker holds back M5's
+latency target and the M3 and M4 human checkpoints. Everything that golden path 12 exercises (a failed backup produces an
+alert, a signed webhook arrives, the alert resolves when a later backup completes) is covered against real Postgres and a
+real local receiver in `alerts.e2e` and `channels.e2e`; what is not covered is Velero itself producing the failure.
+
+### Decision
+
+On the owner's instruction to continue ("resume next") after M6 day 35, work moves on to M7, as it did to M1 before M0 exited
+(ADR-010). This is a recorded deviation, not a pass: **M6 is not closed**, golden path 12 (R-151) stays partial, and the
+list of what B-2 holds back is kept in `NEXT_STEPS.md` so that it is run first once the host is fixed. Nothing in M7 depends
+on kind, except the load test's realism (day 38), which uses a fake agent by design.
+
+### Consequences
+
+- The M7 exit criteria and the human checkpoint at its end do not include the unrun items; they are listed there.
+- If golden path 12 fails when it is finally run, the fix lands in M6's code, not M7's.
