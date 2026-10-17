@@ -2113,3 +2113,49 @@ over `velero_resources`", and "reports match hand-computed values on seeded data
 - Windows are at most 366 days. Anything older than the retention of `velero_resources` is not there to count.
 - `longest_gap` for a schedule with no success in the window counts from its last success (or creation) before the window,
   so it can exceed the window.
+
+## ADR-040 — Restore approval (M6 day 35)
+
+### Context
+
+PLAN §8.4: when `requireRestoreApproval` is on, a restore request becomes `PENDING_APPROVAL`; another user with
+`restore:create` (not the requester) must approve before the command is queued; both actions are audited. The plan lists
+`approved_by` on `commands` and an `/approvals` endpoint group.
+
+### Decision
+
+- **Two switches, one direction.** The org setting `requireRestoreApproval` (default off) applies to every cluster; a cluster
+  has its own switch (`clusters.require_restore_approval`) that can only _add_ approval. Effective = org OR cluster. Otherwise
+  whoever administers one cluster could turn off a control the org imposed. The cluster switch is its own route
+  (`PUT …/restore-approval`, `cluster:manage` plus sudo) rather than a field of the general cluster update, because
+  switching it off removes a safeguard and the general update has no sudo.
+- **A held request is a command, not a new table.** `commands` gains statuses `PENDING_APPROVAL` and `REJECTED` and columns
+  `approved_by_id`, `rejected_by_id`, `decided_at`, `decision_note`. The state machine keeps the held state apart:
+  from `PENDING_APPROVAL` only approve, reject, withdraw or time out are accepted, nothing the agent says can touch it (it was
+  never told), and it is not in `NON_TERMINAL`, so it is not delivered on reconnect, not counted as in-flight and not swept
+  by the agent timeout. It has its own bound (25 waiting per cluster) and its own window (`RESTORE_APPROVAL_TTL_HOURS`, default
+  24); an approval starts the agent's own deadline afresh.
+- **Who may decide.** Someone other than the requester, holding `restore:create` over the namespaces the restore will _write_
+  (after mapping) on that cluster, with a recent re-authentication to approve (as creating it needs). The "not the requester"
+  rule is checked in code and again inside the conditional `UPDATE` that changes the status, so two decisions at once
+  cannot both win and the rule cannot be skipped by a code path. Rejecting needs the same eligibility, not sudo.
+- **The requester is checked again at approval.** If they no longer hold the permission, approval is refused (409) and the
+  request can only be rejected: an approval spends the requester's authority, and a permission withdrawn since must not be
+  exercised by someone else's click.
+- **Withdrawing.** The existing cancel route now takes the caller: a pending request can be withdrawn only by its requester
+  (anyone else who can read the cluster gets 403, which also closes the hole that any reader could cancel any pending command).
+  Withdrawn, rejected, approved and expired requests all carry a decision time and make up the Decided list (30 days).
+- **Who sees a request.** The requester and anyone who could decide it; nobody else. A person with no access to the
+  cluster gets 404.
+- **Telling people.** By email, best effort and never blocking: up to 20 people who could approve (the requester excluded)
+  when a request is made, and the requester when it is decided, with the reason sanitized to one line. Without SMTP nothing is
+  sent and nothing fails. In the app, `/approvals` and a count badge in the navigation.
+- **Audit.** The request is audited as made (`pendingApproval: true`, target `restore_request`), each approval and rejection
+  with who and which request, and a refused attempt (such as approving your own) as DENIED, all by the request middleware.
+
+### Consequences
+
+- API tokens cannot approve (sudo) and cannot create restores (sudo), unchanged.
+- A requester who has lost read access to the cluster cannot withdraw (cancel needs `cluster:read`); the request expires.
+- The approvals list is computed per request on each read, with a rights check per cluster; fine at the scale of PLAN §14,
+  and the badge refetches once a minute per open tab.

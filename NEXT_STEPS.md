@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-17 (session 7, M6 day 34) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-17 (session 7, M6 day 35) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -178,7 +178,7 @@ criteria are still unmet (B-1, B-2).
 - **M5 day 28 done** (ADR-033): core inventory — `agent/internal/inventory/core.go`, `WatchScope` in `gateway.proto`, `server/src/inventory/{watch-scope.service,projections}.ts`, `GET …/inventory/{nodes,namespaces,pods,pvcs,events}`.
 - **M5 day 29 done** (ADR-034): workloads UI — `web/src/pages/workloads.tsx`, `server/src/inventory/coverage.ts`.
 - **M5 day 30 done** (ADR-035): live log sessions — `agent/internal/logs/streamer.go`, `server/src/logs/*`, `LOG_SESSION_END_REASON_COMPLETED` in `logs.proto`; routes `POST|DELETE …/log-sessions`, `GET …/log-sessions/:id/stream` (SSE: `chunk`, then one `ended`) and `GET …/log-shortcuts`. Nothing is stored; the agent is started when the first stream opens.
-- **Next: M6 day 35 — restore approval workflow** (plan line 773): an org/cluster setting, `PENDING_APPROVAL`, approve or reject by a different authorized user, notifications, audit (R-096). Day 34 is done: `/orgs/{orgId}/reports/{success-rate,coverage,rpo}` (JSON or `format=csv`, CSV audited) and the Reports page at `/reports`, limited per caller to what they may read. Then the M6 exit check: golden path 12 on kind (R-151, needs B-2). Open: the Alerts and Reports pages have not been driven in a real browser (the throwaway app needs an authenticator; recharts is untested beyond its wrapper); API tokens do not yet reach the reports (browser only); Helm values for the alert settings. Still open from M5: viewer in a visible browser, M5 exit criteria on kind (B-2).
+- **Next: close M6, then M7.** M6 days 32–35 are built. Its exit criteria are golden path 12 (failed backup → webhook → resolves when fixed, on kind with a really broken BSL: needs B-2) and reports matching hand-computed values (done). M6 is not closed until golden path 12 runs. M7 (plan line 780, days 36–40) is hardening, scale and the security review; the plan's first rule is not to start a milestone before the previous one's exit criteria pass, so the choice of how to proceed while B-2 stands is the user's: clear B-2 and run golden path 12, or record the deviation and start M7. Open: the Alerts, Reports and Approvals pages in a real browser (an authenticator is needed); Helm values for `ALERT_EVAL_INTERVAL_SECONDS`, `ALERT_WEBHOOK_ALLOW_PRIVATE`, `ALERT_WEBHOOK_ALLOW_HTTP`, `RESTORE_APPROVAL_TTL_HOURS`; API tokens for the reports. Still open from M5: viewer in a visible browser, M5 exit criteria on kind (B-2).
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---

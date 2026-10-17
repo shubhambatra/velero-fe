@@ -9,6 +9,38 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M6 day 35: restore approval
+
+Session 7, continued. CI green on day 34 (`325a753`). The web side was built by a forked agent from a written contract
+while I wrote the server tests; I reviewed its report and ran the whole suite.
+
+### Done
+
+- Server (ADR-040): org setting `requireRestoreApproval` and a per-cluster switch that can only add; a restore on such a
+  cluster is held as `PENDING_APPROVAL` (not sent, not redelivered, own window and bound); `/orgs/{orgId}/approvals` (list,
+  count, approve with sudo, reject); only the requester may withdraw; approval checks the approver over the namespaces
+  written and the requester again; time-out; email to approvers and requester; audit of the request and each decision.
+- Web: Approvals page and nav badge, the restore wizard says when approval is needed and shows "Waiting for approval",
+  the cluster's switch, and the org toggle on the Security page.
+
+### Test status
+
+Server unit **1082**, e2e **598** (23 new, a scripted agent proves "nothing was sent"), web **478** (19 new), shared 132.
+Lint, typecheck, prettier, build clean; OpenAPI regenerated. Eight mutations (self-approval at both layers, approver
+permission, requester re-check, delivery of a held request, anyone withdrawing, org floor, list visibility, mailing the
+requester) were each caught. Finding while testing: before this change any reader of a cluster could cancel any pending
+command; for held requests that is now the requester only.
+
+### Not verified
+
+- The approvals UI and the other new pages in a real browser (the Owner of a throwaway app must enrol an authenticator).
+- Approval end to end against a real cluster (B-2). Real SMTP.
+
+### M6 exit criteria
+
+"Golden path 12 passes" needs a real Velero with a broken storage location on kind (B-2): not done. "Reports match
+hand-computed values on seeded data": done (day 34). M6 is therefore not closed.
+
 ## 2026-10-17 — M6 day 34: reports
 
 Session 7, continued. CI green on day 33 (`27a38f3`).
