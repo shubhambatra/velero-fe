@@ -112,34 +112,59 @@ export class ReportsService {
     return [one];
   }
 
+  /**
+   * Success rate. Every cluster is read in one query (not one per cluster: at 200 clusters a page
+   * was 200 round trips and 800 permission lookups), and the rows are sorted into clusters here.
+   */
   async successRate(
     orgId: string,
     userId: string,
     q: { from: Date; to: Date; bucket: Bucket; clusterId?: string | undefined },
   ): Promise<SuccessRateReport> {
     const clusters = await this.scope(orgId, userId, q.clusterId);
-    let incomplete = false;
-    const out: ClusterSeries[] = [];
-    for (const cluster of clusters) {
-      const visibility = await this.rbac.visibility(orgId, userId, cluster.id, 'backup:read');
-      // Deleted backups stay in: that a backup once failed is not undone by its expiry.
-      const rows = await this.prisma.inOrg(orgId, () =>
-        this.prisma.veleroResource.findMany({
-          where: {
-            clusterId: cluster.id,
-            kind: 'BACKUP',
-            completedAt: { gte: q.from, lt: q.to },
-          },
-          orderBy: { completedAt: 'desc' },
-          take: ROW_CAP,
-          select: { phase: true, completedAt: true, ...(visibility.all ? {} : { spec: true }) },
-        }),
-      );
-      if (rows.length === ROW_CAP) incomplete = true;
-      const seen = rows.filter(
+    const visibility = await this.rbac.visibilities(
+      orgId,
+      userId,
+      clusters.map((c) => c.id),
+      'backup:read',
+    );
+    // The spec is read only when someone may see just part of a cluster, which needs it.
+    const needSpec = [...visibility.values()].some((v) => !v.all);
+    // Deleted backups stay in: that a backup once failed is not undone by its expiry.
+    const rows =
+      clusters.length === 0
+        ? []
+        : await this.prisma.inOrg(orgId, () =>
+            this.prisma.veleroResource.findMany({
+              where: {
+                clusterId: { in: clusters.map((c) => c.id) },
+                kind: 'BACKUP',
+                completedAt: { gte: q.from, lt: q.to },
+              },
+              orderBy: { completedAt: 'desc' },
+              take: ROW_CAP * 2,
+              select: {
+                clusterId: true,
+                phase: true,
+                completedAt: true,
+                ...(needSpec ? { spec: true } : {}),
+              },
+            }),
+          );
+    const incomplete = rows.length === ROW_CAP * 2;
+    const byCluster = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const list = byCluster.get(row.clusterId) ?? [];
+      list.push(row);
+      byCluster.set(row.clusterId, list);
+    }
+    const out: ClusterSeries[] = clusters.map((cluster) => {
+      const v = visibility.get(cluster.id);
+      const seen = (byCluster.get(cluster.id) ?? []).filter(
         (r) =>
           r.completedAt !== null &&
-          (visibility.all || visibility.sees(coveredBy('BACKUP', (r as { spec?: unknown }).spec))),
+          v !== undefined &&
+          (v.all || v.sees(coveredBy('BACKUP', (r as { spec?: unknown }).spec))),
       );
       const points = successRate(
         seen.map((r) => ({ clusterId: cluster.id, phase: r.phase, at: r.completedAt as Date })),
@@ -147,13 +172,8 @@ export class ReportsService {
         q.to,
         q.bucket,
       );
-      out.push({
-        clusterId: cluster.id,
-        clusterName: cluster.name,
-        points,
-        totals: totals(points),
-      });
-    }
+      return { clusterId: cluster.id, clusterName: cluster.name, points, totals: totals(points) };
+    });
     const all = sumSeries(out.map((c) => c.points));
     return {
       from: q.from.toISOString(),
@@ -165,50 +185,105 @@ export class ReportsService {
     };
   }
 
+  /**
+   * Namespaces without a recent backup. A namespace is fine if a successful backup covering it
+   * finished inside the window, so the first read is only the backups of the window, for every
+   * cluster at once. Older backups are read, per cluster, only for clusters that have a namespace
+   * left over, to say when it was last backed up: in a healthy fleet that is none of them.
+   */
   async coverage(
     orgId: string,
     userId: string,
     q: { hours: number; clusterId?: string | undefined },
   ): Promise<CoverageReport> {
     const clusters = await this.scope(orgId, userId, q.clusterId);
+    const ids = clusters.map((c) => c.id);
     const now = new Date();
+    const since = new Date(now.getTime() - q.hours * HOUR);
+    const visibility = await this.rbac.visibilities(orgId, userId, ids, 'backup:read');
     let incomplete = false;
+    if (ids.length === 0) {
+      return { hours: q.hours, generatedAt: now.toISOString(), clusters: [], incomplete };
+    }
+    const [namespaces, recent, schedules] = await this.prisma.inOrg(orgId, () =>
+      Promise.all([
+        this.prisma.veleroResource.findMany({
+          where: { clusterId: { in: ids }, kind: 'NAMESPACE', deletedAt: null },
+          select: { clusterId: true, name: true },
+          take: 200_000,
+        }),
+        // Deleted backups cannot be restored from, so they do not cover anything.
+        this.prisma.veleroResource.findMany({
+          where: {
+            clusterId: { in: ids },
+            kind: 'BACKUP',
+            phase: 'Completed',
+            deletedAt: null,
+            completedAt: { gte: since },
+          },
+          orderBy: { completedAt: 'desc' },
+          take: COVERAGE_CAP * 5,
+          select: { clusterId: true, name: true, spec: true, completedAt: true },
+        }),
+        this.prisma.veleroResource.findMany({
+          where: { clusterId: { in: ids }, kind: 'SCHEDULE', deletedAt: null },
+          take: 50_000,
+          select: { clusterId: true, spec: true },
+        }),
+      ]),
+    );
+    if (recent.length === COVERAGE_CAP * 5) incomplete = true;
+    const group = <T extends { clusterId: string }>(rows: T[]): Map<string, T[]> => {
+      const m = new Map<string, T[]>();
+      for (const r of rows) m.set(r.clusterId, [...(m.get(r.clusterId) ?? []), r]);
+      return m;
+    };
+    const nsBy = group(namespaces);
+    const recentBy = group(recent);
+    const scheduleBy = group(schedules);
+
     const out: CoverageReport['clusters'] = [];
     for (const cluster of clusters) {
-      const visibility = await this.rbac.visibility(orgId, userId, cluster.id, 'backup:read');
-      const [namespaces, backups, schedules] = await this.prisma.inOrg(orgId, () =>
-        Promise.all([
-          this.prisma.veleroResource.findMany({
-            where: { clusterId: cluster.id, kind: 'NAMESPACE', deletedAt: null },
-            select: { name: true },
-            take: 10_000,
-          }),
-          // Newest first, so a limit drops the oldest, which matter least here. Deleted backups
-          // cannot be restored from, so they do not cover anything.
-          this.prisma.veleroResource.findMany({
-            where: { clusterId: cluster.id, kind: 'BACKUP', phase: 'Completed', deletedAt: null },
-            orderBy: { completedAt: { sort: 'desc', nulls: 'last' } },
-            take: COVERAGE_CAP,
-            select: { name: true, spec: true, completedAt: true },
-          }),
-          this.prisma.veleroResource.findMany({
-            where: { clusterId: cluster.id, kind: 'SCHEDULE', deletedAt: null },
-            take: 500,
-            select: { spec: true },
-          }),
-        ]),
-      );
-      if (backups.length === COVERAGE_CAP) incomplete = true;
-      const shown = namespaces
+      const v = visibility.get(cluster.id);
+      const shown = (nsBy.get(cluster.id) ?? [])
         .map((n) => n.name)
         .filter(
           (name) =>
-            visibility.all || visibility.sees({ namespaces: [name], includesClusterScoped: false }),
+            v !== undefined &&
+            (v.all || v.sees({ namespaces: [name], includesClusterScoped: false })),
         );
-      const rows = shown.map((namespace) => {
-        const c = coverageOf(namespace, backups, schedules, now);
+      const sched = scheduleBy.get(cluster.id) ?? [];
+      let rows = shown.map((namespace) => {
+        const c = coverageOf(namespace, recentBy.get(cluster.id) ?? [], sched, now);
         return { namespace, lastBackupAt: c.lastBackupAt, scheduled: c.scheduled };
       });
+      const left = rows.filter((r) => r.lastBackupAt === null).map((r) => r.namespace);
+      if (left.length > 0) {
+        // Only now are older backups needed: when were these last covered?
+        const older = await this.prisma.inOrg(orgId, () =>
+          this.prisma.veleroResource.findMany({
+            where: {
+              clusterId: cluster.id,
+              kind: 'BACKUP',
+              phase: 'Completed',
+              deletedAt: null,
+              completedAt: { lt: since },
+            },
+            orderBy: { completedAt: 'desc' },
+            take: COVERAGE_CAP,
+            select: { name: true, spec: true, completedAt: true },
+          }),
+        );
+        if (older.length === COVERAGE_CAP) incomplete = true;
+        rows = rows.map((r) =>
+          r.lastBackupAt !== null
+            ? r
+            : {
+                ...r,
+                lastBackupAt: coverageOf(r.namespace, older, sched, now).lastBackupAt,
+              },
+        );
+      }
       out.push({
         clusterId: cluster.id,
         clusterName: cluster.name,
@@ -231,37 +306,52 @@ export class ReportsService {
     },
   ): Promise<RpoReport> {
     const clusters = await this.scope(orgId, userId, q.clusterId);
-    let incomplete = false;
+    const ids = clusters.map((c) => c.id);
+    const visibility = await this.rbac.visibilities(orgId, userId, ids, 'schedule:read');
     const rows: RpoRow[] = [];
-    for (const cluster of clusters) {
-      const visibility = await this.rbac.visibility(orgId, userId, cluster.id, 'schedule:read');
-      const schedules = await this.prisma.inOrg(orgId, () =>
-        this.prisma.veleroResource.findMany({
-          where: { clusterId: cluster.id, kind: 'SCHEDULE', deletedAt: null },
-          take: 500,
-          select: { name: true, namespace: true, spec: true, creationTimestamp: true },
-        }),
+    let incomplete = false;
+    if (ids.length > 0) {
+      const [schedules, backups] = await this.prisma.inOrg(orgId, () =>
+        Promise.all([
+          this.prisma.veleroResource.findMany({
+            where: { clusterId: { in: ids }, kind: 'SCHEDULE', deletedAt: null },
+            take: 50_000,
+            select: {
+              clusterId: true,
+              name: true,
+              namespace: true,
+              spec: true,
+              creationTimestamp: true,
+            },
+          }),
+          this.prisma.veleroResource.findMany({
+            where: {
+              clusterId: { in: ids },
+              kind: 'BACKUP',
+              phase: 'Completed',
+              completedAt: { gte: new Date(q.from.getTime() - 366 * DAY), lte: q.to },
+            },
+            orderBy: { completedAt: 'desc' },
+            take: ROW_CAP * 2,
+            select: { clusterId: true, namespace: true, labels: true, completedAt: true },
+          }),
+        ]),
       );
-      const mine = schedules.filter(
-        (s) => visibility.all || visibility.sees(coveredBy('SCHEDULE', s.spec)),
-      );
-      if (mine.length === 0) continue;
-      // One read for the cluster's successful backups that belong to a schedule.
-      const backups = await this.prisma.inOrg(orgId, () =>
-        this.prisma.veleroResource.findMany({
-          where: {
-            clusterId: cluster.id,
-            kind: 'BACKUP',
-            phase: 'Completed',
-            completedAt: { gte: new Date(q.from.getTime() - 366 * DAY), lte: q.to },
-          },
-          orderBy: { completedAt: 'desc' },
-          take: ROW_CAP,
-          select: { namespace: true, labels: true, completedAt: true },
-        }),
-      );
-      if (backups.length === ROW_CAP) incomplete = true;
-      for (const s of mine) {
+      if (backups.length === ROW_CAP * 2) incomplete = true;
+      // One pass: the successful backups of each schedule, keyed by cluster, namespace and name.
+      const successesOf = new Map<string, Date[]>();
+      for (const b of backups) {
+        const name = isRecord(b.labels) ? b.labels['velero.io/schedule-name'] : undefined;
+        if (typeof name !== 'string' || b.completedAt === null) continue;
+        const key = `${b.clusterId}\u0000${b.namespace}\u0000${name}`;
+        const list = successesOf.get(key);
+        if (list === undefined) successesOf.set(key, [b.completedAt]);
+        else list.push(b.completedAt);
+      }
+      const nameOf = new Map(clusters.map((c) => [c.id, c.name]));
+      for (const s of schedules) {
+        const v = visibility.get(s.clusterId);
+        if (v === undefined || !(v.all || v.sees(coveredBy('SCHEDULE', s.spec)))) continue;
         const spec = isRecord(s.spec) ? s.spec : {};
         // A paused schedule is not failing its objective; it is doing what it was told.
         if (spec.paused === true) continue;
@@ -272,22 +362,19 @@ export class ReportsService {
         const targetHours = q.targetHours ?? (gap === null ? null : (gap * q.factor) / 3600);
         // Without a target (an unreadable cron and none given) there is nothing to measure against.
         if (targetHours === null) continue;
-        const successes = backups
-          .filter(
-            (b) =>
-              b.namespace === s.namespace &&
-              isRecord(b.labels) &&
-              b.labels['velero.io/schedule-name'] === s.name &&
-              b.completedAt !== null,
-          )
-          .map((b) => b.completedAt as Date);
         rows.push({
-          clusterId: cluster.id,
-          clusterName: cluster.name,
+          clusterId: s.clusterId,
+          clusterName: nameOf.get(s.clusterId) ?? '',
           schedule: s.name,
           cron,
           targetHours,
-          ...rpoCompliance(successes, q.from, q.to, targetHours * HOUR, s.creationTimestamp),
+          ...rpoCompliance(
+            successesOf.get(`${s.clusterId}\u0000${s.namespace}\u0000${s.name}`) ?? [],
+            q.from,
+            q.to,
+            targetHours * HOUR,
+            s.creationTimestamp,
+          ),
         });
       }
     }

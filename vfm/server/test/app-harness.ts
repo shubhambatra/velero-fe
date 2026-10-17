@@ -1,3 +1,6 @@
+import { fleetOptions } from '../src/inventory/fleet.service';
+import { rbacOptions } from '../src/rbac/rbac.service';
+import { resourceOptions } from '../src/inventory/resources.service';
 import { applySecurity, bodyErrors, MAX_JSON_BODY } from '../src/security';
 import { ENV } from '../src/config/config.module';
 import type { Env } from '../src/config/env.schema';
@@ -137,6 +140,10 @@ export async function createTestApp(
   // As main.ts does, so every end-to-end test runs under the real headers and body limit.
   app.use(cookieParser());
   applySecurity(app, app.get<Env>(ENV));
+  // Tests read what they have just written; the production sharing of aggregates would show them stale counts.
+  fleetOptions.cacheMs = 0;
+  rbacOptions.cacheMs = 0;
+  resourceOptions.coverageCacheMs = 0;
   app.use(json({ limit: MAX_JSON_BODY }));
   app.use(bodyErrors);
   app.useGlobalFilters(new ProblemExceptionFilter());

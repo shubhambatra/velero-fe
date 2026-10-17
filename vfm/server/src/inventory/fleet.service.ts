@@ -49,6 +49,19 @@ export interface ClusterOverview {
   recentRestores: ResourceRow[] | null;
 }
 
+interface Aggregates {
+  backupGroups: { clusterId: string; phase: string | null; _count: { _all: number } }[];
+  scheduleGroups: { clusterId: string; phase: string | null; _count: { _all: number } }[];
+  storageGroups: { clusterId: string; phase: string | null; _count: { _all: number } }[];
+  latest: Map<
+    string,
+    { clusterId: string; name: string; phase: string | null; completedAt: Date | null }
+  >;
+}
+
+/** Tunable so tests, which read what they just wrote, can switch the sharing off. */
+export const fleetOptions = { cacheMs: 5_000 };
+
 interface ResourceRow {
   name: string;
   phase: string | null;
@@ -74,59 +87,56 @@ export class FleetService {
     private readonly rbac: RbacService,
   ) {}
 
-  async fleet(orgId: string, userId: string, token?: TokenLimit): Promise<FleetCluster[]> {
-    const visible = await this.clusters.list(orgId, userId, token);
-    if (visible.length === 0) {
-      return [];
+  private readonly cache = new Map<string, { at: number; value: Promise<Aggregates> }>();
+
+  /**
+   * The counts behind the fleet page, for every cluster of the org at once, shared by everyone who
+   * asks within a few seconds. They are the expensive part (a full read of the org's backups,
+   * schedules and locations) and they are the same for everybody: what differs per person is which
+   * clusters' rows they may see, which is applied afterwards. Without this, a hundred people
+   * keeping the page open cost a hundred full reads every time something changed.
+   */
+  private aggregates(orgId: string): Promise<Aggregates> {
+    const held = this.cache.get(orgId);
+    if (held !== undefined && Date.now() - held.at < fleetOptions.cacheMs) {
+      return held.value;
     }
-    const ids = visible.map((c) => c.id);
-    const held = await this.rbac.matrix(orgId, userId, ids, READ_PERMISSIONS, token);
-    const may = (id: string, p: Permission): boolean => held.get(id)?.has(p) === true;
+    const value = this.readAggregates(orgId);
+    this.cache.set(orgId, { at: Date.now(), value });
+    // A failure is not kept: the next caller asks again.
+    value.catch(() => {
+      if (this.cache.get(orgId)?.value === value) this.cache.delete(orgId);
+    });
+    return value;
+  }
 
-    const idsWith = (p: Permission): string[] => ids.filter((id) => may(id, p));
-    const backupIds = idsWith('backup:read');
-    const scheduleIds = idsWith('schedule:read');
-    const storageIds = idsWith('storage:read');
-
-    const [backupGroups, lastCompleted, scheduleGroups, storageGroups, syncs] =
-      await this.prisma.inOrg(orgId, () =>
+  private async readAggregates(orgId: string): Promise<Aggregates> {
+    const [backupGroups, lastCompleted, scheduleGroups, storageGroups] = await this.prisma.inOrg(
+      orgId,
+      () =>
         Promise.all([
           this.prisma.veleroResource.groupBy({
             by: ['clusterId', 'phase'],
-            where: { clusterId: { in: backupIds }, kind: 'BACKUP', deletedAt: null },
+            where: { kind: 'BACKUP', deletedAt: null },
             _count: { _all: true },
           }),
           this.prisma.veleroResource.groupBy({
             by: ['clusterId'],
-            where: {
-              clusterId: { in: backupIds },
-              kind: 'BACKUP',
-              deletedAt: null,
-              completedAt: { not: null },
-            },
+            where: { kind: 'BACKUP', deletedAt: null, completedAt: { not: null } },
             _max: { completedAt: true },
           }),
           this.prisma.veleroResource.groupBy({
             by: ['clusterId', 'phase'],
-            where: { clusterId: { in: scheduleIds }, kind: 'SCHEDULE', deletedAt: null },
+            where: { kind: 'SCHEDULE', deletedAt: null },
             _count: { _all: true },
           }),
           this.prisma.veleroResource.groupBy({
             by: ['clusterId', 'phase'],
-            where: {
-              clusterId: { in: storageIds },
-              kind: 'BACKUP_STORAGE_LOCATION',
-              deletedAt: null,
-            },
+            where: { kind: 'BACKUP_STORAGE_LOCATION', deletedAt: null },
             _count: { _all: true },
           }),
-          this.prisma.cluster.findMany({
-            where: { id: { in: ids } },
-            select: { id: true, inventorySyncedAt: true },
-          }),
         ]),
-      );
-
+    );
     // The most recent finished backup per cluster: one more query for the rows
     // behind the per-cluster maxima, instead of loading every backup.
     const maxima = lastCompleted.flatMap((g) =>
@@ -144,7 +154,30 @@ export class FleetService {
               orderBy: { name: 'asc' },
             }),
           );
-    const latest = new Map(latestRows.map((r) => [r.clusterId, r]));
+    return {
+      backupGroups,
+      scheduleGroups,
+      storageGroups,
+      latest: new Map(latestRows.map((r) => [r.clusterId, r])),
+    };
+  }
+
+  async fleet(orgId: string, userId: string, token?: TokenLimit): Promise<FleetCluster[]> {
+    const visible = await this.clusters.list(orgId, userId, token);
+    if (visible.length === 0) {
+      return [];
+    }
+    const ids = visible.map((c) => c.id);
+    const held = await this.rbac.matrix(orgId, userId, ids, READ_PERMISSIONS, token);
+    const may = (id: string, p: Permission): boolean => held.get(id)?.has(p) === true;
+
+    const { backupGroups, scheduleGroups, storageGroups, latest } = await this.aggregates(orgId);
+    const syncs = await this.prisma.inOrg(orgId, () =>
+      this.prisma.cluster.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, inventorySyncedAt: true },
+      }),
+    );
     const synced = new Map(syncs.map((s) => [s.id, s.inventorySyncedAt]));
 
     return visible.map((cluster): FleetCluster => {

@@ -34,10 +34,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     super({
       adapter: new PrismaPg({
         connectionString: env.DATABASE_URL,
-        // Sized for several replicas sharing one Postgres. Revisited against
-        // the §13 scale targets during the M7 load test.
-        max: 10,
-        connectionTimeoutMillis: 5_000,
+        // Per replica; see DATABASE_POOL_MAX for how it was sized.
+        max: env.DATABASE_POOL_MAX,
+        connectionTimeoutMillis: 10_000,
       }),
     });
 

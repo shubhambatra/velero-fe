@@ -29,6 +29,12 @@ const SESSION_CHECK_EVERY_MS = 60_000;
 export const streamOptions = {
   /** How long a permission decision is reused before it is made again. */
   permissionTtlMs: 10_000,
+  /**
+   * Inventory changes of one cluster arriving within this window are sent as one event. A busy
+   * fleet changes something every few milliseconds; a browser needs to be told once, then re-read.
+   * 0 sends every event at once.
+   */
+  coalesceMs: 250,
   pingMs: PING_EVERY_MS,
   sessionCheckMs: SESSION_CHECK_EVERY_MS,
 };
@@ -97,24 +103,66 @@ export class StreamController {
     response.flushHeaders();
     response.write('retry: 3000\n: connected\n\n');
 
-    const decisions = new Map<string, { at: number; may: boolean }>();
+    // What this person may read, for every cluster, from one set of queries that is renewed after
+    // the permission TTL. Asked per cluster and per kind it was hundreds of lookups per stream.
+    const PERMISSIONS: Permission[] = [
+      'cluster:read',
+      'backup:read',
+      'restore:read',
+      'schedule:read',
+      'storage:read',
+    ];
+    let held: { at: number; byCluster: Map<string, Set<Permission>> } | undefined;
     const may = async (clusterId: string, permission: Permission): Promise<boolean> => {
-      const key = `${clusterId}/${permission}`;
-      const cached = decisions.get(key);
-      if (cached !== undefined && Date.now() - cached.at < streamOptions.permissionTtlMs) {
-        return cached.may;
+      const fresh = held !== undefined && Date.now() - held.at < streamOptions.permissionTtlMs;
+      // A cluster made since the last read is looked for once more, not refused until the TTL ends.
+      const unknown =
+        held !== undefined && !held.byCluster.has(clusterId) && Date.now() - held.at > 1_000;
+      if (!fresh || unknown) {
+        try {
+          held = {
+            at: Date.now(),
+            byCluster: await this.rbac.heldAcrossOrg(orgId, user.id, PERMISSIONS),
+          };
+        } catch {
+          // Doubt denies: if the check cannot be made, nothing is sent.
+          return false;
+        }
       }
-      const result = await this.rbac
-        .mayAttempt(orgId, user.id, clusterId, permission)
-        .then((r) => r.may)
-        // Doubt denies: if the check cannot be made, nothing is sent.
-        .catch(() => false);
-      decisions.set(key, { at: Date.now(), may: result });
-      return result;
+      return held?.byCluster.get(clusterId)?.has(permission) === true;
     };
 
     const send = (event: string, data: unknown): void => {
       response.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const sendInventory = async (clusterId: string, wanted: Iterable<string>): Promise<void> => {
+      const kinds: string[] = [];
+      for (const kind of wanted) {
+        const permission = permissionForKindName(kind);
+        if (permission !== undefined && (await may(clusterId, permission))) {
+          kinds.push(kind);
+        }
+      }
+      if (kinds.length > 0) {
+        send('inventory', { clusterId, kinds });
+      }
+    };
+
+    // Inventory events of a cluster are merged for a moment and sent together.
+    const pending = new Map<string, Set<string>>();
+    let flushTimer: NodeJS.Timeout | undefined;
+    const flush = (): void => {
+      flushTimer = undefined;
+      const batch = [...pending.entries()];
+      pending.clear();
+      chain = chain
+        .then(async () => {
+          for (const [clusterId, kinds] of batch) {
+            await sendInventory(clusterId, kinds);
+          }
+        })
+        .catch(() => undefined);
     };
 
     const deliver = async (event: PlatformEvent): Promise<void> => {
@@ -133,17 +181,13 @@ export class StreamController {
             status: event.status,
           });
         }
+      } else if (streamOptions.coalesceMs <= 0) {
+        await sendInventory(event.clusterId, event.kinds);
       } else {
-        const kinds: string[] = [];
-        for (const kind of event.kinds) {
-          const permission = permissionForKindName(kind);
-          if (permission !== undefined && (await may(event.clusterId, permission))) {
-            kinds.push(kind);
-          }
-        }
-        if (kinds.length > 0) {
-          send('inventory', { clusterId: event.clusterId, kinds });
-        }
+        const kinds = pending.get(event.clusterId) ?? new Set<string>();
+        for (const kind of event.kinds) kinds.add(kind);
+        pending.set(event.clusterId, kinds);
+        flushTimer ??= setTimeout(flush, streamOptions.coalesceMs);
       }
     };
 
@@ -173,6 +217,7 @@ export class StreamController {
 
     request.on('close', () => {
       unsubscribe();
+      clearTimeout(flushTimer);
       clearInterval(ping);
       clearInterval(sessionCheck);
       const left = (this.open.get(user.id) ?? 1) - 1;

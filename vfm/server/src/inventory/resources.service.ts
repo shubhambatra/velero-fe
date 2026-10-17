@@ -36,6 +36,9 @@ const DETAIL_OBJECT_KIND = {
 export type DetailKind = keyof typeof DETAIL_OBJECT_KIND;
 
 export const MAX_PAGE = 200;
+/** Tunable so tests, which read what they have just written, can switch the sharing off. */
+export const resourceOptions = { coverageCacheMs: 5_000 };
+
 export const DEFAULT_PAGE = 50;
 /** How many rows one request may examine while filtering for visibility. */
 const MAX_SCAN = 2_000;
@@ -380,22 +383,28 @@ export class ResourcesService {
     };
   }
 
-  /**
-   * Adds "last successful backup covering this namespace" to a page of namespaces.
-   * Looks at the newest 2 000 completed backups and the enabled schedules; the name of a
-   * backup is given only when the caller may see that backup.
-   */
-  private async addCoverage(
-    orgId: string,
-    userId: string,
-    clusterId: string,
-    items: { name: string }[],
-    token?: TokenLimit,
-  ): Promise<void> {
-    if (items.length === 0) {
-      return;
+  private readonly coverageCache = new Map<
+    string,
+    {
+      at: number;
+      value: Promise<{
+        backups: { name: string; spec: unknown; completedAt: Date | null }[];
+        schedules: { spec: unknown }[];
+      }>;
     }
-    const [backups, schedules, visibility] = await Promise.all([
+  >();
+
+  /**
+   * What coverage is worked out from: the newest 2 000 completed backups and the schedules of a
+   * cluster. Every namespaces page needs it, it is a full read of 2 000 rows with their specs, and it
+   * is the same for everybody, so it is shared for a few seconds instead of read per request.
+   */
+  private coverageInputs(orgId: string, clusterId: string) {
+    const held = this.coverageCache.get(clusterId);
+    if (held !== undefined && Date.now() - held.at < resourceOptions.coverageCacheMs) {
+      return held.value;
+    }
+    const value = Promise.all([
       this.prisma.inOrg(orgId, () =>
         this.prisma.veleroResource.findMany({
           where: { clusterId, kind: 'BACKUP', phase: 'Completed', deletedAt: null },
@@ -411,8 +420,35 @@ export class ResourcesService {
           select: { spec: true },
         }),
       ),
+    ]).then(([backups, schedules]) => ({ backups, schedules }));
+    this.coverageCache.set(clusterId, { at: Date.now(), value });
+    if (this.coverageCache.size > 5_000) this.coverageCache.clear();
+    value.catch(() => {
+      if (this.coverageCache.get(clusterId)?.value === value) this.coverageCache.delete(clusterId);
+    });
+    return value;
+  }
+
+  /**
+   * Adds "last successful backup covering this namespace" to a page of namespaces.
+   * Looks at the newest 2 000 completed backups and the enabled schedules; the name of a
+   * backup is given only when the caller may see that backup.
+   */
+  private async addCoverage(
+    orgId: string,
+    userId: string,
+    clusterId: string,
+    items: { name: string }[],
+    token?: TokenLimit,
+  ): Promise<void> {
+    if (items.length === 0) {
+      return;
+    }
+    const [inputs, visibility] = await Promise.all([
+      this.coverageInputs(orgId, clusterId),
       this.rbac.visibility(orgId, userId, clusterId, 'backup:read', token),
     ]);
+    const { backups, schedules } = inputs;
     const now = new Date();
     const mayName = (b: CoverageBackup): boolean =>
       visibility.all || visibility.sees(coveredBy('BACKUP', b.spec));

@@ -20,14 +20,33 @@ export interface TokenLimit {
 }
 
 /**
+ * How long the facts behind one request's authorization are reused. A grant that is
+ * revoked stops working within this window; the load test (docs/LOADTEST.md) showed
+ * five queries per request before the handler even ran. Tests set it to 0.
+ */
+export const rbacOptions = { cacheMs: 2_000 };
+
+const CACHE_CAP = 20_000;
+
+/**
  * Loads the facts RBAC needs (membership, teams, bindings, org settings) and
  * hands them to the pure `authorize()` in `@vfm/shared` (PLAN.md §8.2).
  *
  * This class decides nothing itself. It exists so the decision function stays
  * free of I/O and can be tested exhaustively on its own.
  */
+interface LoadedFacts {
+  membership: { orgRole: 'OWNER' | 'ADMIN' | 'MEMBER' } | null;
+  teams: { teamId: string }[];
+  bindings: RoleBinding[];
+  org: { settings: unknown } | null;
+}
+
 @Injectable()
 export class RbacService {
+  private readonly clusterSeen = new Map<string, number>();
+  private readonly loaded = new Map<string, { at: number; value: Promise<LoadedFacts> }>();
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -36,16 +55,43 @@ export class RbacService {
    * which both confirms nothing and fails to say "not found".
    */
   async assertClusterInOrg(orgId: string, clusterId: string): Promise<void> {
+    const key = `${orgId}\0${clusterId}`;
+    const seen = this.clusterSeen.get(key);
+    if (seen !== undefined && Date.now() - seen < rbacOptions.cacheMs) return;
     const cluster = await this.prisma.inOrg(orgId, () =>
       this.prisma.cluster.findUnique({ where: { id: clusterId }, select: { id: true } }),
     );
     if (cluster === null) {
       throw new NotFoundException('cluster not found');
     }
+    if (rbacOptions.cacheMs > 0) {
+      if (this.clusterSeen.size >= CACHE_CAP) this.clusterSeen.clear();
+      this.clusterSeen.set(key, Date.now());
+    }
   }
 
   /** Everything `authorize()` needs for one user, one org, one cluster. */
   async load(orgId: string, userId: string, clusterId: string, token?: TokenLimit) {
+    const facts = await this.cachedFacts(orgId, userId, clusterId);
+    const { membership, teams, bindings, org } = facts;
+    return this.assemble(userId, membership, teams, bindings, org, token);
+  }
+
+  /** Concurrent requests of one user for one cluster share one set of queries. */
+  private cachedFacts(orgId: string, userId: string, clusterId: string): Promise<LoadedFacts> {
+    const key = `${orgId}\0${userId}\0${clusterId}`;
+    const hit = this.loaded.get(key);
+    if (hit !== undefined && Date.now() - hit.at < rbacOptions.cacheMs) return hit.value;
+    const value = this.readFacts(orgId, userId, clusterId);
+    if (rbacOptions.cacheMs > 0) {
+      if (this.loaded.size >= CACHE_CAP) this.loaded.clear();
+      this.loaded.set(key, { at: Date.now(), value });
+      value.catch(() => this.loaded.delete(key));
+    }
+    return value;
+  }
+
+  private async readFacts(orgId: string, userId: string, clusterId: string): Promise<LoadedFacts> {
     const [membership, teams, bindings, org] = await this.prisma.inOrg(orgId, () =>
       Promise.all([
         this.prisma.membership.findUnique({
@@ -66,7 +112,17 @@ export class RbacService {
         this.prisma.organization.findUnique({ where: { id: orgId }, select: { settings: true } }),
       ]),
     );
+    return { membership, teams, bindings, org };
+  }
 
+  private assemble(
+    userId: string,
+    membership: LoadedFacts['membership'],
+    teams: LoadedFacts['teams'],
+    bindings: LoadedFacts['bindings'],
+    org: LoadedFacts['org'],
+    token?: TokenLimit,
+  ) {
     const principal: Principal = {
       userId,
       orgRole: membership?.orgRole,
@@ -103,6 +159,47 @@ export class RbacService {
     if (clusterIds.length === 0) {
       return result;
     }
+    const { principal, byCluster, context } = await this.loadMany(orgId, userId, clusterIds, token);
+    for (const clusterId of clusterIds) {
+      const mine = byCluster.get(clusterId) ?? [];
+      const held = new Set<Permission>();
+      for (const permission of permissions) {
+        if (mayAttempt(principal, clusterId, permission, mine, context)) {
+          held.add(permission);
+        }
+      }
+      result.set(clusterId, held);
+    }
+    return result;
+  }
+
+  /**
+   * What `permissions` the user holds on **every cluster of the org**, in a fixed number of
+   * queries. For the live event stream, which would otherwise ask per cluster and per kind.
+   */
+  async heldAcrossOrg(
+    orgId: string,
+    userId: string,
+    permissions: readonly Permission[],
+  ): Promise<Map<string, Set<Permission>>> {
+    const clusters = await this.prisma.inOrg(orgId, () =>
+      this.prisma.cluster.findMany({ select: { id: true } }),
+    );
+    return this.matrix(
+      orgId,
+      userId,
+      clusters.map((c) => c.id),
+      permissions,
+    );
+  }
+
+  /** The facts for many clusters in a fixed number of queries (four), not four per cluster. */
+  private async loadMany(
+    orgId: string,
+    userId: string,
+    clusterIds: readonly string[],
+    token?: TokenLimit,
+  ) {
     const [membership, teams, bindings, org] = await this.prisma.inOrg(orgId, () =>
       Promise.all([
         this.prisma.membership.findUnique({
@@ -117,7 +214,6 @@ export class RbacService {
         this.prisma.organization.findUnique({ where: { id: orgId }, select: { settings: true } }),
       ]),
     );
-
     const principal: Principal = {
       userId,
       orgRole: membership?.orgRole,
@@ -135,18 +231,65 @@ export class RbacService {
       list.push(binding);
       byCluster.set(binding.clusterId, list);
     }
+    return { principal, byCluster, context };
+  }
 
-    for (const clusterId of clusterIds) {
-      const mine = byCluster.get(clusterId) ?? [];
-      const held = new Set<Permission>();
-      for (const permission of permissions) {
-        if (mayAttempt(principal, clusterId, permission, mine, context)) {
-          held.add(permission);
-        }
+  /**
+   * {@link visibility} for many clusters at once, from the same four queries. The reports cover
+   * every cluster a person can read; asking per cluster was two hundred round trips of four
+   * queries each for one page.
+   */
+  async visibilities(
+    orgId: string,
+    userId: string,
+    clusterIds: readonly string[],
+    permission: Permission,
+    token?: TokenLimit,
+  ): Promise<
+    Map<
+      string,
+      {
+        all: boolean;
+        sees: (covered: { namespaces: string[]; includesClusterScoped: boolean }) => boolean;
       }
-      result.set(clusterId, held);
+    >
+  > {
+    const out = new Map<
+      string,
+      {
+        all: boolean;
+        sees: (covered: { namespaces: string[]; includesClusterScoped: boolean }) => boolean;
+      }
+    >();
+    if (clusterIds.length === 0) {
+      return out;
     }
-    return result;
+    const { principal, byCluster, context } = await this.loadMany(orgId, userId, clusterIds, token);
+    for (const clusterId of clusterIds) {
+      const bindings = byCluster.get(clusterId) ?? [];
+      const whole = authorize(
+        principal,
+        { clusterId, permission, namespaces: ['*'], includesClusterScoped: true },
+        bindings,
+        context,
+      );
+      out.set(clusterId, {
+        all: whole.allowed,
+        sees: (covered) =>
+          authorize(
+            principal,
+            {
+              clusterId,
+              permission,
+              namespaces: covered.namespaces,
+              includesClusterScoped: covered.includesClusterScoped,
+            },
+            bindings,
+            context,
+          ).allowed,
+      });
+    }
+    return out;
   }
 
   /**

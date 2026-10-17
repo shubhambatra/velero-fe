@@ -121,6 +121,8 @@ describe('server-sent events (e2e, two replicas)', () => {
   beforeEach(async () => {
     await a.reset();
     streamOptions.permissionTtlMs = 10_000;
+    // Most cases below read events one by one; coalescing has its own.
+    streamOptions.coalesceMs = 0;
     streamOptions.sessionCheckMs = 60_000;
   });
 

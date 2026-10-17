@@ -209,6 +209,12 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  /**
+   * Connections each replica may hold to Postgres. The load test (docs/LOADTEST.md) starved at 10:
+   * every inventory snapshot, command and page holds one for its whole transaction. Replicas ×
+   * this must stay under Postgres's `max_connections`.
+   */
+  DATABASE_POOL_MAX: z.coerce.number().int().min(2).max(200).default(30),
   /** How long a restore waits for approval before it times out (PLAN.md §8.4). */
   RESTORE_APPROVAL_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(24),
   LOG_SESSIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),
