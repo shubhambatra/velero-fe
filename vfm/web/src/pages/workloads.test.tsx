@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { FakeEventSource } from '@/test/event-source';
 import { jsonResponse, renderApp, stubFetch } from '@/test/utils';
 
 const USER = { id: 'u1', email: 'a@b.co', name: null, isPlatformAdmin: false, mfaEnabled: false };
@@ -144,6 +145,12 @@ function server() {
         const ns = u.searchParams.get('namespace');
         return page(ns === null || ns === 'shop' ? [POD] : []);
       }
+      case 'log-shortcuts':
+        return jsonResponse({
+          namespace: 'velero',
+          server: [{ pod: 'velero-7d9', container: 'velero', node: 'n1' }],
+          nodeAgent: [],
+        });
       case 'inventory/nodes':
         return page([NODE]);
       case 'inventory/pvcs':
@@ -183,6 +190,62 @@ describe('the workloads page', () => {
       ).toBe(true);
     });
     expect(screen.getByRole('button', { name: 'Pods' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('opens a container’s live log from the pod list and closes it again', async () => {
+    const user = userEvent.setup();
+    FakeEventSource.install();
+    const sent: { method: string; url: string; body: unknown }[] = [];
+    const inner = vi.mocked(fetch);
+    server();
+    const base = vi.mocked(fetch).getMockImplementation();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>((input, init) => {
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url.endsWith('/log-sessions') || /log-sessions\/[^/]+$/.test(url)) {
+          sent.push({
+            method: init?.method ?? 'GET',
+            url,
+            body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+          });
+          return Promise.resolve(
+            init?.method === 'DELETE'
+              ? new Response(null, { status: 204 })
+              : jsonResponse({
+                  sessionId: 's1',
+                  streamUrl: 'log-sessions/s1/stream',
+                  expiresAt: 'x',
+                }),
+          );
+        }
+        return base?.(input, init) ?? inner(input, init);
+      }),
+    );
+    renderApp({ path: '/clusters/c1/workloads' });
+    await user.click(await screen.findByRole('button', { name: 'Pods' }));
+    await user.click(await screen.findByText('web-1'));
+    await user.click(await screen.findByRole('button', { name: 'Logs of side in web-1' }));
+    expect(await screen.findByRole('log', { name: 'Log output' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'shop/web-1 · side' })).toBeVisible();
+    await waitFor(() => {
+      expect(sent[0]?.body).toMatchObject({ namespace: 'shop', pod: 'web-1', container: 'side' });
+    });
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('log')).toBeNull();
+    await waitFor(() => {
+      expect(sent.some((c) => c.method === 'DELETE')).toBe(true);
+    });
+  });
+
+  it('offers a one-click log of the Velero server on the pods view', async () => {
+    const user = userEvent.setup();
+    FakeEventSource.install();
+    server();
+    renderApp({ path: '/clusters/c1/workloads' });
+    await user.click(await screen.findByRole('button', { name: 'Pods' }));
+    expect(await screen.findByRole('button', { name: 'Velero server' })).toBeVisible();
   });
 
   it('drills from a pod into its containers', async () => {

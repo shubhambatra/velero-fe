@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactElement } from 'react';
 
 import { ClusterShell } from '@/components/cluster-shell';
+import { LiveLogsPanel, VeleroLogShortcuts } from '@/components/live-logs';
 import { ResourceList, type Column, type Extra } from '@/components/resource-list';
 import { Time } from '@/components/time';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ import {
   type PodRow,
   type PvcRow,
 } from '@/lib/resources';
+import type { LogTarget } from '@/lib/log-session';
 import { PhaseBadge } from '@/pages/cluster-lists';
 
 interface Props {
@@ -60,6 +62,8 @@ export function WorkloadsPage({ orgId, clusterId }: Props): ReactElement {
   const [view, setView] = useState<View>('namespaces');
   // Following a namespace's "Pods" link filters the pods list to it.
   const [podNamespace, setPodNamespace] = useState('');
+  // The container whose log is open, wherever it was chosen from.
+  const [logTarget, setLogTarget] = useState<LogTarget | null>(null);
   return (
     <ClusterShell orgId={orgId} clusterId={clusterId} tab="workloads">
       <div role="group" aria-label="Show" className="flex flex-wrap gap-1">
@@ -87,7 +91,27 @@ export function WorkloadsPage({ orgId, clusterId }: Props): ReactElement {
         />
       )}
       {view === 'pods' && (
-        <PodsTable orgId={orgId} clusterId={clusterId} initialNamespace={podNamespace} />
+        <VeleroLogShortcuts orgId={orgId} clusterId={clusterId} onOpen={setLogTarget} />
+      )}
+      {logTarget !== null && (
+        <LiveLogsPanel
+          // A different container is a different session.
+          key={`${logTarget.namespace}/${logTarget.pod}/${logTarget.container ?? ''}`}
+          orgId={orgId}
+          clusterId={clusterId}
+          target={logTarget}
+          onClose={() => {
+            setLogTarget(null);
+          }}
+        />
+      )}
+      {view === 'pods' && (
+        <PodsTable
+          orgId={orgId}
+          clusterId={clusterId}
+          initialNamespace={podNamespace}
+          onShowLogs={setLogTarget}
+        />
       )}
       {view === 'nodes' && <NodesTable orgId={orgId} clusterId={clusterId} />}
       {view === 'pvcs' && <PvcsTable orgId={orgId} clusterId={clusterId} />}
@@ -179,7 +203,17 @@ function NamespacesTable({
   );
 }
 
-function Containers({ containers }: { containers: ContainerRow[] }): ReactElement {
+function Containers({
+  containers,
+  namespace,
+  pod,
+  onShowLogs,
+}: {
+  containers: ContainerRow[];
+  namespace: string;
+  pod: string;
+  onShowLogs: (target: LogTarget) => void;
+}): ReactElement {
   if (containers.length === 0) {
     return <p className="text-xs text-muted-foreground">No container status reported yet.</p>;
   }
@@ -192,26 +226,43 @@ function Containers({ containers }: { containers: ContainerRow[] }): ReactElemen
           <th className="pr-3">State</th>
           <th className="pr-3">Ready</th>
           <th className="pr-3">Restarts</th>
-          <th>Last ended because</th>
+          <th className="pr-3">Last ended because</th>
+          <th>Log</th>
         </tr>
       </thead>
       <tbody>
-        {containers.map((c) => (
-          <tr key={`${c.init ? 'init-' : ''}${c.name ?? ''}`}>
-            <td className="pr-3 font-mono">
-              {c.name}
-              {c.init && <span className="text-muted-foreground"> (init)</span>}
-            </td>
-            <td className="pr-3 font-mono">{c.image}</td>
-            <td className="pr-3">
-              {c.state}
-              {c.reason !== null && c.reason !== '' && <> · {c.reason}</>}
-            </td>
-            <td className="pr-3">{c.ready ? 'yes' : 'no'}</td>
-            <td className="pr-3">{c.restarts}</td>
-            <td>{c.lastTerminationReason ?? '—'}</td>
-          </tr>
-        ))}
+        {containers.map((c) => {
+          const name = c.name;
+          return (
+            <tr key={`${c.init ? 'init-' : ''}${c.name ?? ''}`}>
+              <td className="pr-3 font-mono">
+                {c.name}
+                {c.init && <span className="text-muted-foreground"> (init)</span>}
+              </td>
+              <td className="pr-3 font-mono">{c.image}</td>
+              <td className="pr-3">
+                {c.state}
+                {c.reason !== null && c.reason !== '' && <> · {c.reason}</>}
+              </td>
+              <td className="pr-3">{c.ready ? 'yes' : 'no'}</td>
+              <td className="pr-3">{c.restarts}</td>
+              <td className="pr-3">{c.lastTerminationReason ?? '—'}</td>
+              <td>
+                {name !== null && (
+                  <Button
+                    variant="outline"
+                    aria-label={`Logs of ${name} in ${pod}`}
+                    onClick={() => {
+                      onShowLogs({ namespace, pod, container: name });
+                    }}
+                  >
+                    Logs
+                  </Button>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -221,7 +272,8 @@ function PodsTable({
   orgId,
   clusterId,
   initialNamespace,
-}: Props & { initialNamespace: string }): ReactElement {
+  onShowLogs,
+}: Props & { initialNamespace: string; onShowLogs: (target: LogTarget) => void }): ReactElement {
   const extras = useNamespaceChoices(orgId, clusterId);
   const columns: Column<PodRow>[] = [
     { header: 'Namespace', cell: (p) => <span className="font-mono">{p.namespace}</span> },
@@ -232,7 +284,12 @@ function PodsTable({
           <summary className="cursor-pointer font-mono" aria-label={`Containers of ${p.name}`}>
             {p.name}
           </summary>
-          <Containers containers={p.containers} />
+          <Containers
+            containers={p.containers}
+            namespace={p.namespace}
+            pod={p.name}
+            onShowLogs={onShowLogs}
+          />
         </details>
       ),
     },
