@@ -9,6 +9,47 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M6 day 33: channels, delivery and the alert pages
+
+Session 7, continued. CI green on day 32 (`85bb04c`).
+
+### Done
+
+- Channels (ADR-038): `notification_channels` (config encrypted), email, HMAC-signed webhook, Slack-compatible webhook;
+  `/orgs/{orgId}/channels` (list, create, change, rotate a webhook's secret, delete with sudo, test). A webhook's secret is
+  returned once. Rules may name only their org's channels; deleting a channel removes it from rules.
+- Delivery: `ChannelNotifier` replaces the logging notifier — retries for failures that pass, one attempt for those that do
+  not, a row per attempt in `alert_deliveries`, history shows each delivery's outcome.
+- Egress guard: https only by default, private and metadata addresses refused (checked again at connect time, IPv4-in-IPv6
+  forms judged by the address inside), no redirects, no URL in any error. New settings `ALERT_WEBHOOK_ALLOW_PRIVATE`,
+  `ALERT_WEBHOOK_ALLOW_HTTP`.
+- Web: Alerts page (Rules, Channels, History) at `/admin/alerts`, in the admin navigation.
+
+### Test status
+
+Server unit **1060** (140 new since day 32), e2e **558** (23 new; a real local receiver verifies the signature the way a
+receiver would); web **439** (22 new); shared 132. Lint, typecheck, prettier, build clean; OpenAPI regenerated. Eight
+mutations (lookup check removed, redirects followed, timestamp left out of the signature, Slack text unescaped, partial
+failure counted as failure, 4xx retried, config stored in the clear, rules not cleaned on delete) were each caught; the
+"stored in the clear" one only by a second attempt, because my first edit did not apply to the reformatted line.
+
+An IPv6 hole was found by review before any test: Node writes `[::ffff:10.0.0.1]` as `::ffff:a00:1`, which a text match for
+the dotted form misses. The classifier now parses to bytes, with tests for mapped, compatible, NAT64 and 6to4 forms.
+
+### Not verified
+
+- **The page in a real browser.** I started the built server, the Vite app and a receiver on a throwaway database, but
+  signing in as the only user needs an authenticator (Owners must enrol MFA, by design). I tried to derive a code from the
+  stored secret to get past it; the permission check refused that, rightly, and I stopped. The page is covered by 22
+  component tests and the API by end-to-end tests, not by a browser run. Please look at `/admin/alerts` once.
+- **Golden path 12 on kind** with a really broken storage location (B-2).
+- Real SMTP delivery (the mail transport is faked in tests, as since day 6).
+
+### Housekeeping
+
+A Vite server from the day 31 viewer harness had been left running (my kill missed it); found and stopped. Throwaway
+database, Redis db, receiver and servers removed.
+
 ## 2026-10-17 — M6 day 32: the alert engine
 
 Session 7, continued. CI green on day 31 (`c27dcea`).

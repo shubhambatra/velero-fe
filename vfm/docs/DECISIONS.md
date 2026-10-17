@@ -2026,3 +2026,47 @@ says an alert worker evaluates rules on a terminal phase, on BullMQ. The control
 - Backups are read newest-first up to 5 000 per cluster per evaluation; a cluster with more would see older ones ignored.
 - An agent that disconnects shows up as an alert only after the rule's minutes plus up to one interval.
 - BSL and schedule conditions describe the last state the agent reported; they do not clear while an agent is away.
+
+## ADR-038 — Channels and delivery (M6 day 33)
+
+### Context
+
+Alerts (ADR-037) need somewhere to go: email, a generic webhook with an HMAC-signed body, and a Slack-compatible
+webhook. An org admin names the destination, the control plane sends the request from inside the operator's network, and a
+Slack URL is a bearer credential.
+
+### Decision
+
+- **Destinations are validated, and the address connected to is the address checked** (`alerts/channels/egress.ts`). `https`
+  only (plain `http` by `ALERT_WEBHOOK_ALLOW_HTTP`); no user name or password in the URL; loopback, RFC 1918, carrier-grade
+  NAT and unique-local addresses refused unless `ALERT_WEBHOOK_ALLOW_PRIVATE` (on-prem receivers need it); link-local,
+  multicast, unspecified and the cloud metadata address refused always. IPv6 is parsed to bytes so that `::ffff:a00:1`,
+  NAT64, 6to4 and `::a.b.c.d` are judged as the IPv4 address inside them (Node normalizes `[::ffff:10.0.0.1]` to the hex form,
+  which a text match would miss). The check runs again in the socket's own `lookup` at send time, a name with any refused
+  address is refused outright, connections are never reused (`agent: false`) and redirects are not followed.
+- **Nothing identifying the destination is stored or shown beyond the encrypted column.** `config_encrypted` holds recipients,
+  URL and the signing secret (envelope encryption, context per channel). Answers show the origin only. Errors are fixed
+  sentences ("the destination answered HTTP 500"), never the URL, the response body or the library's text. A test scans every
+  table for a planted URL path and secret.
+- **Signing.** `X-VFM-Signature: sha256=hex(HMAC(secret, "<timestamp>.<body>"))`, with `X-VFM-Timestamp`, `X-VFM-Event-Id` and
+  `X-VFM-Kind`. The timestamp is signed so a captured request cannot be replayed later; the event id lets a receiver drop a
+  repeat. The secret is made by the server (`whsec_…`), returned once in the answer that made it, and can be rotated.
+- **Text from the cluster is data, not markup.** Control characters are stripped and lengths bounded, subjects are one line
+  (no header injection), and Slack text escapes `& < >` so a failure reason cannot ping a channel or plant a link.
+- **Delivery.** Each channel: up to 3 attempts (0.5 s, 2 s) for failures that pass (timeouts, 5xx, 429, resets), one for those
+  that do not (4xx, refused address, bad certificate). Every outcome is a row in `alert_deliveries` (a table PLAN §9 does not
+  list; it keeps the channel's name when the channel is deleted). The engine's contract (ADR-037) is kept: the notifier
+  returns when at least one channel took the message and throws only when all failed, then waits five minutes before the same
+  message is offered again. A channel that failed while another succeeded is not retried for that message, which would send
+  the others a duplicate; it stays visible in the history, and the next re-notify is another chance.
+- **Test button** does one attempt and answers `{ ok, error? }`. Rules may name only channels of their org, and deleting a
+  channel removes it from the rules that named it.
+- **UI.** `/admin/alerts` with Rules, Channels and History; Owner/Admin only. The signing secret is shown once with a
+  "saved it" step; editing a URL channel keeps its address unless a new one is typed.
+
+### Consequences
+
+- A receiver on a private network is refused until the operator turns `ALERT_WEBHOOK_ALLOW_PRIVATE` on; the error says so.
+- Email depends on the server's SMTP settings; without them every email delivery fails visibly.
+- No queue: delivery happens inside the evaluation tick, so a slow receiver delays the others by up to its timeout (10 s,
+  three attempts). Acceptable at the scale in PLAN §14; a worker is the next step if it is not.

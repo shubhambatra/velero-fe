@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-17 (session 7, M6 day 32) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-17 (session 7, M6 day 33) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -178,7 +178,7 @@ criteria are still unmet (B-1, B-2).
 - **M5 day 28 done** (ADR-033): core inventory — `agent/internal/inventory/core.go`, `WatchScope` in `gateway.proto`, `server/src/inventory/{watch-scope.service,projections}.ts`, `GET …/inventory/{nodes,namespaces,pods,pvcs,events}`.
 - **M5 day 29 done** (ADR-034): workloads UI — `web/src/pages/workloads.tsx`, `server/src/inventory/coverage.ts`.
 - **M5 day 30 done** (ADR-035): live log sessions — `agent/internal/logs/streamer.go`, `server/src/logs/*`, `LOG_SESSION_END_REASON_COMPLETED` in `logs.proto`; routes `POST|DELETE …/log-sessions`, `GET …/log-sessions/:id/stream` (SSE: `chunk`, then one `ended`) and `GET …/log-shortcuts`. Nothing is stored; the agent is started when the first stream opens.
-- **Next: M6 day 33 — channels and alert UI** (plan line 767): email, generic webhook (HMAC-signed body), Slack-compatible webhook, a test-send button, and the rules / channels / history pages; golden path 12 (R-151) needs it. Day 32 is done: the engine, `alert_rules` and `alert_events`, `/orgs/{orgId}/alerts/{rules,events}` (Owner/Admin), a timer on one replica at a time (`ALERT_EVAL_INTERVAL_SECONDS`, default 30). Day 33 supplies the `AlertNotifier` implementation (today it only logs, `alerts/notifier.ts`) and the `notification_channels` table; `alert_rules.channel_ids` is JSON with no foreign key until then. Resolve and re-notify semantics are in ADR-037. Still open from M5: the viewer in a visible browser (jump to a far search match), the M5 exit criteria on kind (B-2), and moving the backup/restore log panel onto the new viewer.
+- **Next: M6 day 34 — reports** (plan line 770): success rate over time, namespace coverage (namespaces with no successful backup in X hours), RPO compliance per schedule; charts and CSV export; computed in SQL over `velero_resources`. Day 33 is done: channels (email, HMAC-signed webhook, Slack-compatible), delivery with retries and a per-attempt record, the test button, and the Alerts page (rules, channels, history) under `/admin/alerts`. Open: golden path 12 on kind with a really broken BSL (B-2); the new page has not been driven in a real browser (the throwaway app needed an authenticator, see PROGRESS); Helm values for `ALERT_EVAL_INTERVAL_SECONDS`, `ALERT_WEBHOOK_ALLOW_PRIVATE` and `ALERT_WEBHOOK_ALLOW_HTTP` (defaults apply, private and http destinations are refused by default — on-prem receivers need them on). Still open from M5: the viewer in a visible browser, M5 exit criteria on kind (B-2).
 - The plan's ⛔ checkpoint after M1 was waived by the user; M0 is still unmet.
 
 ---
