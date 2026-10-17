@@ -194,6 +194,21 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  /**
+   * Where the OIDC client may connect (discovery, token and key requests go to the issuer an org
+   * Admin named). Private networks and plain http are refused unless these are on: an identity
+   * provider inside the customer's network is the usual case and needs them on, and the default
+   * keeps a registered issuer from being a way to probe the control plane's own network.
+   * Link-local and metadata addresses are refused either way.
+   */
+  OIDC_ALLOW_PRIVATE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  OIDC_ALLOW_HTTP: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   /** How long a restore waits for approval before it times out (PLAN.md §8.4). */
   RESTORE_APPROVAL_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(24),
   LOG_SESSIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),

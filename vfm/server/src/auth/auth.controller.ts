@@ -25,6 +25,7 @@ import type { Env } from '../config/env.schema';
 import { PlatformAlreadyInitialisedError, UsersService } from '../users/users.service';
 import type { AuthenticatedUser } from './authenticated-user';
 import { AuthService } from './auth.service';
+import { FactorThrottleService } from './factor-throttle.service';
 import { loginSchema, setupSchema, sudoSchema } from './auth.dto';
 import { CurrentUser } from './current-user.decorator';
 import { AllowsMfaPending } from './mfa-pending.decorator';
@@ -57,6 +58,7 @@ export class AuthController {
     private readonly setup: SetupService,
     private readonly mfa: MfaService,
     private readonly cookies: SessionCookiesService,
+    private readonly factorThrottle: FactorThrottleService,
   ) {}
 
   @Public()
@@ -190,10 +192,18 @@ export class AuthController {
   ): Promise<{ expiresAt: string }> {
     const input = parseBody(sudoSchema, body);
 
-    const verified =
-      input.password === undefined
-        ? (await this.mfa.verifySecondFactor(user.id, input.code ?? '')).valid
-        : await this.users.verifyPassword(user.id, input.password);
+    // A code is throttled inside `verifySecondFactor`; a password is not, so it is counted here,
+    // in the same budget: whoever holds a session cookie must not get unlimited tries at either.
+    let verified: boolean;
+    if (input.password === undefined) {
+      verified = (await this.mfa.verifySecondFactor(user.id, input.code ?? '')).valid;
+    } else {
+      await this.factorThrottle.assertOpen(user.id);
+      verified = await this.users.verifyPassword(user.id, input.password);
+      await (verified
+        ? this.factorThrottle.recordSuccess(user.id)
+        : this.factorThrottle.recordFailure(user.id));
+    }
 
     if (!verified) {
       // Same message for a wrong password and a wrong code: the caller knows

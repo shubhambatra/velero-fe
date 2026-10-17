@@ -1,3 +1,4 @@
+import { checkUrl } from '../alerts/channels/egress';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OidcProvider } from '@prisma/client';
 
@@ -180,15 +181,15 @@ export class OidcProvidersService {
   }
 
   private assertIssuer(issuer: string): void {
-    const url = new URL(issuer);
-    // Production refuses plain http: the discovery document and the token
-    // exchange carry the client secret and the authorization code. Dev allows
-    // it so Dex can run on localhost without certificates.
-    if (url.protocol !== 'https:' && this.env.NODE_ENV === 'production') {
-      throw new BadRequestException('the issuer must use https');
-    }
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      throw new BadRequestException('the issuer must be an http(s) URL');
+    // The control plane will connect to this address (discovery, token, keys), so it is held to
+    // the same rules as an alert webhook: https, no credentials in the URL, and no private or
+    // link-local address unless the operator allowed it for identity providers.
+    const refusal = checkUrl(issuer, {
+      allowPrivate: this.env.OIDC_ALLOW_PRIVATE,
+      allowHttp: this.env.OIDC_ALLOW_HTTP,
+    });
+    if (refusal !== null) {
+      throw new BadRequestException(`issuer: ${refusal}`);
     }
   }
 

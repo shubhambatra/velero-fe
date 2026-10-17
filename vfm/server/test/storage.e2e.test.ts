@@ -489,19 +489,57 @@ describe('storage location operations (e2e)', () => {
       s.stream.cancel();
     });
 
-    it('is open to a token for everything but a delete', async () => {
+    it('is closed to an API token for every write, as for a delete (sudo, PLAN.md §8.3)', async () => {
       const s = await setup();
       const token = (
         (await s.call('post', `/orgs/${s.orgId}/tokens`, { name: 't' }).expect(201)).body as {
           token: string;
         }
       ).token;
-      await harness
-        .api()
-        .post(`/api/v1${s.base}/backup-locations`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(body())
-        .expect(202);
+      const send = (method: 'post' | 'put' | 'delete', path: string) =>
+        harness
+          .api()
+          [method](`/api/v1${s.base}/${path}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(method === 'delete' ? undefined : body());
+      await send('post', 'backup-locations').expect(403);
+      await send('put', 'backup-locations/primary').expect(403);
+      await send('post', 'backup-locations/primary/default').expect(403);
+      await send('post', 'snapshot-locations').expect(403);
+      await send('put', 'snapshot-locations/snaps').expect(403);
+      await send('delete', 'backup-locations/primary').expect(403);
+      await send('delete', 'snapshot-locations/snaps').expect(403);
+      s.stream.cancel();
+    });
+
+    it('needs a recent login for every write, not only a delete', async () => {
+      const s = await setup();
+      const stale = await harness.app
+        .get(SessionService)
+        .create({ userId: s.userId, ip: '127.0.0.1', userAgent: 'v' });
+      await harness.app
+        .get(SessionService)
+        .update(stale.id, { lastReauthAt: Date.now() - 10 * 60_000 });
+      const as = (method: 'post' | 'put', path: string) =>
+        harness
+          .api()
+          [method](`/api/v1${s.base}/${path}`)
+          .set(
+            'Cookie',
+            `${SessionService.COOKIE}=${stale.id}; ${SessionService.CSRF_COOKIE}=${stale.csrfToken}`,
+          )
+          .set('x-csrf-token', stale.csrfToken)
+          .send(body());
+      for (const [method, path] of [
+        ['post', 'backup-locations'],
+        ['put', 'backup-locations/primary'],
+        ['post', 'backup-locations/primary/default'],
+        ['post', 'snapshot-locations'],
+        ['put', 'snapshot-locations/snaps'],
+      ] as const) {
+        const r = await as(method, path).expect(403);
+        expect(r.body.sudoRequired, path).toBe(true);
+      }
       s.stream.cancel();
     });
   });

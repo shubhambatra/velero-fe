@@ -206,7 +206,8 @@ export class EnrollmentService {
 
   /** Issues a replacement certificate; the current one stays valid until it expires. */
   async renew(der: Buffer, csrPem: string): Promise<EnrollResult> {
-    const { clusterId, orgId } = await this.authenticate(der);
+    const presented = await this.authenticate(der);
+    const { clusterId, orgId } = presented;
 
     let issued;
     try {
@@ -230,6 +231,30 @@ export class EnrollmentService {
         },
       }),
     );
+
+    // A revocation can land between authenticating the old certificate and recording the new one:
+    // it would have missed the new row. Look again; if the old certificate is gone, so is the new.
+    const stillGood = await this.prisma.unscoped(
+      'an agent certificate identifies its cluster and org',
+      () =>
+        this.prisma.agentCertificate.findUnique({
+          where: { serial: presented.serial },
+          select: { revokedAt: true, cluster: { select: { status: true } } },
+        }),
+    );
+    if (
+      stillGood === null ||
+      stillGood.revokedAt !== null ||
+      stillGood.cluster.status === 'DISABLED'
+    ) {
+      await this.prisma.inOrg(orgId, () =>
+        this.prisma.agentCertificate.updateMany({
+          where: { serial: issued.serial },
+          data: { revokedAt: new Date() },
+        }),
+      );
+      throw new UnauthorizedException('the client certificate has been revoked');
+    }
 
     return {
       clusterId,

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -109,7 +110,16 @@ func fetchCmd(kind pb.DownloadTargetKind, name string, max int64) *pb.Command {
 
 func downloader(c *dynamicfake.FakeDynamicClient, s *sink) *DownloadHandler {
 	return &DownloadHandler{Dynamic: c, Namespace: "velero", Send: s.send, NewID: func() string { return "m" },
-		PollInterval: 5 * time.Millisecond, SendTimeout: time.Second}
+		PollInterval: 5 * time.Millisecond, SendTimeout: time.Second,
+		// The same client the agent uses, except that it may reach the loopback address of the test server.
+		HTTP: safeDownloadClient(func(net.IP) bool { return false })}
+}
+
+// theAgentsOwnClient is what a handler gets when nothing is injected.
+func theAgentsOwnClient(c *dynamicfake.FakeDynamicClient, s *sink) *DownloadHandler {
+	h := downloader(c, s)
+	h.HTTP = nil
+	return h
 }
 
 const backupLog = pb.DownloadTargetKind_DOWNLOAD_TARGET_KIND_BACKUP_LOG
@@ -357,5 +367,75 @@ func TestStopsWaitingForVeleroWhenCancelled(t *testing.T) {
 	left, _ := c.Resource(downloadRequests).Namespace("velero").List(context.Background(), metav1.ListOptions{})
 	if len(left.Items) != 0 {
 		t.Fatal("a cancelled download must still clean up")
+	}
+}
+
+func TestAddressesTheAgentMustNeverFetchFrom(t *testing.T) {
+	for _, tc := range []struct {
+		ip      string
+		refused bool
+	}{
+		{"127.0.0.1", true}, {"127.1.2.3", true}, {"::1", true},
+		{"169.254.169.254", true}, {"169.254.0.1", true}, {"fe80::1", true},
+		{"0.0.0.0", true}, {"::", true}, {"224.0.0.1", true}, {"ff02::1", true}, {"255.255.255.255", true},
+		{"::ffff:127.0.0.1", true}, {"::ffff:169.254.169.254", true},
+		// Object storage inside the customer's network is a legitimate place for backups.
+		{"10.0.0.5", false}, {"172.16.4.4", false}, {"192.168.1.20", false}, {"fd00::5", false},
+		{"93.184.216.34", false}, {"2606:4700::1111", false},
+	} {
+		ip := net.ParseIP(tc.ip)
+		if ip == nil {
+			t.Fatalf("bad test address %s", tc.ip)
+		}
+		if got := refusedAddress(ip); got != tc.refused {
+			t.Errorf("%s: refused = %v, want %v", tc.ip, got, tc.refused)
+		}
+	}
+}
+
+func TestADownloadAddressOnTheAgentsOwnHostIsNeverConnectedTo(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = w.Write([]byte("internal secret"))
+	}))
+	defer srv.Close()
+	c, s := newDownloadClient(), &sink{}
+	veleroProcesses(c, 0, srv.URL+"/metrics")
+	res := theAgentsOwnClient(c, s).Handle(context.Background(), fetchCmd(backupLog, "b", 0))
+	if res.GetOk() || hits.Load() != 0 || len(s.data()) != 0 {
+		t.Fatalf("hits=%d data=%q res=%v", hits.Load(), s.data(), res)
+	}
+	// The error says nothing about where it tried to go.
+	if strings.Contains(res.GetErrorMessage(), "127.0.0.1") || strings.Contains(res.GetErrorMessage(), srv.URL) {
+		t.Fatalf("the message names the destination: %q", res.GetErrorMessage())
+	}
+}
+
+func TestACloudMetadataAddressIsNeverConnectedTo(t *testing.T) {
+	c, s := newDownloadClient(), &sink{}
+	veleroProcesses(c, 0, "http://169.254.169.254/latest/meta-data/iam/security-credentials/")
+	res := theAgentsOwnClient(c, s).Handle(context.Background(), fetchCmd(backupLog, "b", 0))
+	if res.GetOk() || len(s.data()) != 0 {
+		t.Fatalf("%v", res)
+	}
+}
+
+func TestARedirectIsNotFollowedEvenToAnAllowedAddress(t *testing.T) {
+	var followed atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		followed.Add(1)
+		_, _ = w.Write([]byte("elsewhere"))
+	}))
+	defer target.Close()
+	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	defer redirector.Close()
+	c, s := newDownloadClient(), &sink{}
+	veleroProcesses(c, 0, redirector.URL+"/file")
+	res := downloader(c, s).Handle(context.Background(), fetchCmd(backupLog, "b", 0))
+	if res.GetOk() || followed.Load() != 0 || len(s.data()) != 0 {
+		t.Fatalf("followed=%d data=%q res=%v", followed.Load(), s.data(), res)
 	}
 }

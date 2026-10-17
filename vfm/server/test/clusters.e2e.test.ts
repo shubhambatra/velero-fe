@@ -4,7 +4,7 @@ import { createHash, X509Certificate } from 'node:crypto';
 
 import * as x509 from '@peculiar/x509';
 import type request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CSRF_HEADER } from '../src/auth/csrf.guard';
 import { SessionService } from '../src/auth/session.service';
@@ -422,6 +422,29 @@ describe('clusters and enrollment (e2e)', () => {
     it('refuses to renew without a valid certificate', async () => {
       await enrolled();
       await expect(enrollment.renew(Buffer.from('garbage'), await newCsr())).rejects.toThrow();
+    });
+
+    it('does not hand out a certificate when the old one is revoked while the new one is being made', async () => {
+      const { admin, orgId, c, result } = await enrolled();
+      const ca = harness.app.get(CaService);
+      const sign = ca.signAgentCsr.bind(ca);
+      // The race: the cluster is disabled after the old certificate was accepted, before the new one is recorded.
+      const spy = vi.spyOn(ca, 'signAgentCsr').mockImplementation(async (...args) => {
+        const issued = await sign(...args);
+        await admin.call('post', `/orgs/${orgId}/clusters/${c.cluster.id}/disable`).expect(200);
+        return issued;
+      });
+      await expect(enrollment.renew(der(result.certificatePem), await newCsr())).rejects.toThrow(
+        /revoked/,
+      );
+      spy.mockRestore();
+      // Nothing live is left for this cluster: the late certificate was revoked as well.
+      const live = await harness.prisma.unscoped('t', () =>
+        harness.prisma.agentCertificate.count({
+          where: { clusterId: c.cluster.id, revokedAt: null },
+        }),
+      );
+      expect(live).toBe(0);
     });
 
     it('denies a certificate the moment its cluster is disabled, and again after re-enabling', async () => {

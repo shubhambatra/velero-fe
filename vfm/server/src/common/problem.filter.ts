@@ -1,3 +1,4 @@
+import { ThrottledException } from './throttled.exception';
 import {
   ArgumentsHost,
   Catch,
@@ -102,6 +103,13 @@ export class ProblemExceptionFilter implements ExceptionFilter {
           err: redact(exception),
         },
         'unhandled exception',
+      );
+    }
+
+    if (exception instanceof ThrottledException) {
+      response.setHeader(
+        'Retry-After',
+        Math.max(1, Math.ceil(exception.retryAfterSeconds)).toString(),
       );
     }
 

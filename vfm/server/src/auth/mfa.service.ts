@@ -1,3 +1,4 @@
+import { FactorThrottleService } from './factor-throttle.service';
 import { Injectable, Logger } from '@nestjs/common';
 
 import { CryptoService, EncryptionContext } from '../crypto/crypto.service';
@@ -29,6 +30,7 @@ export class MfaService {
     private readonly crypto: CryptoService,
     private readonly totp: TotpService,
     private readonly recoveryCodes: RecoveryCodesService,
+    private readonly throttle: FactorThrottleService,
   ) {}
 
   /**
@@ -98,6 +100,17 @@ export class MfaService {
    * client sets.
    */
   async verifySecondFactor(userId: string, submitted: string): Promise<SecondFactorResult> {
+    await this.throttle.assertOpen(userId);
+    const result = await this.checkSecondFactor(userId, submitted);
+    if (result.valid) {
+      await this.throttle.recordSuccess(userId);
+    } else {
+      await this.throttle.recordFailure(userId);
+    }
+    return result;
+  }
+
+  private async checkSecondFactor(userId: string, submitted: string): Promise<SecondFactorResult> {
     const trimmed = submitted.trim();
 
     if (/^\d{6}$/.test(trimmed.replace(/\s/g, ''))) {

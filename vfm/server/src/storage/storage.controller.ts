@@ -18,7 +18,6 @@ import { RequiresSudo } from '../auth/sudo.guard';
 import { parseBody } from '../common/parse-body';
 import { orgIdParam } from '../orgs/orgs.dto';
 import { RequirePermission } from '../rbac/require-permission.decorator';
-import { AllowsApiToken } from '../tokens/api-token.decorator';
 import { locationName } from './location-request';
 import { StorageService } from './storage.service';
 
@@ -36,7 +35,7 @@ export class StorageController {
 
   @Post('backup-locations')
   @HttpCode(HttpStatus.ACCEPTED)
-  @AllowsApiToken()
+  @RequiresSudo()
   @RequirePermission('storage:write')
   @ApiOperation({
     summary: 'Create a backup storage location (velero backup-location create)',
@@ -60,7 +59,7 @@ export class StorageController {
 
   @Put('backup-locations/:name')
   @HttpCode(HttpStatus.ACCEPTED)
-  @AllowsApiToken()
+  @RequiresSudo()
   @RequirePermission('storage:write')
   @ApiOperation({
     summary: 'Replace a backup storage location’s spec',
@@ -86,7 +85,7 @@ export class StorageController {
 
   @Post('backup-locations/:name/default')
   @HttpCode(HttpStatus.ACCEPTED)
-  @AllowsApiToken()
+  @RequiresSudo()
   @RequirePermission('storage:write')
   @ApiOperation({
     summary: 'Make a backup storage location the default (velero backup-location set --default)',
@@ -134,7 +133,7 @@ export class StorageController {
 
   @Post('snapshot-locations')
   @HttpCode(HttpStatus.ACCEPTED)
-  @AllowsApiToken()
+  @RequiresSudo()
   @RequirePermission('storage:write')
   @ApiOperation({
     summary: 'Create a volume snapshot location (velero snapshot-location create)',
@@ -158,7 +157,7 @@ export class StorageController {
 
   @Put('snapshot-locations/:name')
   @HttpCode(HttpStatus.ACCEPTED)
-  @AllowsApiToken()
+  @RequiresSudo()
   @RequirePermission('storage:write')
   @ApiOperation({
     summary: 'Replace a volume snapshot location’s spec',

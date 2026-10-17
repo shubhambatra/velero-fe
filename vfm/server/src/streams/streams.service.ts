@@ -20,7 +20,8 @@ import { sanitizeHello, SUPPORTED_PROTOCOL_VERSIONS, type SanitizedHello } from 
 /** PLAN.md §5.2 / §5.6 defaults, sent to every agent in `HelloAck`. */
 const HEARTBEAT_INTERVAL_S = 15;
 /** PLAN.md §13: an agent silent for this long is disconnected. */
-export const DISCONNECT_AFTER_MS = 45_000;
+export const RECHECK_MS = 60_000;
+const DISCONNECT_AFTER_MS = 45_000;
 const HELLO_TIMEOUT_MS = 10_000;
 const ROUTE_TTL_S = 60;
 const ROUTE_REFRESH_MS = 20_000;
@@ -104,7 +105,15 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
   readonly replicaId = `${hostname()}-${randomBytes(3).toString('hex')}`;
 
   /** Tunable so the tests do not have to wait 45 seconds. */
-  readonly options = { disconnectAfterMs: DISCONNECT_AFTER_MS };
+  readonly options = {
+    disconnectAfterMs: DISCONNECT_AFTER_MS,
+    /**
+     * How often an open stream asks again whether its certificate is still good. Revocation is
+     * also pushed over Redis, but a push can be lost (Redis restarting, a replica mid-deploy);
+     * this is the backstop that bounds how long a revoked agent can stay connected.
+     */
+    recheckMs: RECHECK_MS,
+  };
 
   private readonly streams = new Map<string, LiveStream>();
   private readonly handlers: AgentMessageHandler[] = [];
@@ -252,6 +261,7 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
     let registered = false;
     let watchdog: NodeJS.Timeout | undefined;
     let expiry: NodeJS.Timeout | undefined;
+    let recheck: NodeJS.Timeout | undefined;
 
     const arm = (): void => {
       clearTimeout(watchdog);
@@ -274,6 +284,17 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       registered = true;
       arm();
       this.notifyConnected(identity);
+
+      recheck = setInterval(() => {
+        this.stillAuthorized(identity)
+          .then((ok) => {
+            if (!ok) {
+              this.close(live, status.UNAUTHENTICATED, 'the client certificate has been revoked');
+            }
+          })
+          .catch(() => undefined);
+      }, this.options.recheckMs);
+      recheck.unref();
 
       const untilExpiry = identity.notAfter.getTime() - Date.now();
       expiry = setTimeout(
@@ -306,6 +327,7 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
     } finally {
       clearTimeout(watchdog);
       clearTimeout(expiry);
+      clearInterval(recheck);
       if (registered) {
         await this.unregister(live).catch((error: unknown) => {
           this.logger.warn(
@@ -440,6 +462,17 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
     );
     this.logger.log(`agent connected: cluster ${clusterId} on ${this.replicaId}`);
     await this.events.publish({ type: 'cluster', orgId, clusterId, status: 'CONNECTED' });
+  }
+
+  /** Whether the certificate this stream was admitted with is still valid and its cluster still enabled. A failed lookup is "yes": an outage must not disconnect every agent. */
+  private async stillAuthorized(identity: StreamIdentity): Promise<boolean> {
+    const row = await this.prisma.unscoped('an open stream re-checks its own certificate', () =>
+      this.prisma.agentCertificate.findUnique({
+        where: { serial: identity.serial },
+        select: { revokedAt: true, cluster: { select: { status: true } } },
+      }),
+    );
+    return row !== null && row.revokedAt === null && row.cluster.status !== 'DISABLED';
   }
 
   private notifyConnected(identity: StreamIdentity): void {

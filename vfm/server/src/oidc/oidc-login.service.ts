@@ -1,3 +1,4 @@
+import { guardedFetch } from '../alerts/channels/egress';
 import { randomBytes } from 'node:crypto';
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -349,20 +350,29 @@ export class OidcLoginService {
       EncryptionContext.oidcClientSecret(provider.id),
     );
     const url = new URL(provider.issuer);
-    return client.discovery(
-      url,
-      provider.clientId,
-      secret,
-      undefined,
-      // Plain http is accepted only outside production (and the admin API
-      // refuses to store an http issuer in production in the first place).
-      url.protocol === 'http:' && this.env.NODE_ENV !== 'production'
-        ? // Deliberate: the library deprecates it to make it stand out. It is
-          // reachable only for an http issuer outside production (dev Dex).
-          // eslint-disable-next-line @typescript-eslint/no-deprecated
-          { execute: [client.allowInsecureRequests] }
-        : {},
-    );
+    const policy = {
+      allowPrivate: this.env.OIDC_ALLOW_PRIVATE,
+      allowHttp: this.env.OIDC_ALLOW_HTTP,
+    };
+    const fetcher = guardedFetch(policy);
+    return client
+      .discovery(
+        url,
+        provider.clientId,
+        secret,
+        undefined,
+        url.protocol === 'http:'
+          ? // Deliberate: the library deprecates it to make it stand out. It is reached only for
+            // an http issuer that OIDC_ALLOW_HTTP permitted (a dev Dex, or an internal IdP).
+            // eslint-disable-next-line @typescript-eslint/no-deprecated
+            { execute: [client.allowInsecureRequests], [client.customFetch]: fetcher }
+          : { [client.customFetch]: fetcher },
+      )
+      .then((config) => {
+        // The token and key requests that follow go through the same guard.
+        config[client.customFetch] = fetcher;
+        return config;
+      });
   }
 }
 

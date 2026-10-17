@@ -16,7 +16,7 @@ import { ProblemExceptionFilter } from './common/problem.filter';
 import { ENV } from './config/config.module';
 import type { Env } from './config/env.schema';
 import { startMetricsServer } from './metrics/metrics.server';
-import { applySecurity, MAX_JSON_BODY } from './security';
+import { applySecurity, bodyErrors, MAX_JSON_BODY } from './security';
 
 /**
  * Loads `server/.env` when it is present, for local development.
@@ -62,6 +62,7 @@ async function bootstrap(): Promise<void> {
   applySecurity(app, env);
   app.use(json({ limit: MAX_JSON_BODY }));
   app.use(urlencoded({ extended: false, limit: MAX_JSON_BODY }));
+  app.use(bodyErrors);
 
   app.useGlobalFilters(new ProblemExceptionFilter());
 

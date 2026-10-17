@@ -299,3 +299,86 @@ export function postJson(
     request.end(body);
   });
 }
+
+const MAX_FETCH_BYTES = 1 << 20;
+
+/**
+ * A `fetch` that obeys the same rules as {@link postJson}, for libraries that take their own
+ * (the OIDC client's discovery, token and key requests). One megabyte of answer at most, no
+ * redirects, ten seconds, and the connected address checked. A refusal is a rejected promise
+ * with a fixed sentence, never the URL.
+ */
+export function guardedFetch(
+  policy: EgressPolicy,
+  options: { timeoutMs?: number; lookup?: typeof dns.lookup } = {},
+): (
+  url: string,
+  init?: { method?: string; headers?: Record<string, string>; body?: unknown },
+) => Promise<Response> {
+  return (raw, init = {}) => {
+    const refusal = checkUrl(raw, policy);
+    if (refusal !== null) {
+      return Promise.reject(new EgressError(refusal, false));
+    }
+    const url = new URL(raw);
+    const client = url.protocol === 'https:' ? https : http;
+    const body =
+      init.body === undefined || init.body === null
+        ? undefined
+        : typeof init.body === 'string'
+          ? init.body
+          : init.body instanceof URLSearchParams
+            ? init.body.toString()
+            : undefined;
+    return new Promise<Response>((resolve, reject) => {
+      const request = client.request(
+        url,
+        {
+          method: init.method ?? 'GET',
+          headers: {
+            'user-agent': 'velero-fleet-manager',
+            ...(body === undefined ? {} : { 'content-length': Buffer.byteLength(body).toString() }),
+            ...init.headers,
+          },
+          lookup: guardedLookup(policy, options.lookup) as unknown as net.LookupFunction,
+          agent: false,
+          timeout: options.timeoutMs ?? 10_000,
+        },
+        (response) => {
+          const chunks: Buffer[] = [];
+          let size = 0;
+          response.on('data', (chunk: Buffer) => {
+            size += chunk.length;
+            if (size > MAX_FETCH_BYTES) {
+              response.destroy();
+              reject(new EgressError('the answer was larger than allowed', false));
+              return;
+            }
+            chunks.push(chunk);
+          });
+          response.on('end', () => {
+            const headers = new Headers();
+            for (const [name, value] of Object.entries(response.headers)) {
+              if (typeof value === 'string') headers.set(name, value);
+              else if (Array.isArray(value)) headers.set(name, value.join(', '));
+            }
+            const status = response.statusCode ?? 502;
+            // A body is not allowed on these.
+            const bodyless = status === 204 || status === 205 || status === 304;
+            resolve(new Response(bodyless ? null : Buffer.concat(chunks), { status, headers }));
+          });
+          response.on('error', () => {
+            reject(new EgressError('the connection was interrupted', true));
+          });
+        },
+      );
+      request.on('timeout', () => {
+        request.destroy(Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }));
+      });
+      request.on('error', (error: NodeJS.ErrnoException) => {
+        reject(describe(error));
+      });
+      request.end(body);
+    });
+  };
+}

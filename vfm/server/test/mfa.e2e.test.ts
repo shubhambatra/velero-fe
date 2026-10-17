@@ -572,4 +572,148 @@ describe('mfa and sudo (e2e)', () => {
       await redis.connection.set(`vfm:sess:${id}`, JSON.stringify(record), 'EX', 3_600);
     }
   }
+
+  describe('attempts to prove yourself again are limited (PLAN.md §8.3)', () => {
+    /** A session that owes the second factor, as after a phished password. */
+    async function pending() {
+      const { agent, csrf, userId } = await signedIn();
+      await enrol(agent, csrf, userId);
+      const fresh = api();
+      const login = await fresh
+        .post('/api/v1/auth/login')
+        .send({ email: EMAIL, password: PASSWORD })
+        .expect(200);
+      return {
+        userId,
+        agent: fresh,
+        csrf: readCookie(login.get('Set-Cookie') ?? [], SessionService.CSRF_COOKIE),
+      };
+    }
+
+    it('stops guessing at the login challenge, and even the right code is refused during the lock', async () => {
+      const s = await pending();
+      const guess = (code: string) =>
+        s.agent.post('/api/v1/auth/mfa/challenge').set(CSRF_HEADER, s.csrf).send({ code });
+      for (let i = 0; i < 5; i += 1) {
+        await guess('000000').expect(401);
+      }
+      const refused = await guess(await currentCode(s.userId, 1)).expect(429);
+      expect(Number(refused.get('Retry-After'))).toBeGreaterThan(0);
+      expect(Number(refused.get('Retry-After'))).toBeLessThanOrEqual(600);
+      await s.agent.get('/api/v1/auth/me').expect(403);
+    });
+
+    it('counts a new session against the same budget, so signing in again does not reset it', async () => {
+      const first = await pending();
+      for (let i = 0; i < 5; i += 1) {
+        await first.agent
+          .post('/api/v1/auth/mfa/challenge')
+          .set(CSRF_HEADER, first.csrf)
+          .send({ code: '111111' })
+          .expect(401);
+      }
+      const second = api();
+      const login = await second
+        .post('/api/v1/auth/login')
+        .send({ email: EMAIL, password: PASSWORD })
+        .expect(200);
+      const csrf = readCookie(login.get('Set-Cookie') ?? [], SessionService.CSRF_COOKIE);
+      await second
+        .post('/api/v1/auth/mfa/challenge')
+        .set(CSRF_HEADER, csrf)
+        .send({ code: await currentCode(first.userId, 1) })
+        .expect(429);
+    });
+
+    it('shares one budget between the challenge, sudo by code and sudo by password', async () => {
+      const s = await pending();
+      await s.agent
+        .post('/api/v1/auth/mfa/challenge')
+        .set(CSRF_HEADER, s.csrf)
+        .send({ code: '222222' })
+        .expect(401);
+      await s.agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, s.csrf)
+        .send({ code: '333333' })
+        .expect(401);
+      await s.agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, s.csrf)
+        .send({ password: 'nope-nope-nope-1' })
+        .expect(401);
+      await s.agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, s.csrf)
+        .send({ password: 'nope-nope-nope-2' })
+        .expect(401);
+      await s.agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, s.csrf)
+        .send({ code: '444444' })
+        .expect(401);
+      await s.agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, s.csrf)
+        .send({ password: PASSWORD })
+        .expect(429);
+    });
+
+    it('limits password guesses at sudo from a stolen session, and clears the count on a success', async () => {
+      const { agent, csrf } = await signedIn();
+      const wrong = () =>
+        agent
+          .post('/api/v1/auth/sudo')
+          .set(CSRF_HEADER, csrf)
+          .send({ password: 'not-the-password' });
+      for (let i = 0; i < 4; i += 1) await wrong().expect(401);
+      await agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, csrf)
+        .send({ password: PASSWORD })
+        .expect(200);
+      // The success cleared the four failures: four more are allowed before a lock.
+      for (let i = 0; i < 4; i += 1) await wrong().expect(401);
+      await wrong().expect(401);
+      const locked = await wrong().expect(429);
+      expect(locked.get('Retry-After')).toBeDefined();
+      await agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, csrf)
+        .send({ password: PASSWORD })
+        .expect(429);
+    });
+
+    it('does not lock the password login, or anyone else', async () => {
+      const { agent, csrf } = await signedIn();
+      for (let i = 0; i < 6; i += 1) {
+        await agent
+          .post('/api/v1/auth/sudo')
+          .set(CSRF_HEADER, csrf)
+          .send({ password: 'not-the-password' });
+      }
+      await api().post('/api/v1/auth/login').send({ email: EMAIL, password: PASSWORD }).expect(200);
+    });
+
+    it('ends by itself', async () => {
+      const { agent, csrf, userId } = await signedIn();
+      for (let i = 0; i < 5; i += 1) {
+        await agent
+          .post('/api/v1/auth/sudo')
+          .set(CSRF_HEADER, csrf)
+          .send({ password: 'not-the-password' });
+      }
+      await agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, csrf)
+        .send({ password: PASSWORD })
+        .expect(429);
+      await redis.connection.del(`vfm:factor:lock:${userId}`, `vfm:factor:fail:${userId}`);
+      await agent
+        .post('/api/v1/auth/sudo')
+        .set(CSRF_HEADER, csrf)
+        .send({ password: PASSWORD })
+        .expect(200);
+    });
+  });
 });

@@ -243,6 +243,7 @@ describe('static guard over the source tree', () => {
       'clusters/enrollment.service.ts: a bootstrap token identifies its cluster and org',
       'clusters/enrollment.service.ts: a bootstrap token identifies its cluster and org',
       'clusters/enrollment.service.ts: an agent certificate identifies its cluster and org',
+      'clusters/enrollment.service.ts: an agent certificate identifies its cluster and org',
       'commands/commands.service.ts: an agent reports on commands by id',
       'commands/commands.service.ts: the command timeout sweeper spans every org',
       'commands/commands.service.ts: the command timeout sweeper spans every org',
@@ -250,6 +251,7 @@ describe('static guard over the source tree', () => {
       'oidc/oidc-login.service.ts: an oidc provider id identifies its org',
       'orgs/invites.service.ts: an invite token identifies its org',
       'orgs/orgs.service.ts: a user lists their own memberships (org switcher)',
+      'streams/streams.service.ts: an open stream re-checks its own certificate',
       'streams/streams.service.ts: the stale-stream sweeper spans every org',
       'tokens/api-tokens.service.ts: an api token identifies its org',
     ]);

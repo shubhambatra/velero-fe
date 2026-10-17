@@ -452,6 +452,43 @@ describe('agent streams (e2e, two replicas)', () => {
       expect(((await retry.ended) as { code: number }).code).toBe(UNAUTHENTICATED);
     });
 
+    it('ends an open stream whose certificate was revoked even if the push to close it was lost', async () => {
+      const { orgId, clusterId, cert } = await enrolledAgent();
+      streamsA.options.recheckMs = 150;
+      const stream = connect(portA, cert);
+      await stream.next();
+      // As if the Redis message that closes streams never arrived: only the database says "revoked".
+      await a.prisma.inOrg(orgId, () =>
+        a.prisma.agentCertificate.updateMany({
+          where: { clusterId },
+          data: { revokedAt: new Date() },
+        }),
+      );
+      expect(((await stream.ended) as { code: number }).code).toBe(UNAUTHENTICATED);
+      streamsA.options.recheckMs = 60_000;
+    });
+
+    it('ends an open stream whose cluster was disabled behind its back, and leaves healthy ones alone', async () => {
+      const { orgId, clusterId, cert } = await enrolledAgent();
+      streamsA.options.recheckMs = 100;
+      const stream = connect(portA, cert);
+      await stream.next();
+      await new Promise((r) => setTimeout(r, 450));
+      // Several re-checks have passed and the stream is still open.
+      expect(
+        await eventually(
+          'CONNECTED',
+          () => stateOf(clusterId),
+          (c) => c.status === 'CONNECTED',
+        ),
+      ).toBeDefined();
+      await a.prisma.inOrg(orgId, () =>
+        a.prisma.cluster.update({ where: { id: clusterId }, data: { status: 'DISABLED' } }),
+      );
+      expect(((await stream.ended) as { code: number }).code).toBe(UNAUTHENTICATED);
+      streamsA.options.recheckMs = 60_000;
+    });
+
     it('deleting a cluster ends its open stream', async () => {
       const { callA, orgId, clusterId, cert } = await enrolledAgent();
       const stream = connect(portA, cert);

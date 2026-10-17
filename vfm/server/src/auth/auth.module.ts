@@ -1,3 +1,4 @@
+import { FactorThrottleService } from './factor-throttle.service';
 import { Module } from '@nestjs/common';
 
 import { AuthController } from './auth.controller';
@@ -25,6 +26,7 @@ import { TotpService } from './totp.service';
   providers: [
     AuthService,
     BreachedPasswordsService,
+    FactorThrottleService,
     LoginThrottleService,
     MfaService,
     PasswordService,
@@ -37,6 +39,12 @@ import { TotpService } from './totp.service';
   // PasswordService is exported because UsersService needs it for sudo
   // password re-authentication; the rest are needed by OIDC in day 7 and API
   // tokens in day 9.
-  exports: [SessionService, PasswordService, MfaService, SessionCookiesService],
+  exports: [
+    SessionService,
+    PasswordService,
+    MfaService,
+    SessionCookiesService,
+    FactorThrottleService,
+  ],
 })
 export class AuthModule {}

@@ -8,10 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -180,6 +182,52 @@ func (h *DownloadHandler) waitForURL(ctx context.Context, resource dynamic.Resou
 	}
 }
 
+// refusedAddress is true for the addresses a signed URL must never lead to: the agent's own
+// host, link-local space (which is where cloud metadata services live) and addresses that are
+// not a destination at all. Private ranges stay allowed, because object storage inside a
+// customer's network (MinIO, Ceph) is a legitimate place for a backup location.
+func refusedAddress(ip net.IP) bool {
+	if v4 := ip.To4(); v4 != nil {
+		ip = v4
+	}
+	return ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsMulticast() || ip.IsUnspecified() || ip.Equal(net.IPv4bcast)
+}
+
+// safeDownloadClient is the only HTTP client that fetches a signed URL.
+//
+// The URL comes from a DownloadRequest that Velero fills in from a BackupStorageLocation,
+// and who may write one is a control-plane decision, so the address it names is not trusted.
+// The check is made in the dialer on the address actually connected to, which also defeats a
+// name that resolves to something harmless first and something else later. Redirects are not
+// followed: a redirect is a second destination that nothing checked.
+func safeDownloadClient(refuse func(net.IP) bool) *http.Client {
+	dialer := &net.Dialer{
+		Timeout: 30 * time.Second,
+		Control: func(_, address string, _ syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return errRefusedAddress
+			}
+			if ip := net.ParseIP(host); ip == nil || refuse(ip) {
+				return errRefusedAddress
+			}
+			return nil
+		},
+	}
+	return &http.Client{
+		Transport: &http.Transport{
+			DisableCompression: true,
+			// A proxy is chosen by the cluster's owner (the environment), not by the control plane.
+			Proxy:       http.ProxyFromEnvironment,
+			DialContext: dialer.DialContext,
+		},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+}
+
+var errRefusedAddress = errors.New("the download address is not allowed")
+
 // stream fetches signedURL, decompresses it and sends it in chunks. The URL is
 // never logged or reported: it is a credential until it expires.
 func (h *DownloadHandler) stream(ctx context.Context, commandID, signedURL string, limit int64) *pb.CommandResult {
@@ -189,7 +237,7 @@ func (h *DownloadHandler) stream(ctx context.Context, commandID, signedURL strin
 	}
 	client := h.HTTP
 	if client == nil {
-		client = &http.Client{Transport: &http.Transport{DisableCompression: true, Proxy: http.ProxyFromEnvironment}}
+		client = safeDownloadClient(refusedAddress)
 	}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, signedURL, nil)
 	if err != nil {

@@ -1,3 +1,6 @@
+import { applySecurity, bodyErrors, MAX_JSON_BODY } from '../src/security';
+import { ENV } from '../src/config/config.module';
+import type { Env } from '../src/config/env.schema';
 import { type INestApplication, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
@@ -8,7 +11,6 @@ import { Logger as PinoLogger } from 'nestjs-pino';
 
 import { AppModule, logDestination } from '../src/app.module';
 import { ProblemExceptionFilter } from '../src/common/problem.filter';
-import { requestIdMiddleware } from '../src/common/request-id';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { MailService, type MailMessage } from '../src/mail/mail.service';
 import { RedisService } from '../src/redis/redis.service';
@@ -114,6 +116,9 @@ export async function createTestApp(
   // Webhook receivers in tests are local http servers; the egress rules are tested by flipping these.
   process.env.ALERT_WEBHOOK_ALLOW_PRIVATE = 'true';
   process.env.ALERT_WEBHOOK_ALLOW_HTTP = 'true';
+  // The fake identity provider is a local http server.
+  process.env.OIDC_ALLOW_PRIVATE = 'true';
+  process.env.OIDC_ALLOW_HTTP = 'true';
   process.env.HOST = '127.0.0.1';
 
   Logger.overrideLogger(false);
@@ -129,9 +134,11 @@ export async function createTestApp(
     // As main.ts does: service logs go through pino too, so the sink sees them.
     app.useLogger(app.get(PinoLogger));
   }
-  app.use(requestIdMiddleware);
+  // As main.ts does, so every end-to-end test runs under the real headers and body limit.
   app.use(cookieParser());
-  app.use(json({ limit: '1mb' }));
+  applySecurity(app, app.get<Env>(ENV));
+  app.use(json({ limit: MAX_JSON_BODY }));
+  app.use(bodyErrors);
   app.useGlobalFilters(new ProblemExceptionFilter());
   app.setGlobalPrefix('api/v1', { exclude: ['healthz', 'readyz'] });
 
