@@ -6,17 +6,22 @@ import { AlertEvaluator } from './alert-evaluator';
 import { AlertRulesService } from './alert-rules.service';
 import { AlertsController } from './alerts.controller';
 import { AlertsService } from './alerts.service';
-import { AlertNotifier, LoggingAlertNotifier } from './notifier';
+import { ChannelNotifier } from './channels/channel-notifier';
+import { ChannelsController } from './channels/channels.controller';
+import { ChannelsService } from './channels/channels.service';
+import { AlertNotifier } from './notifier';
 
-/** The alert engine, its rules and its history (PLAN.md §16 day 32). Channels arrive on day 33. */
+/** The alert engine, its rules and its history (PLAN.md §16 day 32). Channels and delivery: day 33. */
 @Module({
   imports: [AuthModule, OrgsModule],
-  controllers: [AlertsController],
+  controllers: [AlertsController, ChannelsController],
   providers: [
     AlertsService,
     AlertRulesService,
     AlertEvaluator,
-    { provide: AlertNotifier, useClass: LoggingAlertNotifier },
+    ChannelsService,
+    ChannelNotifier,
+    { provide: AlertNotifier, useExisting: ChannelNotifier },
   ],
   exports: [AlertsService, AlertEvaluator],
 })

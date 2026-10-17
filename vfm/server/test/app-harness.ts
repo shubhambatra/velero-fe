@@ -111,6 +111,9 @@ export async function createTestApp(
   process.env.COMMANDS_REFRESH_ON_CONNECT = 'false';
   // Alerts are evaluated by hand in tests.
   process.env.ALERT_EVAL_INTERVAL_SECONDS = '0';
+  // Webhook receivers in tests are local http servers; the egress rules are tested by flipping these.
+  process.env.ALERT_WEBHOOK_ALLOW_PRIVATE = 'true';
+  process.env.ALERT_WEBHOOK_ALLOW_HTTP = 'true';
   process.env.HOST = '127.0.0.1';
 
   Logger.overrideLogger(false);

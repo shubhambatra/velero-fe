@@ -2251,6 +2251,94 @@ paths:
       summary: Alert history, newest first (Owner/Admin)
       tags:
         - alerts
+  /orgs/{orgId}/channels:
+    get:
+      operationId: ChannelsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List notification channels (Owner/Admin)
+      tags:
+        - alerts
+    post:
+      operationId: ChannelsController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Create a channel (Owner/Admin); a webhook’s signing secret is returned once
+      tags:
+        - alerts
+  /orgs/{orgId}/channels/{channelId}:
+    patch:
+      operationId: ChannelsController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Change a channel, or make a webhook a new secret (Owner/Admin)
+      tags:
+        - alerts
+    delete:
+      operationId: ChannelsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Delete a channel and remove it from rules (Owner/Admin, sudo required)
+      tags:
+        - alerts
+  /orgs/{orgId}/channels/{channelId}/test:
+    post:
+      operationId: ChannelsController_test
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Send a test message through a channel (Owner/Admin); one attempt
+      tags:
+        - alerts
   /stream:
     get:
       description: Events carry no object names. Re-read through the REST API on an event.

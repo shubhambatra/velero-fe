@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { newId } from '../common/uuid';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChannelsService } from './channels/channels.service';
 import { ALERT_RULE_TYPES, parseParams, scopeSchema, type AlertRuleType } from './rule-params';
 
 const channelIds = z.array(z.uuid()).max(20);
@@ -43,7 +44,10 @@ const MAX_RULES_PER_ORG = 200;
 
 @Injectable()
 export class AlertRulesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly channels: ChannelsService,
+  ) {}
 
   list(orgId: string) {
     return this.prisma.inOrg(orgId, async () => {
@@ -64,6 +68,7 @@ export class AlertRulesService {
   async create(orgId: string, body: z.infer<typeof createRuleSchema>) {
     const params = this.params(body.type, body.params);
     await this.assertClusters(orgId, body.scope.clusterIds);
+    await this.channels.assertAll(orgId, body.channelIds);
     return this.prisma.inOrg(orgId, async () => {
       if ((await this.prisma.alertRule.count({ where: { orgId } })) >= MAX_RULES_PER_ORG) {
         throw new BadRequestException(
@@ -90,6 +95,7 @@ export class AlertRulesService {
       const rule = await this.prisma.alertRule.findFirst({ where: { id: ruleId, orgId } });
       if (rule === null) throw new NotFoundException('alert rule not found');
       if (body.scope !== undefined) await this.assertClusters(orgId, body.scope.clusterIds);
+      if (body.channelIds !== undefined) await this.channels.assertAll(orgId, body.channelIds);
       return this.prisma.alertRule.update({
         where: { id: ruleId },
         data: {
@@ -140,6 +146,19 @@ export class AlertRulesService {
           select: { id: true, name: true },
         }),
       ]);
+      const deliveries = await this.prisma.alertDelivery.findMany({
+        where: { orgId, eventId: { in: page.map((e) => e.id) } },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          eventId: true,
+          channelId: true,
+          channelName: true,
+          kind: true,
+          ok: true,
+          error: true,
+          createdAt: true,
+        },
+      });
       const ruleOf = new Map(rules.map((r) => [r.id, r]));
       const clusterOf = new Map(clusters.map((c) => [c.id, c.name]));
       return {
@@ -156,6 +175,9 @@ export class AlertRulesService {
           firedAt: e.firedAt,
           resolvedAt: e.resolvedAt,
           lastNotifiedAt: e.lastNotifiedAt,
+          deliveries: deliveries
+            .filter((d) => d.eventId === e.id)
+            .map(({ eventId: _e, ...d }) => d),
         })),
         nextCursor: rows.length > query.limit ? (page.at(-1)?.id ?? null) : null,
       };

@@ -150,6 +150,8 @@ model Organization {
   veleroFiles     VeleroFile[]
   alertRules      AlertRule[]
   alertEvents     AlertEvent[]
+  channels        NotificationChannel[]
+  alertDeliveries AlertDelivery[]
 
   @@map("organizations")
 }
@@ -780,8 +782,8 @@ enum AlertState {
 /// What to watch and who to tell (PLAN.md §9, §16 day 32). `name` is an addition to the plan's
 /// columns: the rules page needs something to show. `scope` is `{ clusterIds?: string[] }`
 /// (empty or missing: every cluster of the org); `params` depends on `type` and is validated
-/// in `alerts/rule-params.ts`; `channelIds` are notification channel ids (the table arrives
-/// with day 33, so there is no foreign key yet).
+/// in `alerts/rule-params.ts`; `channelIds` are notification channel ids, kept as JSON and checked
+/// against the org's channels when a rule is saved (removed from the rules when a channel goes).
 model AlertRule {
   id String @id @db.Uuid
 
@@ -824,12 +826,68 @@ model AlertEvent {
   resolvedAt     DateTime? @map("resolved_at") @db.Timestamptz(6)
   lastNotifiedAt DateTime? @map("last_notified_at") @db.Timestamptz(6)
 
-  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  rule    AlertRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  cluster Cluster      @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  org        Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  rule       AlertRule       @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  cluster    Cluster         @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  deliveries AlertDelivery[]
 
   @@index([orgId, firedAt])
   @@index([ruleId, state])
   @@index([clusterId])
   @@map("alert_events")
+}
+
+enum ChannelType {
+  EMAIL
+  WEBHOOK
+  SLACK_WEBHOOK
+}
+
+/// Where alerts go (PLAN.md §9). Everything about the destination — recipients, URL, signing
+/// secret — is in `config_encrypted` (envelope encryption, context `notification_channel.config`):
+/// a Slack webhook URL is a bearer credential.
+model NotificationChannel {
+  id String @id @db.Uuid
+
+  orgId String      @map("org_id") @db.Uuid
+  name  String
+  type  ChannelType
+
+  configEncrypted String @map("config_encrypted")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  org        Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deliveries AlertDelivery[]
+
+  @@unique([orgId, name])
+  @@map("notification_channels")
+}
+
+/// One attempt to tell one channel about one alert event, so a channel that is down is a row
+/// someone can see rather than a message that never came. Not in PLAN §9's list (ADR-038).
+model AlertDelivery {
+  id String @id @db.Uuid
+
+  orgId       String  @map("org_id") @db.Uuid
+  eventId     String  @map("event_id") @db.Uuid
+  /// Null once the channel is deleted; `channelName` keeps the history readable.
+  channelId   String? @map("channel_id") @db.Uuid
+  channelName String  @map("channel_name")
+
+  /// `fired`, `resolved` or `renotify`.
+  kind      String
+  ok        Boolean
+  /// A fixed sentence (never the destination URL, which can be a credential).
+  error     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  org     Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  event   AlertEvent           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  channel NotificationChannel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, createdAt])
+  @@index([orgId])
+  @@map("alert_deliveries")
 }

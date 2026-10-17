@@ -14,6 +14,7 @@ import { BackupsPage, RestoresPage, SchedulesPage, StoragePage } from '@/pages/c
 import { ClusterPage } from '@/pages/cluster-page';
 import { ClustersPage } from '@/pages/clusters-page';
 import { TokensPage } from '@/pages/tokens-page';
+import { AlertsPage } from '@/pages/admin/alerts-page';
 import { AuditPage } from '@/pages/admin/audit-page';
 import { MembersPage } from '@/pages/admin/members-page';
 import { SecurityPage } from '@/pages/admin/security-page';
@@ -118,6 +119,7 @@ export const membersRoute = adminRoute('/admin/members', (id) => <MembersPage or
 export const teamsRoute = adminRoute('/admin/teams', (id) => <TeamsPage orgId={id} />);
 export const ssoRoute = adminRoute('/admin/sso', (id) => <SsoPage orgId={id} />);
 export const securityRoute = adminRoute('/admin/security', (id) => <SecurityPage orgId={id} />);
+export const alertsRoute = adminRoute('/admin/alerts', (id) => <AlertsPage orgId={id} />);
 export const auditRoute = adminRoute('/admin/audit', (id) => <AuditPage orgId={id} />);
 
 /** A route under `/clusters/$clusterId/...` that needs the active org and the cluster id. */

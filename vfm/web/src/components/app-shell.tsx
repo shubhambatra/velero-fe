@@ -40,6 +40,7 @@ const ADMIN_LINKS = [
   { to: '/admin/teams', label: 'Teams' },
   { to: '/admin/sso', label: 'Single sign-on' },
   { to: '/admin/security', label: 'Security' },
+  { to: '/admin/alerts', label: 'Alerts' },
   { to: '/admin/audit', label: 'Audit log' },
 ] as const;
 

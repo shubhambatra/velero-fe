@@ -179,6 +179,21 @@ export const envSchema = z.object({
    * how tests drive evaluation by hand. One replica evaluates per interval.
    */
   ALERT_EVAL_INTERVAL_SECONDS: z.coerce.number().int().min(0).max(3600).default(30),
+  /**
+   * Webhook and Slack destinations may be on private networks (loopback, RFC 1918, ULA)
+   * only when this is on. Off by default: an org admin can name any URL, and the control
+   * plane's own network is not theirs to probe. On-prem receivers (Mattermost, an internal
+   * relay) need it on. Link-local and metadata addresses stay blocked either way.
+   */
+  ALERT_WEBHOOK_ALLOW_PRIVATE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  /** Plain `http://` destinations. Off by default: the body is signed, not secret, but Slack URLs are. */
+  ALERT_WEBHOOK_ALLOW_HTTP: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   LOG_SESSIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),
   /**
    * Hostnames and IPs written into the gateway's TLS certificate. Agents verify

@@ -21,7 +21,8 @@ import { World, type Call } from './world';
  */
 const NOW = new Date('2026-10-17T12:00:00Z');
 const at = (hours: number): Date => new Date(NOW.getTime() - hours * 3_600_000);
-const CHANNEL = randomUUID();
+/** A real channel of the org most recently made by `org()`: rules may only name channels that exist. */
+let CHANNEL: string = randomUUID();
 
 describe('alerts (e2e)', () => {
   let h: TestApp;
@@ -58,6 +59,12 @@ describe('alerts (e2e)', () => {
   async function org() {
     const { call, orgId, userId } = await world.admin();
     const created = await call('post', `/orgs/${orgId}/clusters`, { name: 'prod-eu' }).expect(201);
+    const channel = await call('post', `/orgs/${orgId}/channels`, {
+      name: 'ops',
+      type: 'EMAIL',
+      config: { to: ['ops@acme.test'] },
+    }).expect(201);
+    CHANNEL = channel.body.id as string;
     return { call, orgId, userId, clusterId: created.body.cluster.id as string };
   }
 
