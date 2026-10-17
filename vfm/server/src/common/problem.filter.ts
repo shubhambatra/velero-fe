@@ -93,8 +93,14 @@ export class ProblemExceptionFilter implements ExceptionFilter {
 
     const problem = this.toProblem(exception, request);
 
-    // 5xx means we did something wrong and nobody outside should see why.
-    if (problem.status >= 500) {
+    if (problem.status === 503 && !(exception instanceof HttpException)) {
+      // An outage is the dependency's news, not a bug: one line, no stack, and /readyz says the rest.
+      this.logger.warn(
+        { requestId: problem.requestId, path: request.url, method: request.method },
+        'a dependency is unavailable',
+      );
+    } else if (problem.status >= 500) {
+      // 5xx means we did something wrong and nobody outside should see why.
       this.logger.error(
         {
           requestId: problem.requestId,
@@ -104,6 +110,10 @@ export class ProblemExceptionFilter implements ExceptionFilter {
         },
         'unhandled exception',
       );
+    }
+
+    if (problem.status === 503 && !(exception instanceof HttpException)) {
+      response.setHeader('Retry-After', '5');
     }
 
     if (exception instanceof ThrottledException) {
@@ -142,6 +152,17 @@ export class ProblemExceptionFilter implements ExceptionFilter {
       };
     }
 
+    if (isDependencyOutage(exception)) {
+      return {
+        type: problemTypeFor(HttpStatus.SERVICE_UNAVAILABLE),
+        title: statusTitle(HttpStatus.SERVICE_UNAVAILABLE),
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        detail: 'A service this one depends on is unavailable. Try again shortly.',
+        instance: request.url,
+        requestId,
+      };
+    }
+
     return {
       type: problemTypeFor(HttpStatus.INTERNAL_SERVER_ERROR),
       title: statusTitle(HttpStatus.INTERNAL_SERVER_ERROR),
@@ -151,6 +172,35 @@ export class ProblemExceptionFilter implements ExceptionFilter {
       requestId,
     };
   }
+}
+
+/**
+ * Whether an error means PostgreSQL or Redis could not be reached, as opposed to a bug. The two look
+ * alike from outside (a 500 with nothing to act on), but a client and a load balancer should retry
+ * the one and not the other. Matched on the error's name, code and message so no driver is imported here.
+ */
+export function isDependencyOutage(error: unknown): boolean {
+  const seen = new Set<unknown>();
+  for (let e: unknown = error; e instanceof Error && !seen.has(e); e = e.cause) {
+    seen.add(e);
+    const code = (e as { code?: unknown }).code;
+    if (
+      typeof code === 'string' &&
+      /^(ECONNREFUSED|ECONNRESET|EPIPE|ETIMEDOUT|57P01|57P02|57P03|08\w+)$/.test(code)
+    ) {
+      return true;
+    }
+    if (
+      e.name === 'MaxRetriesPerRequestError' ||
+      e.name === 'PrismaClientInitializationError' ||
+      /Stream isn't writeable|Connection is closed|Connection terminated|timeout exceeded when trying to connect|Can't reach database|ECONNREFUSED|ECONNRESET/i.test(
+        e.message,
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function extractMessage(body: unknown): string | undefined {

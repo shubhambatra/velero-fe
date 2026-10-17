@@ -53,6 +53,11 @@ export class CryptoService {
     return needsRewrap(this.keyring, envelope);
   }
 
+  /** Decrypts under whichever accepted key wrote it and encrypts again under the primary key. */
+  rewrap(envelope: string, context: string): string {
+    return encrypt(this.keyring, decrypt(this.keyring, envelope, context), context);
+  }
+
   /** The key id currently used for new ciphertexts. */
   get primaryKeyId(): string {
     return this.keyring.primary.id;

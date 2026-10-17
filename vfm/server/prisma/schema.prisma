@@ -611,9 +611,22 @@ model CertificateAuthority {
   keyEncrypted   String   @map("key_encrypted")
   notAfter       DateTime @map("not_after") @db.Timestamptz(6)
 
+  /// ACTIVE signs. STAGED is handed to agents with the next certificate they renew but signs nothing yet.
+  /// RETIRING no longer signs but its certificates are still accepted until they have expired.
+  state          CaState  @default(ACTIVE)
+  stateChangedAt DateTime @default(now()) @map("state_changed_at") @db.Timestamptz(6)
+
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("certificate_authority")
+}
+
+enum CaState {
+  ACTIVE
+  STAGED
+  RETIRING
+
+  @@map("ca_state")
 }
 
 enum CommandStatus {

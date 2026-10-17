@@ -9,6 +9,8 @@
     "build": "tsc -p tsconfig.build.json && pnpm run build:assets",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
+    "rewrap": "node dist/rewrap.js",
+    "ca-rotate": "node dist/ca-rotate.js",
     "gen": "tsc -p tsconfig.build.json && node dist/openapi.js",
     "lint": "eslint src test",
     "test": "vitest run",

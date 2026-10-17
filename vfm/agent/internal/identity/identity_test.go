@@ -188,3 +188,46 @@ func TestMemoryStore(t *testing.T) {
 		t.Error("saving nil succeeded")
 	}
 }
+
+// A CA rotation hands the agent a bundle of two CAs with its next certificate. The agent must keep the
+// whole bundle through a restart and trust a certificate from either CA, or it would drop off the
+// moment the control plane promotes the new one.
+func TestACaBundleOfTwoAuthoritiesIsKeptAndTrustsBoth(t *testing.T) {
+	keyPEM, _, _ := NewKeyAndCSR()
+	start := time.Now().Add(-time.Minute)
+	spiffe := "spiffe://vfm/cluster/" + clusterID
+	certA, caA := issue(t, keyPEM, spiffe, start, start.Add(time.Hour))
+	certB, caB := issue(t, keyPEM, spiffe, start, start.Add(time.Hour))
+	bundle := append(append([]byte{}, caA...), caB...)
+
+	id, err := Parse(keyPEM, certA, bundle)
+	if err != nil {
+		t.Fatalf("a two-CA bundle was refused: %v", err)
+	}
+	store := &SecretStore{Client: fake.NewClientset(), Namespace: "vfm-system", Name: "vfm-agent-credentials"}
+	if err := store.Save(context.Background(), id); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(loaded.CAPEM) != string(bundle) {
+		t.Fatal("the stored identity lost part of the CA bundle")
+	}
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(loaded.CAPEM) {
+		t.Fatal("the bundle did not load as a pool")
+	}
+	for name, certPEM := range map[string][]byte{"first CA": certA, "second CA": certB} {
+		block, _ := pem.Decode(certPEM)
+		leaf, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := leaf.Verify(x509.VerifyOptions{Roots: pool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}); err != nil {
+			t.Errorf("a certificate from the %s is not trusted: %v", name, err)
+		}
+	}
+}

@@ -1,4 +1,5 @@
 import { fleetOptions } from '../src/inventory/fleet.service';
+import { caOptions } from '../src/ca/ca.service';
 import { rbacOptions } from '../src/rbac/rbac.service';
 import { resourceOptions } from '../src/inventory/resources.service';
 import { applySecurity, bodyErrors, MAX_JSON_BODY } from '../src/security';
@@ -82,12 +83,15 @@ export const TEST_REDIS_URL = process.env.TEST_REDIS_URL ?? 'redis://localhost:5
 export async function createTestApp(
   options: {
     gateway?: boolean;
+    /** Connect through these instead of the shared test databases (the resilience suite puts a fault proxy in between). */
+    databaseUrl?: string;
+    redisUrl?: string;
     /** Capture every log line the application writes, at debug level, into this sink. */
     logTo?: (line: string) => void;
   } = {},
 ): Promise<TestApp> {
-  process.env.DATABASE_URL = TEST_DATABASE_URL;
-  process.env.REDIS_URL = TEST_REDIS_URL;
+  process.env.DATABASE_URL = options.databaseUrl ?? TEST_DATABASE_URL;
+  process.env.REDIS_URL = options.redisUrl ?? TEST_REDIS_URL;
   process.env.NODE_ENV = 'test';
   // Errors still print, because a 500 in a test is worth seeing; the
   // per-request log lines are not.
@@ -142,6 +146,7 @@ export async function createTestApp(
   applySecurity(app, app.get<Env>(ENV));
   // Tests read what they have just written; the production sharing of aggregates would show them stale counts.
   fleetOptions.cacheMs = 0;
+  caOptions.refreshMs = 0;
   rbacOptions.cacheMs = 0;
   resourceOptions.coverageCacheMs = 0;
   app.use(json({ limit: MAX_JSON_BODY }));

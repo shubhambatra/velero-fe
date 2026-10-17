@@ -7,7 +7,12 @@ import {
 } from '@nestjs/common';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { type ApiProblem, PROBLEM_CONTENT_TYPE, ProblemExceptionFilter } from './problem.filter';
+import {
+  type ApiProblem,
+  isDependencyOutage,
+  PROBLEM_CONTENT_TYPE,
+  ProblemExceptionFilter,
+} from './problem.filter';
 import { REQUEST_ID_HEADER } from './request-id';
 
 function catchException(exception: unknown): {
@@ -96,11 +101,20 @@ describe('ProblemExceptionFilter', () => {
     // It is still logged server-side, which is what the suppressed logger
     // above would otherwise print.
     const { status, body } = catchException(
-      new Error('connect ECONNREFUSED postgres://vfm:hunter2@db:5432'),
+      new Error('failed to parse postgres://vfm:hunter2@db:5432'),
     );
 
     expect(status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(body.detail).toBe('An unexpected error occurred.');
+    expect(JSON.stringify(body)).not.toContain('hunter2');
+  });
+
+  it('answers 503, not 500, when a dependency is down, and still leaks nothing', () => {
+    const { status, body } = catchException(
+      new Error('connect ECONNREFUSED postgres://vfm:hunter2@db:5432'),
+    );
+
+    expect(status).toBe(HttpStatus.SERVICE_UNAVAILABLE);
     expect(JSON.stringify(body)).not.toContain('hunter2');
     expect(JSON.stringify(body)).not.toContain('ECONNREFUSED');
   });
@@ -148,5 +162,22 @@ describe('ProblemExceptionFilter', () => {
       expect(body).not.toHaveProperty('secret');
       expect(body).not.toHaveProperty('mfaPendingReason');
     });
+  });
+});
+
+describe('isDependencyOutage', () => {
+  it('recognises a lost database or cache, however it is wrapped, and nothing else', () => {
+    expect(isDependencyOutage(new Error('Connection terminated unexpectedly'))).toBe(true);
+    expect(
+      isDependencyOutage(
+        new Error("Stream isn't writeable and enableOfflineQueue options is false"),
+      ),
+    ).toBe(true);
+    expect(isDependencyOutage(Object.assign(new Error('x'), { code: 'ECONNREFUSED' }))).toBe(true);
+    expect(
+      isDependencyOutage(new Error('outer', { cause: new Error('Connection is closed.') })),
+    ).toBe(true);
+    expect(isDependencyOutage(new Error('Cannot read properties of undefined'))).toBe(false);
+    expect(isDependencyOutage('ECONNREFUSED')).toBe(false);
   });
 });

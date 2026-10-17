@@ -33,6 +33,9 @@ const maybe = <T>(value: T): T | undefined => value;
 
 export class CertificateError extends Error {}
 
+/** The one verification failure that another CA in the bundle might still answer. */
+export const NOT_ISSUED = 'the client certificate was not issued by this control plane';
+
 export interface CaMaterial {
   certificate: x509.X509Certificate;
   privateKey: CryptoKey;
@@ -90,6 +93,11 @@ export async function generateCa(now: Date = new Date()): Promise<{
     privateKeyPkcs8: Buffer.from(await crypto.subtle.exportKey('pkcs8', keys.privateKey)),
     notAfter,
   };
+}
+
+/** The public half only, for a CA that is trusted but does not sign here. */
+export function loadCaCertificate(certificatePem: string): Pick<CaMaterial, 'certificate'> {
+  return { certificate: new x509.X509Certificate(certificatePem) };
 }
 
 export async function loadCa(certificatePem: string, privateKeyPkcs8: Buffer): Promise<CaMaterial> {
@@ -217,7 +225,7 @@ const UUID_TAIL = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
  * Accepts DER, which is what the TLS layer hands over.
  */
 export function verifyClientCertificate(
-  ca: CaMaterial,
+  ca: Pick<CaMaterial, 'certificate'>,
   der: Buffer,
   now: Date = new Date(),
 ): VerifiedClientCertificate {
@@ -230,7 +238,7 @@ export function verifyClientCertificate(
 
   const issuer = new X509Certificate(Buffer.from(ca.certificate.rawData));
   if (!cert.verify(issuer.publicKey) || !cert.checkIssued(issuer)) {
-    throw new CertificateError('the client certificate was not issued by this control plane');
+    throw new CertificateError(NOT_ISSUED);
   }
 
   const notBefore = new Date(cert.validFrom);

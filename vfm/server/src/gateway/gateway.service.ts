@@ -98,6 +98,14 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
     }
 
     await this.rotateServerCertificate();
+    // A staged, promoted or retired CA changes who signs the server certificate and who may sign clients.
+    this.ca.onChange(() => {
+      this.rotateServerCertificate().catch((error: unknown) => {
+        this.logger.error(
+          `could not reissue the gateway certificate after a CA change: ${error instanceof Error ? error.message : 'unknown'}`,
+        );
+      });
+    });
     this.rotation = setInterval(() => {
       if (this.serverCertNotAfter.getTime() - Date.now() < SERVER_CERT_RENEW_BEFORE_MS) {
         this.rotateServerCertificate().catch((error: unknown) => {
@@ -182,7 +190,7 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
   async rotateServerCertificate(): Promise<void> {
     const issued = await this.ca.issueServerCertificate(this.env.GATEWAY_HOSTNAMES);
     this.serverCertNotAfter = issued.notAfter;
-    this.identity.set(issued, await this.ca.certificatePem());
+    this.identity.set(issued, await this.ca.clientTrustPem());
   }
 
   private handle<T>(callback: sendUnaryData<T>, run: () => Promise<T>): void {
