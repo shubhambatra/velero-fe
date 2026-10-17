@@ -9,6 +9,38 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-17 — M6 day 32: the alert engine
+
+Session 7, continued. CI green on day 31 (`c27dcea`).
+
+### Done
+
+- Engine (ADR-037): five rule types — backup Failed/PartiallyFailed, schedule missed (no backup within 1.5 × the schedule's
+  longest interval), agent disconnected for N minutes, BSL Unavailable, backup expiring with no newer one. It evaluates the
+  current state on a timer (one replica at a time, `ALERT_EVAL_INTERVAL_SECONDS`, default 30) and reconciles it with the open
+  events: fire, resolve, repeat after `renotifyMinutes`, dedup by fingerprint. One open row per condition is enforced by a
+  partial unique index in the migration.
+- Tables `alert_rules` and `alert_events`; `/orgs/{orgId}/alerts/rules` (list, create, change, delete with sudo) and
+  `/alerts/events` (paged history). Owner/Admin only, audited. Rule params are strict zod per type.
+- `AlertNotifier` is the seam day 33 fills; today it logs. Notifications are made only when the rule names a channel;
+  "resolved" only for conditions that were notified.
+- The cron parser moved from the web app into `@vfm/shared` (`longestGapSeconds` added) so the engine and the schedule form
+  read an expression the same way.
+
+### Test status
+
+Server unit **920** (86 new), e2e **535** (28 new, real Postgres and Redis); shared **132**; web **417** (unchanged).
+Lint, typecheck, prettier, build clean; OpenAPI regenerated. Five mutations (duplicate fire not caught, always repeat,
+fixed-by-any-completed, factor ignored, resolve announced to the never-told) were each caught; one needed a new test.
+Live: the built server with its real 2 s timer on a throwaway database: a failed backup inserted → fired within the next tick
+and notified; the next ticks left it alone; a completed backup → resolved. Environment removed afterwards.
+
+### Deferred
+
+- Delivery to channels, the rules / channels / history pages and golden path 12: day 33.
+- Evaluation on a terminal phase (instead of the timer) and BullMQ: not needed at 30 s; see ADR-037.
+- `notification_channels` and the foreign key from `channel_ids`.
+
 ## 2026-10-17 — M5 day 31: the log viewer
 
 Session 7, continued. CI green on day 30 (`317d20d`).

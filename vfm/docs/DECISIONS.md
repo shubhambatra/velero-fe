@@ -1980,3 +1980,49 @@ viewer's buffer is the only copy a person has.
 - Lines produced while a stream is down are lost, by design. A burst of 60 000 lines costs about 0.5 s to buffer.
 - A search over 50 000 lines costs about 40 ms and reruns as lines arrive while a search is set.
 - Highlighting marks the matching rows, not the matching words.
+
+## ADR-037 — The alert engine (M6 day 32)
+
+### Context
+
+PLAN §16 day 32 wants five rule types with dedup by fingerprint, resolve notifications and a re-notify interval. PLAN §3
+says an alert worker evaluates rules on a terminal phase, on BullMQ. The control plane runs as several replicas. Channels
+(email, webhook, Slack) are day 33.
+
+### Decision
+
+- **Evaluate state, not events.** Every `ALERT_EVAL_INTERVAL_SECONDS` (default 30; 0 turns the timer off, as the tests do),
+  one replica (a short Redis lock, as the command sweeper) works out for each enabled rule and each cluster it covers what
+  is wrong _now_, and reconciles that with the open `alert_events`: new fingerprint → `FIRING`; gone → `RESOLVED`; still
+  there → payload refreshed and, after the rule's `renotifyMinutes`, repeated. A restart, a missed tick or two replicas
+  cannot lose or double an alert; the worst case is one tick late. This replaces "evaluate on a terminal phase" and BullMQ
+  for now: neither is needed for 30 s latency, and BullMQ is not a dependency yet. If sub-second reaction is wanted, the
+  terminal-phase hook can call `evaluateOrg` without changing the model.
+- **One open row per condition.** A partial unique index `(rule_id, fingerprint) WHERE state = 'FIRING'` (which Prisma
+  cannot declare, so it lives in the migration SQL) makes concurrent firing safe: the loser sees a unique violation and
+  skips. Tested with six simultaneous evaluations.
+- **What "fixed" means.** A backup's failure is fixed by a later `Completed` backup of the same schedule (label
+  `velero.io/schedule-name`); an ad-hoc backup has no successor, so it stops counting when it leaves the lookback window
+  (default 24 h) or is deleted. Many failures of one schedule are one condition naming the latest.
+- **Schedule missed** = no backup of any phase within `factor` (1.5) × the schedule's _longest_ gap among its next ten runs,
+  so a weekdays-only schedule is not late over a weekend. The cron parser moved from the web app into `@vfm/shared` so the
+  engine and the schedule form read an expression identically.
+- **Agent disconnected** looks at `status` and `last_seen_at` (not `CONNECTED`, never-connected or disabled clusters).
+  **BSL unavailable** is per location. **Backup expiring** is the newest completed backup of a schedule (or an ad-hoc one)
+  expiring within `withinDays` with nothing newer.
+- **Notification is an interface.** `AlertNotifier.notify` receives `fired`, `resolved` or `renotify` and the channel ids;
+  today's implementation logs. Resolving it records `last_notified_at`; a throw leaves it unset so the next evaluation offers
+  it again. A rule with no channel creates events but notifies nobody, and a channel added later is told about what is
+  already open. "Resolved" is sent only for conditions that were notified, and not when a rule is switched off or no
+  longer covers the cluster (those close silently).
+- **Tables.** `alert_rules` adds a `name` column to the plan's list (the rules page needs one) and keeps `channel_ids` as
+  JSON with no foreign key until `notification_channels` exists (day 33). `alert_events` carries `org_id` (the plan's column
+  list omits it; every org-owned table has one, §9). Deleting a rule deletes its history.
+- **Access.** Rules and history are Owner/Admin only, reads included: an event names clusters, namespaces and backups across
+  the org, which a cluster-scoped person may not see. Deleting a rule needs sudo. Every change is audited.
+
+### Consequences
+
+- Backups are read newest-first up to 5 000 per cluster per evaluation; a cluster with more would see older ones ignored.
+- An agent that disconnects shows up as an alert only after the rule's minutes plus up to one interval.
+- BSL and schedule conditions describe the last state the agent reported; they do not clear while an agent is away.
