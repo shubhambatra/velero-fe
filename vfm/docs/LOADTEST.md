@@ -93,3 +93,43 @@ the gap, so treat the absolute values as unreliable and the _direction_ of each 
   (`reportOptions.coverageInputsCacheMs`) gave about 10 % on the other endpoints and the report **still times out under
   load (0 completions in 188 tries)**. It is not fixed.
 - Not done: fleet summary denormalised at ingest, serialise-once SSE, replicas (still the largest untested lever).
+
+## Replica runs (2026-10-21)
+
+Same rig and load as above, the server run as N Node processes (separate ports) behind a TCP round-robin balancer
+(`lb.js`, connection level, **no health checks**) with one shared Postgres and Redis. The simulator and all replicas share one
+16-core host, so this understates what separate machines would do. Single 5-minute runs, not repeated.
+
+| Replicas | List p95 (p50)            | Command to agent p95 | Event to browser p95 | Coverage report p95 | Targets met                         |
+| -------- | ------------------------- | -------------------- | -------------------- | ------------------- | ----------------------------------- |
+| 1        | 3.4–4.5 s (2.2–3.9 s)     | 5.3 s                | 3.8 s                | timed out           | agents, storm                       |
+| 2        | 1.0–1.6 s (0.47–0.68 s)   | 1.56 s               | 1.6 s                | 24.6 s              | agents, storm, events               |
+| 4        | 0.56–0.90 s (0.16–0.26 s) | 0.92 s               | 0.78 s               | 13.0 s              | agents, storm, **commands**, events |
+
+With four replicas, **commands (p95 916 ms), events (780 ms), connection and reconnect all meet §13, and there were 0 request
+errors. The list endpoints still do not: p95 is 2–3x the 300 ms target, with p50 near 170 ms.** The remaining tail is not
+replica count alone (2 to 4 replicas bought about 40 %), which points at per-request work and at the tail of a shared
+Postgres. It needs profiling before another change is chosen. Reports are not held to the list target.
+
+**Pool size matters.** The first four-replica run used the default `DATABASE_POOL_MAX=30`: 4 x 30 exceeds Postgres's default
+`max_connections` of 100, and 5 to 8 % of list requests returned 500 ("too many clients"). It is an operations rule, not a bug:
+replicas x `DATABASE_POOL_MAX` (plus anything else connected) must stay under `max_connections`. Run 6 used 15. This belongs in
+`docs/OPERATIONS.md` (day 43) and the Helm chart (day 41).
+
+### Loss of one replica (R-121), one run
+
+Four replicas, `kill -9` of replica 2 at about 150 s, while 200 agents and 100 users were active.
+
+- The run completed with 200 agents connected at its peak (agent connection state during the minutes after the kill was not sampled); 31 browser
+  streams reconnected; 2 to 6 list requests failed per endpoint (against 0 in the same configuration without a kill).
+- Commands: 1 781 created, 1 777 `SUCCEEDED`, and 4 not terminal. All four were created in the last second of the run, so they were in
+  flight when the simulator stopped, not lost. Three commands show `attempts = 2` and finished `SUCCEEDED`: re-delivery after the
+  kill worked.
+- The reconnect-storm figure in this run (28.7 s against 4.9 s without a kill) is **not** a result: the balancer kept offering the
+  dead replica to a quarter of the reconnects. A real balancer health-checks.
+- Not shown: that no command ran twice. The simulator's count of executed commands (1 780) is at most the number created, but it
+  does not count replays separately, so "exactly once" is not demonstrated here, only "none lost". Agent-side idempotency is
+  covered by its own tests.
+
+R-121 therefore stays partial: loss of a replica is now run and nothing was lost, but it is one run on one host, with a
+balancer that does not health-check, and without a duplicate check.
