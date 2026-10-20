@@ -11,6 +11,7 @@ data:
   allowBslWrite: {{ .Values.policy.allowBslWrite | quote }}
   allowLogStreaming: {{ .Values.policy.allowLogStreaming | quote }}
   readOnly: {{ .Values.policy.readOnly | quote }}
+  allowClusterScopedRestore: {{ .Values.policy.allowClusterScopedRestore | quote }}
   restoreDeniedNamespaces: {{ .Values.policy.restoreDeniedNamespaces | toJson | quote }}
   logStreamDeniedNamespaces: {{ .Values.policy.logStreamDeniedNamespaces | toJson | quote }}
 ---

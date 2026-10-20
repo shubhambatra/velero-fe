@@ -62,6 +62,22 @@ describe('validate', () => {
     expect(validate(form({ mapping: 'a:b' }), open).mapping).toBeUndefined();
   });
 
+  describe('when the cluster owner forbids cluster-scoped restores (G-4)', () => {
+    const denied = { ...open, clusterScopedDenied: true };
+    it('accepts only an explicit No', () => {
+      expect(validate(form({ clusterScoped: 'no' }), denied).clusterScoped).toBeUndefined();
+      expect(validate(form({ clusterScoped: 'auto' }), denied).clusterScoped).toMatch(/owner/);
+      expect(validate(form({ clusterScoped: 'yes' }), denied).clusterScoped).toMatch(/owner/);
+    });
+    it('does not apply when the policy is silent or allows it', () => {
+      expect(validate(form({ clusterScoped: 'auto' }), open).clusterScoped).toBeUndefined();
+      expect(
+        validate(form({ clusterScoped: 'auto' }), { ...open, clusterScopedDenied: false })
+          .clusterScoped,
+      ).toBeUndefined();
+    });
+  });
+
   describe('for a user limited to some namespaces', () => {
     it('requires named namespaces and cluster-scoped resources off', () => {
       expect(validate(form({ clusterScoped: 'no' }), limited).namespaces).toBeTruthy();

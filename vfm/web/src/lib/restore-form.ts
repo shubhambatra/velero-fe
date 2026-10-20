@@ -100,6 +100,8 @@ export type Errors = Partial<Record<keyof RestoreForm, string>>;
 export interface Context {
   limitedToNamespaces: boolean;
   mayUseAdvanced: boolean;
+  /** The cluster owner's policy forbids cluster-scoped restores (G-4); only "No" is accepted. */
+  clusterScopedDenied?: boolean;
 }
 
 export function validate(form: RestoreForm, ctx: Context): Errors {
@@ -143,6 +145,11 @@ export function validate(form: RestoreForm, ctx: Context): Errors {
     if (form.clusterScoped !== 'no') {
       e.clusterScoped = 'Your access does not include cluster-scoped resources: choose "No".';
     }
+  }
+
+  if (ctx.clusterScopedDenied === true && form.clusterScoped !== 'no') {
+    e.clusterScoped ??=
+      'The owner of this cluster does not allow restoring cluster-scoped resources: choose "No".';
   }
 
   for (const key of [

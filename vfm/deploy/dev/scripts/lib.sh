@@ -30,7 +30,15 @@ VFM_DEV_COMPOSE_PROJECT="vfm-dev"
 
 # The clusters this directory owns. Anything not in this list is off limits —
 # see assert_owned_cluster.
-VFM_DEV_CLUSTERS=(vfm-a vfm-b)
+#
+# VFM_DEV_SOLO=1 builds ONE single-node cluster (vfm-a) instead of two two-node ones. It exists for hosts
+# whose inotify limits cannot be raised (blocker B-2): the distro default is enough for one node. The
+# trade is that the second cluster, and so any test that needs two, is not there.
+if [[ "${VFM_DEV_SOLO:-0}" == 1 ]]; then
+  VFM_DEV_CLUSTERS=(vfm-a)
+else
+  VFM_DEV_CLUSTERS=(vfm-a vfm-b)
+fi
 
 # The docker network kind puts its nodes on.
 VFM_DEV_KIND_NETWORK="kind"
@@ -304,7 +312,8 @@ EOF
 #
 # Checked here rather than discovered there. kind documents the same minimums.
 require_inotify_limits() {
-  local -r want_instances=512 want_watches=524288
+  local want_instances=512 want_watches=524288
+  if [[ "${VFM_DEV_SOLO:-0}" == 1 ]]; then want_instances=128 want_watches=65536; fi
   local instances watches
   instances="$(cat /proc/sys/fs/inotify/max_user_instances 2>/dev/null || echo 0)"
   watches="$(cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null || echo 0)"

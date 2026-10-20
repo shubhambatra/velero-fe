@@ -14,6 +14,7 @@ import { useApprovalPolicy } from '@/lib/approvals';
 import type { ClusterScoped, Tri } from '@/lib/backup-form';
 import { api, errorMessage } from '@/lib/client';
 import { cn } from '@/lib/cn';
+import type { ClusterOverview } from '@/lib/fleet';
 import {
   emptyRestoreForm,
   impactRows,
@@ -133,6 +134,13 @@ export function RestoreWizardPage({
   const createLevel = access.level('restore:create');
   const limited = createLevel === 'scoped';
   const mayUseAdvanced = access.level('advanced:write') === 'cluster';
+  // The owner's policy (G-4), from the same overview the cluster header already fetched.
+  const overview = useQuery({
+    queryKey: ['org', orgId, 'cluster', clusterId, 'overview'],
+    queryFn: ({ signal }) =>
+      api<ClusterOverview>(`/orgs/${orgId}/clusters/${clusterId}/overview`, { signal }),
+  });
+  const policyDenies = overview.data?.cluster.agentPolicy?.denyClusterScopedRestore === true;
 
   const search = useRouterState({ select: (s) => s.location.search as Record<string, unknown> });
   const fromBackup = typeof search.backup === 'string' ? search.backup : '';
@@ -148,16 +156,16 @@ export function RestoreWizardPage({
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    if (limited && !adjusted) {
+    if ((limited || policyDenies) && !adjusted) {
       setForm((f) => ({ ...f, clusterScoped: 'no' }));
       setAdjusted(true);
     }
-  }, [limited, adjusted]);
+  }, [limited, policyDenies, adjusted]);
   useEffect(() => {
     heading.current?.focus();
   }, [step]);
 
-  const ctx = { limitedToNamespaces: limited, mayUseAdvanced };
+  const ctx = { limitedToNamespaces: limited, mayUseAdvanced, clusterScopedDenied: policyDenies };
   const errors = validate(form, ctx);
   const set =
     <K extends keyof RestoreForm>(key: K) =>
@@ -390,16 +398,18 @@ export function RestoreWizardPage({
                       hint={
                         limited
                           ? 'Not available with your access.'
-                          : 'Velero’s default adds the cluster-scoped objects the selected resources need.'
+                          : policyDenies
+                            ? 'The owner of this cluster does not allow restoring cluster-scoped resources.'
+                            : 'Velero’s default adds the cluster-scoped objects the selected resources need.'
                       }
                       error={shown('clusterScoped')}
                       value={form.clusterScoped}
-                      disabled={limited}
+                      disabled={limited || policyDenies}
                       onChange={(v) => {
                         setForm((f) => ({ ...f, clusterScoped: v as ClusterScoped }));
                       }}
                       options={
-                        limited
+                        limited || policyDenies
                           ? [{ value: 'no', label: 'No' }]
                           : [
                               { value: 'auto', label: 'Velero’s default' },

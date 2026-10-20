@@ -53,6 +53,13 @@ func (h *RestoreHandler) Create(ctx context.Context, cmd *pb.Command) *pb.Comman
 	if h.Policy == nil {
 		return &pb.CommandResult{ErrorCode: pb.ErrorCode_ERROR_CODE_INTERNAL, ErrorMessage: "the agent has no policy to check the restore against"}
 	}
+	var includeCluster *bool
+	if v, ok := spec["includeClusterResources"].(bool); ok {
+		includeCluster = &v
+	}
+	if denial := h.Policy().CheckRestoreClusterScope(includeCluster); denial != nil {
+		return &pb.CommandResult{ErrorCode: pb.ErrorCode_ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY, ErrorMessage: denial.Reason}
+	}
 	if denial := h.Policy().CheckRestoreScope(stringsOf(spec["includedNamespaces"]), stringsOf(spec["excludedNamespaces"]), stringMap(spec["namespaceMapping"])); denial != nil {
 		return &pb.CommandResult{ErrorCode: pb.ErrorCode_ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY, ErrorMessage: denial.Reason}
 	}

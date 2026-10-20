@@ -40,6 +40,9 @@ policy:
   allowLogStreaming: true
   logStreamDeniedNamespaces: []
   readOnly: false
+  # false: a restore must set cluster-scoped resources to No. Velero reads "not set" as Yes, which would let a
+  # restore recreate CRDs, ClusterRoleBindings and PersistentVolumes (threat model G-4).
+  allowClusterScopedRestore: true
 
 # Two replicas: one leads (Lease), one stands by.
 replicaCount: 2

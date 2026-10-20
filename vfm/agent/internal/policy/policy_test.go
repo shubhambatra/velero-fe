@@ -197,3 +197,51 @@ func TestProtoReportsThePolicyWithoutAliasing(t *testing.T) {
 		t.Error("policy not reported")
 	}
 }
+
+func ptrBool(b bool) *bool { return &b }
+
+func TestClusterScopedRestoreSwitch(t *testing.T) {
+	// The default allows it: the owner opts in to the restriction.
+	if !Default().AllowClusterScopedRestore {
+		t.Fatal("cluster-scoped restores must be allowed by default")
+	}
+	// A broken policy never widens anything.
+	if Lockdown().AllowClusterScopedRestore {
+		t.Fatal("lockdown must not allow cluster-scoped restores")
+	}
+	off, err := Parse(map[string]string{"allowClusterScopedRestore": "false"})
+	if err != nil || off.AllowClusterScopedRestore {
+		t.Fatalf("not parsed: %+v %v", off, err)
+	}
+	if _, err := Parse(map[string]string{"allowClusterScopedRestore": "perhaps"}); err == nil {
+		t.Error("a non-boolean was accepted")
+	}
+
+	// Velero v1.18: includeClusterResources unset means true. With the switch off only an explicit false passes.
+	for name, c := range map[string]struct {
+		include *bool
+		denied  bool
+	}{
+		"unset (Velero reads it as true)": {nil, true},
+		"explicitly true":                 {ptrBool(true), true},
+		"explicitly false":                {ptrBool(false), false},
+	} {
+		if got := off.CheckRestoreClusterScope(c.include); (got != nil) != c.denied {
+			t.Errorf("switch off, %s: denial = %v", name, got)
+		}
+		// The same commands through the whole policy, on the typed spec.
+		cmd := &pb.Command{Op: &pb.Command_CreateRestore{CreateRestore: &pb.CreateRestore{Spec: &pb.RestoreSpec{
+			BackupName: "b", IncludedNamespaces: []string{"shop"}, IncludeClusterResources: c.include,
+		}}}}
+		if got := off.Check(cmd); (got != nil) != c.denied {
+			t.Errorf("switch off, %s through Check: denial = %v", name, got)
+		}
+		if got := Default().Check(cmd); got != nil {
+			t.Errorf("switch on, %s: %v", name, got)
+		}
+	}
+	// It reaches the UI as a deny flag, so an agent that predates it reads as "allowed".
+	if !off.Proto().GetDenyClusterScopedRestore() || Default().Proto().GetDenyClusterScopedRestore() {
+		t.Error("the deny flag does not follow the switch")
+	}
+}

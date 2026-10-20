@@ -241,6 +241,12 @@ export function ClusterPage({
                     ],
                     ['Restores', policy.allowRestore ? 'allowed' : 'disabled'],
                     [
+                      'Cluster-scoped restores',
+                      policy.denyClusterScopedRestore === true
+                        ? 'not allowed (a restore must choose “No”)'
+                        : 'allowed',
+                    ],
+                    [
                       'Restores never touch',
                       policy.restoreDeniedNamespaces.length === 0
                         ? 'nothing is protected'

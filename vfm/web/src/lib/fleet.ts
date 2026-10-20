@@ -28,6 +28,8 @@ export interface AgentPolicy {
   allowLogStreaming: boolean;
   logStreamDeniedNamespaces: string[];
   readOnly: boolean;
+  /** G-4. Absent from older agents, which allow it. */
+  denyClusterScopedRestore?: boolean;
 }
 
 export interface FleetCluster extends ClusterRow {

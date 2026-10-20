@@ -508,8 +508,11 @@ type AgentPolicy struct {
 	AllowLogStreaming         bool                   `protobuf:"varint,4,opt,name=allow_log_streaming,json=allowLogStreaming,proto3" json:"allow_log_streaming,omitempty"`
 	LogStreamDeniedNamespaces []string               `protobuf:"bytes,5,rep,name=log_stream_denied_namespaces,json=logStreamDeniedNamespaces,proto3" json:"log_stream_denied_namespaces,omitempty"`
 	ReadOnly                  bool                   `protobuf:"varint,6,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Threat model G-4. A *deny* flag so that an agent that predates it, and so omits it, means "allowed":
+	// when set, a restore must say `includeClusterResources: false` (Velero treats unset as true).
+	DenyClusterScopedRestore bool `protobuf:"varint,7,opt,name=deny_cluster_scoped_restore,json=denyClusterScopedRestore,proto3" json:"deny_cluster_scoped_restore,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *AgentPolicy) Reset() {
@@ -580,6 +583,13 @@ func (x *AgentPolicy) GetLogStreamDeniedNamespaces() []string {
 func (x *AgentPolicy) GetReadOnly() bool {
 	if x != nil {
 		return x.ReadOnly
+	}
+	return false
+}
+
+func (x *AgentPolicy) GetDenyClusterScopedRestore() bool {
+	if x != nil {
+		return x.DenyClusterScopedRestore
 	}
 	return false
 }
@@ -946,14 +956,15 @@ const file_vfm_agent_v1_gateway_proto_rawDesc = "" +
 	"\x13cluster_fingerprint\x18\x06 \x01(\tR\x12clusterFingerprint\x122\n" +
 	"\x06velero\x18\a \x01(\v2\x1a.vfm.agent.v1.ServerStatusR\x06velero\x12\"\n" +
 	"\fcapabilities\x18\b \x03(\tR\fcapabilities\x121\n" +
-	"\x06policy\x18\t \x01(\v2\x19.vfm.agent.v1.AgentPolicyR\x06policy\"\xa4\x02\n" +
+	"\x06policy\x18\t \x01(\v2\x19.vfm.agent.v1.AgentPolicyR\x06policy\"\xe3\x02\n" +
 	"\vAgentPolicy\x12#\n" +
 	"\rallow_restore\x18\x01 \x01(\bR\fallowRestore\x12:\n" +
 	"\x19restore_denied_namespaces\x18\x02 \x03(\tR\x17restoreDeniedNamespaces\x12&\n" +
 	"\x0fallow_bsl_write\x18\x03 \x01(\bR\rallowBslWrite\x12.\n" +
 	"\x13allow_log_streaming\x18\x04 \x01(\bR\x11allowLogStreaming\x12?\n" +
 	"\x1clog_stream_denied_namespaces\x18\x05 \x03(\tR\x19logStreamDeniedNamespaces\x12\x1b\n" +
-	"\tread_only\x18\x06 \x01(\bR\breadOnly\"\xb7\x01\n" +
+	"\tread_only\x18\x06 \x01(\bR\breadOnly\x12=\n" +
+	"\x1bdeny_cluster_scoped_restore\x18\a \x01(\bR\x18denyClusterScopedRestore\"\xb7\x01\n" +
 	"\bHelloAck\x12:\n" +
 	"\x19accepted_protocol_version\x18\x01 \x01(\rR\x17acceptedProtocolVersion\x12;\n" +
 	"\vserver_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +

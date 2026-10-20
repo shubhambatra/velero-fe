@@ -70,6 +70,7 @@ function server(
     post?: (path: string, body: unknown) => Response | undefined;
     backup?: unknown;
     approval?: { required: boolean; fromOrg: boolean; fromCluster: boolean };
+    agentPolicy?: Record<string, unknown>;
   } = {},
 ) {
   const calls: Call[] = [];
@@ -82,7 +83,7 @@ function server(
       });
     if (url.endsWith('/overview'))
       return jsonResponse({
-        cluster: CLUSTER,
+        cluster: { ...CLUSTER, agentPolicy: options.agentPolicy ?? null },
         inventory: { snapshotId: 's', syncedAt: null, kinds: {} },
         locations: null,
         recentBackups: null,
@@ -398,6 +399,45 @@ describe('the restore wizard', () => {
       await next(user);
       expect(await screen.findByRole('heading', { name: 'Options' })).toBeVisible();
       expect(screen.getByLabelText('Advanced settings (JSON)')).toBeDisabled();
+    });
+  });
+
+  describe('when the cluster owner has switched cluster-scoped restores off (G-4)', () => {
+    const policy = {
+      allowRestore: true,
+      restoreDeniedNamespaces: [],
+      allowBslWrite: true,
+      allowLogStreaming: true,
+      logStreamDeniedNamespaces: [],
+      readOnly: false,
+      denyClusterScopedRestore: true,
+    };
+
+    it('locks the option to No and says whose decision it is', async () => {
+      const user = userEvent.setup();
+      server({ agentPolicy: policy });
+      renderApp({ path: '/clusters/c1/restores/new?backup=nightly-1' });
+      await screen.findByRole('heading', { name: 'Source' });
+      await next(user);
+      const select = await screen.findByLabelText('Cluster-scoped resources');
+      await waitFor(() => {
+        expect(select).toBeDisabled();
+        expect(select).toHaveValue('no');
+      });
+      expect(
+        screen.getByText(
+          /The owner of this cluster does not allow restoring cluster-scoped resources/,
+        ),
+      ).toBeVisible();
+    });
+
+    it('leaves the choice open on a cluster whose owner has not restricted it', async () => {
+      const user = userEvent.setup();
+      server({ agentPolicy: { ...policy, denyClusterScopedRestore: false } });
+      renderApp({ path: '/clusters/c1/restores/new?backup=nightly-1' });
+      await screen.findByRole('heading', { name: 'Source' });
+      await next(user);
+      expect(await screen.findByLabelText('Cluster-scoped resources')).toBeEnabled();
     });
   });
 

@@ -18,6 +18,7 @@ import type { Env } from './config/env.schema';
 import { startMetricsServer } from './metrics/metrics.server';
 import { startTracing } from './metrics/tracing';
 import { applySecurity, bodyErrors, MAX_JSON_BODY } from './security';
+import { tuneHttpServer } from './http-server';
 import { mountWeb } from './web-static';
 
 /**
@@ -94,6 +95,7 @@ async function bootstrap(): Promise<void> {
   const stopTracing = await startTracing(env.OTEL_ENABLED);
   const metrics = startMetricsServer(env.HOST, env.METRICS_PORT);
 
+  tuneHttpServer(app.getHttpServer() as Parameters<typeof tuneHttpServer>[0]);
   await app.listen(env.PORT, env.HOST);
 
   const logger = new NestLogger('Bootstrap');

@@ -587,3 +587,31 @@ func TestTheChartRefusesToInstallWithoutTheThingsItCannotWorkWithout(t *testing.
 		}
 	}
 }
+
+func TestTheClusterScopedRestoreSwitchReachesTheAgent(t *testing.T) {
+	policyOf := func(extra ...string) policy.Policy {
+		rendered, err := helmTemplate(t, extra...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, doc := range objects(t, rendered)["ConfigMap"] {
+			cm := decodeInto[corev1.ConfigMap](t, doc)
+			if cm.Name != config.DefaultPolicyConfigMap {
+				continue
+			}
+			p, err := policy.Parse(cm.Data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return p
+		}
+		t.Fatal("no policy ConfigMap rendered")
+		return policy.Policy{}
+	}
+	if !policyOf().AllowClusterScopedRestore {
+		t.Error("cluster-scoped restores must be allowed by default (threat model G-4: the owner opts in to the restriction)")
+	}
+	if policyOf("--set", "policy.allowClusterScopedRestore=false").AllowClusterScopedRestore {
+		t.Error("policy.allowClusterScopedRestore=false did not reach the agent")
+	}
+}

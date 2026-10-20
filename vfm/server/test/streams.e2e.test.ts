@@ -179,7 +179,12 @@ describe('agent streams (e2e, two replicas)', () => {
       expect(cluster.veleroVersion).toBe('v1.18.4');
       expect(cluster.k8sVersion).toBe('v1.31.0');
       expect(cluster.veleroPlugins).toEqual([{ name: 'velero.io/aws', kind: 'ObjectStore' }]);
-      expect(cluster.agentPolicy).toMatchObject({ allowRestore: true, readOnly: false });
+      // The switch is a deny flag, so an agent that does not send it is read as "allowed" (G-4).
+      expect(cluster.agentPolicy).toMatchObject({
+        allowRestore: true,
+        readOnly: false,
+        denyClusterScopedRestore: false,
+      });
       expect(cluster.chartVersion).toBe('0.0.1');
       expect(cluster.imageTag).toBe('sha-abc');
       expect(cluster.protocolVersion).toBe(1);
@@ -202,6 +207,32 @@ describe('agent streams (e2e, two replicas)', () => {
         expect(((await stream.ended) as { code: number }).code).toBe(code);
       },
     );
+
+    it('records an agent whose owner has switched cluster-scoped restores off (G-4)', async () => {
+      const { clusterId, cert } = await enrolledAgent();
+      const stream = connect(portA, cert, {
+        policy: {
+          allowRestore: true,
+          restoreDeniedNamespaces: [],
+          allowBslWrite: true,
+          allowLogStreaming: true,
+          logStreamDeniedNamespaces: [],
+          readOnly: false,
+          denyClusterScopedRestore: true,
+        },
+      });
+      await stream.next();
+      const cluster = await eventually(
+        'CONNECTED',
+        () => stateOf(clusterId),
+        (c) => c.status === 'CONNECTED',
+      );
+      expect(cluster.agentPolicy).toMatchObject({
+        allowRestore: true,
+        denyClusterScopedRestore: true,
+      });
+      stream.cancel();
+    });
 
     it('refuses an unsupported protocol version and does not mark the cluster connected', async () => {
       const { clusterId, cert } = await enrolledAgent();
@@ -260,6 +291,7 @@ describe('agent streams (e2e, two replicas)', () => {
         allowBslWrite: false,
         allowLogStreaming: false,
         readOnly: true,
+        denyClusterScopedRestore: true,
       });
       stream.cancel();
     });

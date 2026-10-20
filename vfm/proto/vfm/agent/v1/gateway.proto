@@ -83,6 +83,9 @@ message AgentPolicy {
   bool allow_log_streaming = 4;
   repeated string log_stream_denied_namespaces = 5;
   bool read_only = 6;
+  // Threat model G-4. A *deny* flag so that an agent that predates it, and so omits it, means "allowed":
+  // when set, a restore must say `includeClusterResources: false` (Velero treats unset as true).
+  bool deny_cluster_scoped_restore = 7;
 }
 
 message HelloAck {

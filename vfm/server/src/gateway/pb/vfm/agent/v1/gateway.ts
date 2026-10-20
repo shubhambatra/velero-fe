@@ -97,6 +97,11 @@ export interface AgentPolicy {
   allowLogStreaming: boolean;
   logStreamDeniedNamespaces: string[];
   readOnly: boolean;
+  /**
+   * Threat model G-4. A *deny* flag so that an agent that predates it, and so omits it, means "allowed":
+   * when set, a restore must say `includeClusterResources: false` (Velero treats unset as true).
+   */
+  denyClusterScopedRestore: boolean;
 }
 
 export interface HelloAck {
@@ -859,6 +864,7 @@ function createBaseAgentPolicy(): AgentPolicy {
     allowLogStreaming: false,
     logStreamDeniedNamespaces: [],
     readOnly: false,
+    denyClusterScopedRestore: false,
   };
 }
 
@@ -881,6 +887,9 @@ export const AgentPolicy: MessageFns<AgentPolicy> = {
     }
     if (message.readOnly !== false) {
       writer.uint32(48).bool(message.readOnly);
+    }
+    if (message.denyClusterScopedRestore !== false) {
+      writer.uint32(56).bool(message.denyClusterScopedRestore);
     }
     return writer;
   },
@@ -946,6 +955,14 @@ export const AgentPolicy: MessageFns<AgentPolicy> = {
             message.readOnly = reader.bool();
             continue;
           }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.denyClusterScopedRestore = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -990,6 +1007,11 @@ export const AgentPolicy: MessageFns<AgentPolicy> = {
         : isSet(object.read_only)
           ? globalThis.Boolean(object.read_only)
           : false,
+      denyClusterScopedRestore: isSet(object.denyClusterScopedRestore)
+        ? globalThis.Boolean(object.denyClusterScopedRestore)
+        : isSet(object.deny_cluster_scoped_restore)
+          ? globalThis.Boolean(object.deny_cluster_scoped_restore)
+          : false,
     };
   },
 
@@ -1013,6 +1035,9 @@ export const AgentPolicy: MessageFns<AgentPolicy> = {
     if (message.readOnly !== false) {
       obj.readOnly = message.readOnly;
     }
+    if (message.denyClusterScopedRestore !== false) {
+      obj.denyClusterScopedRestore = message.denyClusterScopedRestore;
+    }
     return obj;
   },
 
@@ -1027,6 +1052,7 @@ export const AgentPolicy: MessageFns<AgentPolicy> = {
     message.allowLogStreaming = object.allowLogStreaming ?? false;
     message.logStreamDeniedNamespaces = object.logStreamDeniedNamespaces?.map((e) => e) || [];
     message.readOnly = object.readOnly ?? false;
+    message.denyClusterScopedRestore = object.denyClusterScopedRestore ?? false;
     return message;
   },
 };

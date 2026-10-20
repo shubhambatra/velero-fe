@@ -31,6 +31,7 @@
         "allowBslWrite": { "type": "boolean" },
         "allowLogStreaming": { "type": "boolean" },
         "readOnly": { "type": "boolean" },
+        "allowClusterScopedRestore": { "type": "boolean" },
         "restoreDeniedNamespaces": {
           "type": "array",
           "items": { "type": "string", "maxLength": 63 }

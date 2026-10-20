@@ -27,6 +27,8 @@ export interface SanitizedHello {
     allowLogStreaming: boolean;
     logStreamDeniedNamespaces: string[];
     readOnly: boolean;
+    /** G-4: a restore must say includeClusterResources false. Absent (an older agent) is false: allowed. */
+    denyClusterScopedRestore: boolean;
   };
   chartVersion: string | null;
   imageTag: string | null;
@@ -74,6 +76,9 @@ export function sanitizeHello(hello: Hello): SanitizedHello {
       allowLogStreaming: policy?.allowLogStreaming ?? false,
       logStreamDeniedNamespaces: list(policy?.logStreamDeniedNamespaces ?? [], MAX_NAMESPACES, 63),
       readOnly: policy?.readOnly ?? true,
+      // No policy at all is restricted, like every other flag here; a policy from an older agent that
+      // does not know the flag decodes as false, which is the behaviour it always had.
+      denyClusterScopedRestore: policy?.denyClusterScopedRestore ?? true,
     },
     chartVersion: optional(hello.chartVersion),
     imageTag: optional(hello.imageTag),

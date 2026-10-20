@@ -40,6 +40,10 @@ type Policy struct {
 	LogStreamDeniedNamespaces []string
 	// ReadOnly rejects every command that changes anything.
 	ReadOnly bool
+	// AllowClusterScopedRestore (threat model G-4). When false a restore must say
+	// `includeClusterResources: false`: Velero treats the field being unset as true, which would let a
+	// restore recreate CRDs, ClusterRoleBindings and PersistentVolumes. Default true.
+	AllowClusterScopedRestore bool
 }
 
 // Default is the policy used when no ConfigMap exists (PLAN.md §5.5).
@@ -51,6 +55,7 @@ func Default() Policy {
 		AllowLogStreaming:         true,
 		LogStreamDeniedNamespaces: []string{},
 		ReadOnly:                  false,
+		AllowClusterScopedRestore: true,
 	}
 }
 
@@ -64,6 +69,7 @@ func Lockdown() Policy {
 		AllowLogStreaming:         false,
 		LogStreamDeniedNamespaces: []string{"*"},
 		ReadOnly:                  true,
+		AllowClusterScopedRestore: false,
 	}
 }
 
@@ -82,6 +88,7 @@ func (p Policy) Proto() *pb.AgentPolicy {
 		AllowLogStreaming:         p.AllowLogStreaming,
 		LogStreamDeniedNamespaces: slices.Clone(p.LogStreamDeniedNamespaces),
 		ReadOnly:                  p.ReadOnly,
+		DenyClusterScopedRestore:  !p.AllowClusterScopedRestore,
 	}
 }
 
@@ -103,6 +110,8 @@ func Parse(data map[string]string) (Policy, error) {
 			p.AllowLogStreaming, problems = parseBool(key, value, problems)
 		case "readOnly":
 			p.ReadOnly, problems = parseBool(key, value, problems)
+		case "allowClusterScopedRestore":
+			p.AllowClusterScopedRestore, problems = parseBool(key, value, problems)
 		case "restoreDeniedNamespaces":
 			p.RestoreDeniedNamespaces, problems = parseList(key, value, problems)
 		case "logStreamDeniedNamespaces":
@@ -195,6 +204,9 @@ func (p Policy) Check(cmd *pb.Command) *Denial {
 			return &Denial{Reason: "restores are disabled on this cluster"}
 		}
 		spec := op.CreateRestore.GetSpec()
+		if denial := p.CheckRestoreClusterScope(spec.IncludeClusterResources); denial != nil {
+			return denial
+		}
 		return p.CheckRestoreScope(spec.GetIncludedNamespaces(), spec.GetExcludedNamespaces(), spec.GetNamespaceMapping())
 
 	case *pb.Command_UpsertBsl, *pb.Command_SetDefaultBsl, *pb.Command_DeleteBsl,
@@ -204,6 +216,16 @@ func (p Policy) Check(cmd *pb.Command) *Denial {
 		}
 	}
 	return nil
+}
+
+// CheckRestoreClusterScope applies AllowClusterScopedRestore (threat model G-4). `include` is the spec's
+// includeClusterResources as it will really be created; nil is "not set", which Velero v1.18 treats as
+// true (RestoreSpec.IncludeClusterResources: "If null, defaults to true"), so only an explicit false passes.
+func (p Policy) CheckRestoreClusterScope(include *bool) *Denial {
+	if p.AllowClusterScopedRestore || (include != nil && !*include) {
+		return nil
+	}
+	return &Denial{Reason: "restoring cluster-scoped resources (CRDs, ClusterRoleBindings, PersistentVolumes...) is not permitted on this cluster; set cluster-scoped resources to No"}
 }
 
 // CheckRestoreScope refuses a restore that could write into a protected

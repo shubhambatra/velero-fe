@@ -221,6 +221,7 @@ ensure_kind_cluster() {
   assert_owned_cluster "${cluster}"
 
   local config="${VFM_DEV_DIR}/kind/${cluster}.yaml"
+  [[ "${VFM_DEV_SOLO:-0}" == 1 ]] && config="${VFM_DEV_DIR}/kind/${cluster}-solo.yaml"
   [[ -f "${config}" ]] || die "kind config not found: ${config}"
 
   # The idempotency guard the task calls for: create only when the context is
@@ -374,7 +375,7 @@ install_velero() {
       desired=\$(kubectl --context '${ctx}' -n velero get daemonset node-agent -o jsonpath='{.status.desiredNumberScheduled}' 2>/dev/null)
       ready=\$(kubectl --context '${ctx}' -n velero get daemonset node-agent -o jsonpath='{.status.numberReady}' 2>/dev/null)
       [[ -n \"\$desired\" && \"\$desired\" != '0' && \"\$desired\" == \"\$ready\" ]]"
-  kc "${ctx}" -n velero get deployment velero daemonset node-agent \
+  kc "${ctx}" -n velero get deployment/velero daemonset/node-agent \
     -o custom-columns='KIND:.kind,NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image' \
     | sed 's/^/    /'
 

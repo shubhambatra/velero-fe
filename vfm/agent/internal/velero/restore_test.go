@@ -253,3 +253,38 @@ func TestDeletingARestoreRemovesTheRestoreObjectOnly(t *testing.T) {
 		t.Fatalf("%v", res)
 	}
 }
+
+func TestAnAdvancedSpecCannotSwitchClusterScopedRestoreBackOn(t *testing.T) {
+	// G-4: the owner has said no cluster-scoped restores. The typed spec says "No", then the advanced
+	// settings, merged on afterwards, say yes, or unset it (which Velero reads as yes).
+	off := policy.Default()
+	off.AllowClusterScopedRestore = false
+	typedNo := &pb.RestoreSpec{BackupName: "b", IncludedNamespaces: []string{"shop"}, IncludeClusterResources: ptr(false)}
+
+	for name, advanced := range map[string]string{
+		"true": `{"includeClusterResources":true}`,
+	} {
+		c := newRestoreClient(backupObject("b", "u"))
+		res := restoreHandler(c, off).Create(context.Background(), restoreCmd("", typedNo, advanced))
+		if res.GetOk() || res.GetErrorCode() != pb.ErrorCode_ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY {
+			t.Errorf("%s: %v", name, res)
+		}
+		if count(t, c, restores) != 0 {
+			t.Errorf("%s: a restore was created", name)
+		}
+	}
+	// A restore that never says (so Velero reads true) is refused too, and an explicit false goes through.
+	c := newRestoreClient(backupObject("b", "u"))
+	unset := &pb.RestoreSpec{BackupName: "b", IncludedNamespaces: []string{"shop"}}
+	if res := restoreHandler(c, off).Create(context.Background(), restoreCmd("", unset, "")); res.GetErrorCode() != pb.ErrorCode_ERROR_CODE_FORBIDDEN_BY_AGENT_POLICY {
+		t.Errorf("an unset includeClusterResources was accepted: %v", res)
+	}
+	if res := restoreHandler(c, off).Create(context.Background(), restoreCmd("", typedNo, "")); !res.GetOk() {
+		t.Errorf("an explicit false was refused: %v", res)
+	}
+	// With the default policy none of this applies.
+	c2 := newRestoreClient(backupObject("b", "u"))
+	if res := restoreHandler(c2, policy.Default()).Create(context.Background(), restoreCmd("", unset, "")); !res.GetOk() {
+		t.Errorf("the default policy refused an unset includeClusterResources: %v", res)
+	}
+}
