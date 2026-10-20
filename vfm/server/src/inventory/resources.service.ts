@@ -6,7 +6,7 @@ import type { Prisma, VeleroResource } from '@prisma/client';
 import { stringify } from 'yaml';
 
 import { PrismaService } from '../prisma/prisma.service';
-import { coverageOf, type CoverageBackup } from './coverage';
+import { coverageOfMany, type CoverageBackup } from './coverage';
 import { WatchScopeService } from './watch-scope.service';
 import { RbacService, type TokenLimit } from '../rbac/rbac.service';
 import {
@@ -452,8 +452,15 @@ export class ResourcesService {
     const now = new Date();
     const mayName = (b: CoverageBackup): boolean =>
       visibility.all || visibility.sees(coveredBy('BACKUP', b.spec));
+    const coverage = coverageOfMany(
+      items.map((item) => item.name),
+      backups,
+      schedules,
+      now,
+      mayName,
+    );
     for (const item of items) {
-      Object.assign(item, { coverage: coverageOf(item.name, backups, schedules, now, mayName) });
+      Object.assign(item, { coverage: coverage.get(item.name) });
     }
   }
 

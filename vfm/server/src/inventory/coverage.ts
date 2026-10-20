@@ -77,3 +77,77 @@ export function coverageOf(
     scheduled,
   };
 }
+
+/**
+ * `coverageOf` for many namespaces at once. Same answers, but each backup and schedule spec is read
+ * once instead of once per namespace: at thousands of namespaces and backups the per-namespace scan
+ * was the whole cost of the coverage report. `backups` must be the successful ones, newest first.
+ */
+export function coverageOfMany(
+  namespaces: readonly string[],
+  backups: readonly CoverageBackup[],
+  schedules: readonly CoverageSchedule[],
+  now: Date,
+  mayName: (backup: CoverageBackup) => boolean = () => true,
+): Map<string, Coverage> {
+  const wanted = new Set(namespaces);
+  const lastBy = new Map<string, CoverageBackup>();
+  const scheduled = new Set<string>();
+
+  // For each spec, the namespaces of `wanted` that it covers.
+  const reach = (spec: unknown, visit: (ns: string) => void): void => {
+    const s = isRecord(spec) ? spec : {};
+    const included = names(s.includedNamespaces);
+    const excluded = new Set(names(s.excludedNamespaces));
+    const all = included.length === 0 || included.includes('*');
+    for (const ns of all ? wanted : included) {
+      if (wanted.has(ns) && !excluded.has(ns)) {
+        visit(ns);
+      }
+    }
+  };
+
+  for (const backup of backups) {
+    if (backup.completedAt === null) {
+      continue;
+    }
+    if (lastBy.size === wanted.size) {
+      break;
+    }
+    reach(backup.spec, (ns) => {
+      if (!lastBy.has(ns)) lastBy.set(ns, backup);
+    });
+  }
+  for (const schedule of schedules) {
+    const spec = isRecord(schedule.spec) ? schedule.spec : {};
+    if (spec.paused === true || scheduled.size === wanted.size) {
+      continue;
+    }
+    reach(spec.template, (ns) => {
+      scheduled.add(ns);
+    });
+  }
+
+  const out = new Map<string, Coverage>();
+  for (const ns of wanted) {
+    const last = lastBy.get(ns);
+    const isScheduled = scheduled.has(ns);
+    if (last?.completedAt === undefined || last.completedAt === null) {
+      out.set(ns, {
+        state: 'none',
+        lastBackupAt: null,
+        lastBackupName: null,
+        scheduled: isScheduled,
+      });
+      continue;
+    }
+    const age = now.getTime() - last.completedAt.getTime();
+    out.set(ns, {
+      state: age > STALE_AFTER_MS ? 'stale' : 'recent',
+      lastBackupAt: last.completedAt,
+      lastBackupName: mayName(last) ? last.name : null,
+      scheduled: isScheduled,
+    });
+  }
+  return out;
+}

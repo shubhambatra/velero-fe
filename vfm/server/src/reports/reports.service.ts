@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { longestGapSeconds, parseCron } from '@vfm/shared';
 
 import { ClustersService } from '../clusters/clusters.service';
-import { coverageOf } from '../inventory/coverage';
+import { coverageOfMany } from '../inventory/coverage';
 import { coveredBy } from '../inventory/projections';
 import { PrismaService } from '../prisma/prisma.service';
 import { RbacService } from '../rbac/rbac.service';
@@ -24,6 +24,9 @@ const DAY = 24 * HOUR;
 /** Rows read per cluster and per question; past it the answer says it is incomplete rather than quietly short. */
 export const ROW_CAP = 100_000;
 export const COVERAGE_CAP = 20_000;
+
+/** Tunable so tests, which read what they just wrote, can switch the sharing off. */
+export const reportOptions = { coverageInputsCacheMs: 5_000 };
 
 export interface ClusterSeries {
   clusterId: string;
@@ -185,27 +188,33 @@ export class ReportsService {
     };
   }
 
+  private readonly coverageCache = new Map<
+    string,
+    { at: number; value: ReturnType<ReportsService['readCoverageInputs']> }
+  >();
+
   /**
-   * Namespaces without a recent backup. A namespace is fine if a successful backup covering it
-   * finished inside the window, so the first read is only the backups of the window, for every
-   * cluster at once. Older backups are read, per cluster, only for clusters that have a namespace
-   * left over, to say when it was last backed up: in a healthy fleet that is none of them.
+   * The three reads behind the coverage report are the same for everyone who may read the same
+   * clusters; what differs per person (which namespaces they see) is applied afterwards. Shared for
+   * a few seconds and single-flight, so a hundred people on the page cost one read, not a hundred.
    */
-  async coverage(
-    orgId: string,
-    userId: string,
-    q: { hours: number; clusterId?: string | undefined },
-  ): Promise<CoverageReport> {
-    const clusters = await this.scope(orgId, userId, q.clusterId);
-    const ids = clusters.map((c) => c.id);
-    const now = new Date();
-    const since = new Date(now.getTime() - q.hours * HOUR);
-    const visibility = await this.rbac.visibilities(orgId, userId, ids, 'backup:read');
-    let incomplete = false;
-    if (ids.length === 0) {
-      return { hours: q.hours, generatedAt: now.toISOString(), clusters: [], incomplete };
+  private coverageInputs(orgId: string, ids: string[], hours: number, since: Date) {
+    const key = `${orgId}|${String(hours)}|${ids.join(',')}`;
+    const held = this.coverageCache.get(key);
+    if (held !== undefined && Date.now() - held.at < reportOptions.coverageInputsCacheMs) {
+      return held.value;
     }
-    const [namespaces, recent, schedules] = await this.prisma.inOrg(orgId, () =>
+    const value = this.readCoverageInputs(orgId, ids, since);
+    this.coverageCache.set(key, { at: Date.now(), value });
+    if (this.coverageCache.size > 200) this.coverageCache.clear();
+    value.catch(() => {
+      if (this.coverageCache.get(key)?.value === value) this.coverageCache.delete(key);
+    });
+    return value;
+  }
+
+  private readCoverageInputs(orgId: string, ids: string[], since: Date) {
+    return this.prisma.inOrg(orgId, () =>
       Promise.all([
         this.prisma.veleroResource.findMany({
           where: { clusterId: { in: ids }, kind: 'NAMESPACE', deletedAt: null },
@@ -232,10 +241,37 @@ export class ReportsService {
         }),
       ]),
     );
+  }
+
+  /**
+   * Namespaces without a recent backup. A namespace is fine if a successful backup covering it
+   * finished inside the window, so the first read is only the backups of the window, for every
+   * cluster at once. Older backups are read, per cluster, only for clusters that have a namespace
+   * left over, to say when it was last backed up: in a healthy fleet that is none of them.
+   */
+  async coverage(
+    orgId: string,
+    userId: string,
+    q: { hours: number; clusterId?: string | undefined },
+  ): Promise<CoverageReport> {
+    const clusters = await this.scope(orgId, userId, q.clusterId);
+    const ids = clusters.map((c) => c.id);
+    const now = new Date();
+    const since = new Date(now.getTime() - q.hours * HOUR);
+    const visibility = await this.rbac.visibilities(orgId, userId, ids, 'backup:read');
+    let incomplete = false;
+    if (ids.length === 0) {
+      return { hours: q.hours, generatedAt: now.toISOString(), clusters: [], incomplete };
+    }
+    const [namespaces, recent, schedules] = await this.coverageInputs(orgId, ids, q.hours, since);
     if (recent.length === COVERAGE_CAP * 5) incomplete = true;
     const group = <T extends { clusterId: string }>(rows: T[]): Map<string, T[]> => {
       const m = new Map<string, T[]>();
-      for (const r of rows) m.set(r.clusterId, [...(m.get(r.clusterId) ?? []), r]);
+      for (const r of rows) {
+        const held = m.get(r.clusterId);
+        if (held === undefined) m.set(r.clusterId, [r]);
+        else held.push(r);
+      }
       return m;
     };
     const nsBy = group(namespaces);
@@ -253,9 +289,14 @@ export class ReportsService {
             (v.all || v.sees({ namespaces: [name], includesClusterScoped: false })),
         );
       const sched = scheduleBy.get(cluster.id) ?? [];
+      const fresh = coverageOfMany(shown, recentBy.get(cluster.id) ?? [], sched, now);
       let rows = shown.map((namespace) => {
-        const c = coverageOf(namespace, recentBy.get(cluster.id) ?? [], sched, now);
-        return { namespace, lastBackupAt: c.lastBackupAt, scheduled: c.scheduled };
+        const c = fresh.get(namespace);
+        return {
+          namespace,
+          lastBackupAt: c?.lastBackupAt ?? null,
+          scheduled: c?.scheduled ?? false,
+        };
       });
       const left = rows.filter((r) => r.lastBackupAt === null).map((r) => r.namespace);
       if (left.length > 0) {
@@ -275,13 +316,11 @@ export class ReportsService {
           }),
         );
         if (older.length === COVERAGE_CAP) incomplete = true;
+        const before = coverageOfMany(left, older, sched, now);
         rows = rows.map((r) =>
           r.lastBackupAt !== null
             ? r
-            : {
-                ...r,
-                lastBackupAt: coverageOf(r.namespace, older, sched, now).lastBackupAt,
-              },
+            : { ...r, lastBackupAt: before.get(r.namespace)?.lastBackupAt ?? null },
         );
       }
       out.push({

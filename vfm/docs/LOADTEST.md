@@ -76,3 +76,20 @@ event loop.
 5. Judge the simulator: 0.27 changes/s per cluster is far above real use; a calmer
    profile would likely pass, but that has **not** been run and should not be assumed.
 6. Measure the real agent footprint on a 5k-pod kind cluster (blocked with B-2).
+
+## Re-measure after the coverage work (2026-10-21)
+
+Same method, same host (load average ~3 from unrelated processes), three 5-minute runs, 200 agents, 100 users.
+**The §13 list and command targets are still not met, and these runs were slower than the day 38 figures above**
+(list p95 3.4–4.5 s, not 1.2–1.8 s; command-to-agent p95 5.3 s; event-to-browser p95 3.8 s, over its 3 s target this time).
+They are not comparable run to run: the day 38 numbers were not reproduced on today's host, and nothing here explains
+the gap, so treat the absolute values as unreliable and the *direction* of each change as the only usable signal.
+
+- Run 1 used `LOG_LEVEL=debug` and `LOG_PRETTY=true` by accident (`server/.env` is read by the app itself). Run 2 repeated it
+  at `info`/JSON: the numbers did not change, so logging was not the cause.
+- Coverage report: `coverageOfMany` (each spec parsed once, not once per namespace) is exactly equivalent to `coverageOf`
+  (randomised test) but measured **no faster** on an idle server (1.0–1.4 s old, 1.0–3.8 s new): the cost is reading ~34 k
+  backup rows with their JSON through Prisma, not the matching loop. A shared 5 s single-flight cache of those reads
+  (`reportOptions.coverageInputsCacheMs`) gave about 10 % on the other endpoints and the report **still times out under
+  load (0 completions in 188 tries)**. It is not fixed.
+- Not done: fleet summary denormalised at ingest, serialise-once SSE, replicas (still the largest untested lever).

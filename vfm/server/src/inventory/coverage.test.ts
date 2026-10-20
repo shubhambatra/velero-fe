@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { coverageOf, coversNamespace, STALE_AFTER_MS } from './coverage';
+import { coverageOf, coverageOfMany, coversNamespace, STALE_AFTER_MS } from './coverage';
 
 const now = new Date('2026-10-17T12:00:00Z');
 const ago = (ms: number) => new Date(now.getTime() - ms);
@@ -80,5 +80,36 @@ describe('coverage of a namespace', () => {
     expect(coverageOf('x', [{ name: 'b', spec: {}, completedAt: null }], [], now).state).toBe(
       'none',
     );
+  });
+});
+
+describe('coverageOfMany', () => {
+  it('answers exactly as coverageOf does, namespace by namespace', () => {
+    const now = new Date('2026-01-10T00:00:00Z');
+    const pool = ['a', 'b', 'c', 'd', 'e', '*'];
+    let seed = 7;
+    const rnd = (n: number): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed % n;
+    };
+    const pick = (): string[] => pool.filter(() => rnd(3) === 0);
+    for (let round = 0; round < 200; round++) {
+      const backups = Array.from({ length: rnd(8) }, (_, i) => ({
+        name: `b${String(i)}`,
+        spec: { includedNamespaces: pick(), excludedNamespaces: pick() },
+        completedAt: rnd(5) === 0 ? null : new Date(now.getTime() - i * 3_600_000 * (1 + rnd(40))),
+      }));
+      const schedules = Array.from({ length: rnd(4) }, () => ({
+        spec: {
+          paused: rnd(3) === 0,
+          template: { includedNamespaces: pick(), excludedNamespaces: pick() },
+        },
+      }));
+      const namespaces = ['a', 'b', 'c', 'd', 'e', 'f'];
+      const many = coverageOfMany(namespaces, backups, schedules, now);
+      for (const ns of namespaces) {
+        expect(many.get(ns)).toEqual(coverageOf(ns, backups, schedules, now));
+      }
+    }
   });
 });

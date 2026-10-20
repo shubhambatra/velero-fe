@@ -1,6 +1,7 @@
 import { fleetOptions } from '../src/inventory/fleet.service';
 import { caOptions } from '../src/ca/ca.service';
 import { rbacOptions } from '../src/rbac/rbac.service';
+import { reportOptions } from '../src/reports/reports.service';
 import { resourceOptions } from '../src/inventory/resources.service';
 import { applySecurity, bodyErrors, MAX_JSON_BODY } from '../src/security';
 import { ENV } from '../src/config/config.module';
@@ -149,6 +150,7 @@ export async function createTestApp(
   caOptions.refreshMs = 0;
   rbacOptions.cacheMs = 0;
   resourceOptions.coverageCacheMs = 0;
+  reportOptions.coverageInputsCacheMs = 0;
   app.use(json({ limit: MAX_JSON_BODY }));
   app.use(bodyErrors);
   app.useGlobalFilters(new ProblemExceptionFilter());
