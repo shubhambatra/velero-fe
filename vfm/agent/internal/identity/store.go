@@ -25,6 +25,8 @@ const (
 	keyKey  = "tls.key"
 	keyCert = "tls.crt"
 	keyCA   = "ca.crt"
+	// keyEnrolledWith holds Identity.EnrolledWith. Not a TLS key, so outside the kubernetes.io/tls set.
+	keyEnrolledWith = "enrolled-with"
 )
 
 // SecretStore keeps the identity in a Secret in the agent's namespace
@@ -56,6 +58,7 @@ func (s *SecretStore) Load(ctx context.Context) (*Identity, error) {
 	if err != nil {
 		return nil, fmt.Errorf("credentials secret is unusable: %w", err)
 	}
+	id.EnrolledWith = string(secret.Data[keyEnrolledWith])
 	return id, nil
 }
 
@@ -63,6 +66,9 @@ func (s *SecretStore) Load(ctx context.Context) (*Identity, error) {
 func (s *SecretStore) Save(ctx context.Context, id *Identity) error {
 	secrets := s.Client.CoreV1().Secrets(s.Namespace)
 	data := map[string][]byte{keyKey: id.KeyPEM, keyCert: id.CertPEM, keyCA: id.CAPEM}
+	if id.EnrolledWith != "" {
+		data[keyEnrolledWith] = []byte(id.EnrolledWith)
+	}
 
 	existing, err := secrets.Get(ctx, s.Name, metav1.GetOptions{})
 	switch {

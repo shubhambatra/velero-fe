@@ -21,7 +21,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "build:assets": "node -e \"require('node:fs').cpSync('src/auth/data', 'dist/auth/data', { recursive: true })\"",
-    "gen:docs": "tsx scripts/gen-docs.ts"
+    "gen:docs": "tsx scripts/gen-docs.ts",
+    "retention": "node dist/retention.js"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.15.0",

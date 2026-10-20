@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"errors"
+	"google.golang.org/grpc/codes"
 	"io"
 	"log/slog"
 	"sync/atomic"
@@ -190,6 +191,14 @@ func TestRenewsAtTwoThirdsOfTheLifetimeWithoutDroppingTheStream(t *testing.T) {
 	if _, _, connects, _ := h.gw.snapshot(); connects != 1 {
 		t.Errorf("renewal reconnected (%d connects); it should not", connects)
 	}
+	// A renewal is not an enrolment: the record of the token the cluster was enrolled with survives it.
+	renewed, err := h.store.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renewed.EnrolledWith != identity.TokenDigest("bootstrap-token") {
+		t.Errorf("renewal lost the enrolment record: %q", renewed.EnrolledWith)
+	}
 }
 
 func TestGracefulShutdownClosesTheStream(t *testing.T) {
@@ -249,5 +258,130 @@ func TestSendQueuesUntilTheStreamIsUpAndReportsOverflow(t *testing.T) {
 	}
 	if h.mgr.Send(&pb.AgentMessage{}) {
 		t.Error("a full queue must refuse, so producers drop and resync instead of blocking")
+	}
+}
+
+// enrolledOnce starts the manager, waits for its first connection and stops it again, leaving the identity in
+// the store: the state of an agent that has been running for a while.
+func enrolledOnce(t *testing.T) *harness {
+	t.Helper()
+	h := newHarness(t, nil)
+	stop := h.run(t)
+	eventually(t, "first connection", func() bool { return h.up.Load() == 1 })
+	stop()
+	return h
+}
+
+// refuseTheIdentity makes the control plane answer every Connect with Unauthenticated, as it does for a
+// revoked certificate; accept lets connections through again, as it does for the certificate of a new enrolment.
+func (h *harness) refuseTheIdentity() {
+	h.gw.mu.Lock()
+	h.gw.refuseConnect = codes.Unauthenticated
+	h.gw.mu.Unlock()
+}
+
+func (h *harness) accept() {
+	h.gw.mu.Lock()
+	h.gw.refuseConnect = codes.OK
+	h.gw.mu.Unlock()
+}
+
+func enrolments(h *harness) int { n, _, _, _ := h.gw.snapshot(); return n }
+
+func TestANewTokenReplacesARevokedIdentity(t *testing.T) {
+	// A disabled-then-re-enabled cluster: its stored certificate is revoked, the operator gives the chart
+	// a NEW token. Before this, the agent presented the revoked certificate for ever and ignored the token.
+	h := enrolledOnce(t)
+	old, err := h.store.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.gw.configure(func() { h.gw.token = "second-token" })
+	h.mgr.opts.EnrollmentToken = "second-token"
+	h.refuseTheIdentity()
+
+	stop := h.run(t)
+	defer stop()
+	eventually(t, "the agent to enrol with the new token", func() bool { return enrolments(h) == 2 })
+	h.accept() // the control plane now knows the new certificate
+	eventually(t, "the second connection", func() bool { return h.up.Load() == 2 })
+
+	fresh, err := h.store.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(fresh.CertPEM) == string(old.CertPEM) {
+		t.Error("the identity was not replaced")
+	}
+	if fresh.EnrolledWith != identity.TokenDigest("second-token") {
+		t.Errorf("the new identity does not record its token: %q", fresh.EnrolledWith)
+	}
+}
+
+func TestAnIdentityFromBeforeTheRecordIsReplacedToo(t *testing.T) {
+	// Installs that predate the record are the ones stuck today; they must be able to recover.
+	h := enrolledOnce(t)
+	id, err := h.store.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id.EnrolledWith = ""
+	if err := h.store.Save(context.Background(), id); err != nil {
+		t.Fatal(err)
+	}
+	h.gw.configure(func() { h.gw.token = "second-token" })
+	h.mgr.opts.EnrollmentToken = "second-token"
+	h.refuseTheIdentity()
+	stop := h.run(t)
+	defer stop()
+	eventually(t, "the agent to enrol with the new token", func() bool { return enrolments(h) == 2 })
+	h.accept()
+	eventually(t, "the second connection", func() bool { return h.up.Load() == 2 })
+}
+
+func TestTheSpentTokenLeftInTheValuesNeverStartsALoop(t *testing.T) {
+	// The token stays in the chart values after install. Even when the identity is refused, the token it
+	// was enrolled with is not tried again.
+	h := enrolledOnce(t)
+	h.refuseTheIdentity()
+	stop := h.run(t)
+	defer stop()
+	eventually(t, "repeated refused attempts", func() bool { _, _, c, _ := h.gw.snapshot(); return c >= 4 })
+	if n := enrolments(h); n != 1 {
+		t.Errorf("enrolled %d times with the token it had already used, want exactly once", n)
+	}
+}
+
+func TestAWorkingIdentityIsNeverReplacedByANewToken(t *testing.T) {
+	h := enrolledOnce(t)
+	h.mgr.opts.EnrollmentToken = "some-other-token"
+	stop := h.run(t)
+	defer stop()
+	eventually(t, "the second connection", func() bool { return h.up.Load() == 2 })
+	if n := enrolments(h); n != 1 {
+		t.Errorf("a working identity was replaced (%d enrolments)", n)
+	}
+}
+
+func TestATokenTheControlPlaneRefusesIsTriedOnceAndTheIdentityIsKept(t *testing.T) {
+	h := enrolledOnce(t)
+	old, err := h.store.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.mgr.opts.EnrollmentToken = "mistyped"
+	h.refuseTheIdentity()
+	stop := h.run(t)
+	defer stop()
+	eventually(t, "repeated refused attempts", func() bool { _, _, c, _ := h.gw.snapshot(); return c >= 4 })
+	if n := enrolments(h); n != 2 {
+		t.Errorf("%d enrolments, want the first and exactly one attempt with the mistyped token", n)
+	}
+	kept, err := h.store.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(kept.CertPEM) != string(old.CertPEM) {
+		t.Error("the stored identity changed after a failed enrolment")
 	}
 }

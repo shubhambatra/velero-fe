@@ -8,16 +8,22 @@ describe('parseOrgSettings', () => {
       mfaRequired: false,
       allowBackupContentDownload: false,
       requireRestoreApproval: false,
+      auditRetentionDays: 400,
+      auditExportBeforeDelete: false,
     });
     expect(parseOrgSettings(null)).toStrictEqual({
       mfaRequired: false,
       allowBackupContentDownload: false,
       requireRestoreApproval: false,
+      auditRetentionDays: 400,
+      auditExportBeforeDelete: false,
     });
     expect(parseOrgSettings(undefined)).toStrictEqual({
       mfaRequired: false,
       allowBackupContentDownload: false,
       requireRestoreApproval: false,
+      auditRetentionDays: 400,
+      auditExportBeforeDelete: false,
     });
   });
 
@@ -26,6 +32,8 @@ describe('parseOrgSettings', () => {
       mfaRequired: true,
       allowBackupContentDownload: false,
       requireRestoreApproval: false,
+      auditRetentionDays: 400,
+      auditExportBeforeDelete: false,
     });
   });
 
@@ -34,6 +42,8 @@ describe('parseOrgSettings', () => {
       mfaRequired: true,
       allowBackupContentDownload: false,
       requireRestoreApproval: false,
+      auditRetentionDays: 400,
+      auditExportBeforeDelete: false,
     });
   });
 
@@ -43,11 +53,15 @@ describe('parseOrgSettings', () => {
       mfaRequired: false,
       allowBackupContentDownload: false,
       requireRestoreApproval: false,
+      auditRetentionDays: 400,
+      auditExportBeforeDelete: false,
     });
     expect(parseOrgSettings('not an object')).toStrictEqual({
       mfaRequired: false,
       allowBackupContentDownload: false,
       requireRestoreApproval: false,
+      auditRetentionDays: 400,
+      auditExportBeforeDelete: false,
     });
   });
 });
@@ -155,5 +169,22 @@ describe('requireRestoreApproval', () => {
     expect(parseOrgSettings({}).requireRestoreApproval).toBe(false);
     expect(parseOrgSettings({ requireRestoreApproval: true }).requireRestoreApproval).toBe(true);
     expect(parseOrgSettings({ requireRestoreApproval: 'yes' }).requireRestoreApproval).toBe(false);
+  });
+});
+
+describe('audit retention settings', () => {
+  it('default to 400 days with no export', () => {
+    expect(parseOrgSettings({})).toMatchObject({
+      auditRetentionDays: 400,
+      auditExportBeforeDelete: false,
+    });
+  });
+  it('accept a period from 30 to 3650 days and fall back to the default outside it', () => {
+    expect(parseOrgSettings({ auditRetentionDays: 90 }).auditRetentionDays).toBe(90);
+    expect(parseOrgSettings({ auditRetentionDays: 3650 }).auditRetentionDays).toBe(3650);
+    // A hand-edited row must not be able to shorten the trail below a month: the whole row falls back.
+    expect(parseOrgSettings({ auditRetentionDays: 1 }).auditRetentionDays).toBe(400);
+    expect(parseOrgSettings({ auditRetentionDays: 99999 }).auditRetentionDays).toBe(400);
+    expect(parseOrgSettings({ auditRetentionDays: 'soon' }).auditRetentionDays).toBe(400);
   });
 });

@@ -120,6 +120,8 @@ export class OrgsService {
       mfaRequired?: boolean | undefined;
       allowBackupContentDownload?: boolean | undefined;
       requireRestoreApproval?: boolean | undefined;
+      auditRetentionDays?: number | undefined;
+      auditExportBeforeDelete?: boolean | undefined;
     },
   ) {
     const current = await this.get(orgId);
@@ -132,6 +134,12 @@ export class OrgsService {
       ...(input.requireRestoreApproval === undefined
         ? {}
         : { requireRestoreApproval: input.requireRestoreApproval }),
+      ...(input.auditRetentionDays === undefined
+        ? {}
+        : { auditRetentionDays: input.auditRetentionDays }),
+      ...(input.auditExportBeforeDelete === undefined
+        ? {}
+        : { auditExportBeforeDelete: input.auditExportBeforeDelete }),
     };
     await this.prisma.organization.update({
       where: { id: orgId },

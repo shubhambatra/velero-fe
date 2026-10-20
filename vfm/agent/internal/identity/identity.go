@@ -11,9 +11,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -32,11 +34,23 @@ type Identity struct {
 	CertPEM []byte
 	CAPEM   []byte
 
+	// EnrolledWith is the digest of the bootstrap token this identity was enrolled with (see
+	// [TokenDigest]); empty for an identity enrolled before it was recorded. It lets the agent tell
+	// "the operator gave me a new token" from "the old, spent token is still in the chart values".
+	EnrolledWith string
+
 	// ClusterID, NotBefore and NotAfter are read from the certificate, not
 	// trusted from the Secret around it.
 	ClusterID string
 	NotBefore time.Time
 	NotAfter  time.Time
+}
+
+// TokenDigest identifies a bootstrap token without keeping it: the token is a secret, the digest is
+// stored beside the certificate it produced.
+func TokenDigest(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 // Parse validates the three PEM blocks belong together and extracts the

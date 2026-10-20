@@ -269,12 +269,29 @@ export const envSchema = z
       .string()
       .regex(/^\d+\.\d+\.\d+/, 'must look like 1.2.3')
       .default('0.1.0'),
-    /** Where the agent's Helm chart is published; shown in the install command. */
     /**
      * Directory holding the built web UI (index.html and assets). Set in the container image; unset
      * in development, where Vite serves the UI. The server then serves it, under its own CSP.
      */
     WEB_DIST_DIR: z.string().min(1).optional(),
+    /**
+     * Retention (PLAN.md section 9): how often, in hours, the control plane purges what has outlived its
+     * retention. One replica does it per interval (a Redis key). `0` turns the timer off, which is how
+     * tests run it by hand and how an installation hands it to the `retention` CLI on a schedule instead.
+     */
+    RETENTION_INTERVAL_HOURS: z.coerce.number().min(0).max(168).default(24),
+    /**
+     * Whether the in-process job also purges audit events. They are deleted only as the
+     * `vfm_audit_retention` role (a trigger enforces it); an installation that does not want the
+     * application able to take that role sets this false and runs `node dist/retention.js` with a login that is.
+     */
+    RETENTION_AUDIT: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    /** Where audit events are written before deletion, for organizations that ask for it. Unset: those are not deleted. */
+    AUDIT_EXPORT_DIR: z.string().min(1).optional(),
+    /** Where the agent's Helm chart is published; shown in the install command. */
     AGENT_CHART_REF: z.string().min(1).default('oci://ghcr.io/shubhambatra/charts/vfm-agent'),
     /**
      * Threat model G-11: `Enroll` is reachable without a certificate, so it is limited per source

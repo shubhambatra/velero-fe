@@ -37,6 +37,17 @@ export const orgSettingsSchema = z.object({
    * default. A cluster can ask for approval on its own, but cannot opt out of this.
    */
   requireRestoreApproval: z.boolean().default(false),
+  /**
+   * How long audit events are kept (PLAN.md section 9, 18 Q7): 400 days by default. The floor is a
+   * month, so a typo cannot erase the trail; the ceiling is ten years.
+   */
+  auditRetentionDays: z.number().int().min(30).max(3_650).default(400),
+  /**
+   * Write the events about to be deleted to a CSV file first (PLAN.md section 9, "export before delete is an
+   * org option"). Needs AUDIT_EXPORT_DIR; without it nothing is deleted for this org rather than deleted
+   * unexported.
+   */
+  auditExportBeforeDelete: z.boolean().default(false),
 });
 
 export type OrgSettings = z.infer<typeof orgSettingsSchema>;

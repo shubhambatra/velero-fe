@@ -24,7 +24,7 @@ secret() { # name -> a value persisted across runs of this script
 }
 master_key() { [ -s "$STATE/master-key" ] || head -c 32 /dev/urandom | base64 > "$STATE/master-key"; cat "$STATE/master-key"; }
 running() { [ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null || echo false)" = true ]; }
-gateway_ip() { docker network inspect "$NET" -f '{{(index .IPAM.Config 0).Gateway}}'; }
+gateway_ip() { docker network inspect "$NET" -f '{{range .IPAM.Config}}{{.Gateway}} {{end}}' | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1; }
 
 # CP_ENV is rebuilt by env_args (secrets are read from $STATE, so this is a function, not a constant).
 env_args() {

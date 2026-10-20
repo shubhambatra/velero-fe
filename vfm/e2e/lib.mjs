@@ -8,9 +8,15 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export function sh(cmd, args = [], opts = {}) {
   try {
-    return execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts }).trim();
+    return execFileSync(cmd, args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...opts,
+    }).trim();
   } catch (e) {
-    throw new Error(`${cmd} ${args.join(' ')} failed: ${(e.stderr || e.message).toString().trim().slice(0, 600)}`);
+    throw new Error(
+      `${cmd} ${args.join(' ')} failed: ${(e.stderr || e.message).toString().trim().slice(0, 600)}`,
+    );
   }
 }
 export const CTX = process.env.VFM_KUBE_CONTEXT ?? 'kind-vfm-a';
@@ -35,20 +41,25 @@ export async function until(what, fn, { timeout = 60_000, every = 500 } = {}) {
     }
     await sleep(every);
   }
-  throw new Error(`timed out after ${Math.round(timeout / 1000)} s waiting for ${what}${last ? ` (last error: ${last.message})` : ''}`);
+  throw new Error(
+    `timed out after ${Math.round(timeout / 1000)} s waiting for ${what}${last ? ` (last error: ${last.message})` : ''}`,
+  );
 }
 
 // RFC 6238 TOTP (SHA-1, 6 digits, 30 s) from a base32 secret.
 export function totp(secret, stepOffset = 0) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let bits = '';
-  for (const ch of secret.replace(/=+$/, '').toUpperCase()) bits += alphabet.indexOf(ch).toString(2).padStart(5, '0');
+  for (const ch of secret.replace(/=+$/, '').toUpperCase())
+    bits += alphabet.indexOf(ch).toString(2).padStart(5, '0');
   const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000) + stepOffset));
   const h = crypto.createHmac('sha1', key).update(counter).digest();
   const o = h[19] & 0xf;
-  return String((((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1_000_000).padStart(6, '0');
+  return String(
+    (((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1_000_000,
+  ).padStart(6, '0');
 }
 
 /** The API the way the web app uses it. */
@@ -61,14 +72,23 @@ export class Api {
   async raw(method, path, body, headers = {}) {
     // A fresh connection per request: a test that pauses (kubectl, waiting) must not reuse a socket the server closed.
     const h = { 'content-type': 'application/json', connection: 'close', ...headers };
-    if (Object.keys(this.jar).length) h.cookie = Object.entries(this.jar).map(([k, v]) => `${k}=${v}`).join('; ');
+    if (Object.keys(this.jar).length)
+      h.cookie = Object.entries(this.jar)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('; ');
     if (this.jar.vfm_csrf) h['x-csrf-token'] = this.jar.vfm_csrf;
     let res;
     try {
-      res = await fetch(`${this.base}/api/v1${path}`, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) });
+      res = await fetch(`${this.base}/api/v1${path}`, {
+        method,
+        headers: h,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
     } catch (e) {
       // undici says only "fetch failed"; the reason is on the cause.
-      throw new Error(`${method} ${path}: ${e.message} (${e.cause?.code ?? e.cause?.message ?? 'no cause'})`);
+      throw new Error(
+        `${method} ${path}: ${e.message} (${e.cause?.code ?? e.cause?.message ?? 'no cause'})`,
+      );
     }
     for (const c of res.headers.getSetCookie()) {
       const [pair] = c.split(';');
@@ -94,7 +114,10 @@ export class Api {
     }
     if (expect !== undefined) {
       const ok = Array.isArray(expect) ? expect.includes(r.status) : r.status === expect;
-      if (!ok) throw new Error(`${method} ${path} -> ${r.status} (wanted ${expect}): ${r.text.slice(0, 300)}`);
+      if (!ok)
+        throw new Error(
+          `${method} ${path} -> ${r.status} (wanted ${expect}): ${r.text.slice(0, 300)}`,
+        );
     }
     return r;
   }
@@ -128,7 +151,10 @@ export function runner() {
     },
     summary() {
       console.log('\n=== summary');
-      for (const r of results) console.log(`  ${r.ok ? 'PASS' : 'FAIL'}  ${r.name} (${r.seconds} s, ${r.steps.length} checks)`);
+      for (const r of results)
+        console.log(
+          `  ${r.ok ? 'PASS' : 'FAIL'}  ${r.name} (${r.seconds} s, ${r.steps.length} checks)`,
+        );
       const bad = results.filter((r) => !r.ok).length;
       console.log(bad === 0 ? '\nALL GOLDEN PATHS PASSED' : `\n${bad} GOLDEN PATH(S) FAILED`);
       return bad === 0 ? 0 : 1;

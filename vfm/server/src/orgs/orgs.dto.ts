@@ -30,13 +30,17 @@ export const updateOrgSchema = z
     mfaRequired: z.boolean().optional(),
     allowBackupContentDownload: z.boolean().optional(),
     requireRestoreApproval: z.boolean().optional(),
+    auditRetentionDays: z.number().int().min(30).max(3_650).optional(),
+    auditExportBeforeDelete: z.boolean().optional(),
   })
   .refine(
     (v) =>
       v.name !== undefined ||
       v.mfaRequired !== undefined ||
       v.allowBackupContentDownload !== undefined ||
-      v.requireRestoreApproval !== undefined,
+      v.requireRestoreApproval !== undefined ||
+      v.auditRetentionDays !== undefined ||
+      v.auditExportBeforeDelete !== undefined,
     'nothing to update',
   );
 

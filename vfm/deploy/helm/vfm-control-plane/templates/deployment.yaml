@@ -107,6 +107,11 @@ spec:
             - { name: AGENT_MESSAGES_PER_SECOND, value: {{ .Values.config.agentMessagesPerSecond | quote }} }
             - { name: AGENT_MESSAGE_BURST, value: {{ .Values.config.agentMessageBurst | quote }} }
             - { name: GATEWAY_ENROLL_PER_MINUTE, value: {{ .Values.config.gatewayEnrollPerMinute | quote }} }
+            - { name: RETENTION_INTERVAL_HOURS, value: {{ .Values.config.retention.intervalHours | quote }} }
+            - { name: RETENTION_AUDIT, value: {{ .Values.config.retention.audit | quote }} }
+            {{- if .Values.config.retention.auditExportDir }}
+            - { name: AUDIT_EXPORT_DIR, value: {{ .Values.config.retention.auditExportDir | quote }} }
+            {{- end }}
             {{- if .Values.config.publicUrl }}
             - { name: PUBLIC_URL, value: {{ .Values.config.publicUrl | quote }} }
             {{- end }}
@@ -160,6 +165,13 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - { name: tmp, mountPath: /tmp }
+            {{- if and .Values.config.retention.auditExportDir .Values.config.retention.auditExportClaim }}
+            - { name: audit-export, mountPath: {{ .Values.config.retention.auditExportDir | quote }} }
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 256Mi }
+        {{- if and .Values.config.retention.auditExportDir .Values.config.retention.auditExportClaim }}
+        - name: audit-export
+          persistentVolumeClaim: { claimName: {{ .Values.config.retention.auditExportClaim | quote }} }
+        {{- end }}

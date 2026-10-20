@@ -119,6 +119,8 @@ export async function createTestApp(
   // A quiet connect: suites that assert on exactly which commands an agent
   // receives turn the on-connect Velero refresh on for the one case that tests it.
   process.env.COMMANDS_REFRESH_ON_CONNECT = 'false';
+  // The retention job is run by hand in tests.
+  process.env.RETENTION_INTERVAL_HOURS = '0';
   // Alerts are evaluated by hand in tests.
   process.env.ALERT_EVAL_INTERVAL_SECONDS = '0';
   // Webhook receivers in tests are local http servers; the egress rules are tested by flipping these.

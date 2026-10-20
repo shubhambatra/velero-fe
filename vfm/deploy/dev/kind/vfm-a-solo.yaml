@@ -43,7 +43,6 @@ nodes:
           kubeletExtraArgs:
             node-labels: "vfm.dev/cluster=vfm-a,vfm.dev/csi-hostpath=true"
 
-
 networking:
   # Leave kind's defaults for pod/service CIDRs; two clusters on the same host
   # never route to each other, so overlapping ranges are not a problem.

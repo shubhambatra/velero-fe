@@ -14,6 +14,7 @@ import { AuditModule } from './audit/audit.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { ReportsModule } from './reports/reports.module';
+import { RetentionModule } from './retention/retention.module';
 import { AuthModule } from './auth/auth.module';
 import { CsrfGuard } from './auth/csrf.guard';
 import { SessionGuard } from './auth/session.guard';
@@ -144,6 +145,7 @@ export function serializeResponse(res: { statusCode?: number }): Record<string, 
     LogsModule,
     AlertsModule,
     ReportsModule,
+    RetentionModule,
     ApprovalsModule,
     EventsModule,
     AuthModule,

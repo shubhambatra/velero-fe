@@ -96,6 +96,9 @@ type Manager struct {
 	logger *slog.Logger
 
 	outbox chan *pb.AgentMessage
+
+	// refusedToken is the digest of a token the control plane refused to enrol with, so it is not retried.
+	refusedToken string
 }
 
 // New validates the options and returns a manager.
@@ -212,11 +215,40 @@ func (m *Manager) Run(ctx context.Context) error {
 		attempt++
 
 		m.logSessionEnd(err, wait)
+		if status.Code(err) == codes.Unauthenticated {
+			m.tryNewToken(ctx)
+		}
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-time.After(wait):
 		}
+	}
+}
+
+// tryNewToken is the way back from a revoked identity. A cluster that was disabled and enabled again
+// (or whose certificate was rotated) is refused with the certificate it holds; the operator's answer is
+// a NEW bootstrap token in the chart values. Only then does the agent enrol again, and only with a token
+// the stored identity was not enrolled with, so a spent token left in the values cannot start a loop. An
+// identity that predates the record counts as "not enrolled with this token". A token that the control
+// plane refused is not tried again until the process restarts. A working identity is never replaced:
+// this runs only after the control plane has refused it.
+func (m *Manager) tryNewToken(ctx context.Context) {
+	token := m.opts.EnrollmentToken
+	if token == "" {
+		return
+	}
+	digest := identity.TokenDigest(token)
+	if m.refusedToken == digest {
+		return
+	}
+	if id, err := m.opts.Store.Load(ctx); err == nil && id.EnrolledWith == digest {
+		return
+	}
+	if _, err := m.enroll(ctx); err != nil {
+		m.refusedToken = digest
+		m.logger.Warn("the stored identity was refused and enrolling with the configured token failed; give the chart a new token (enable or rotate in the UI)",
+			"error", err)
 	}
 }
 
@@ -468,6 +500,7 @@ func (m *Manager) enroll(ctx context.Context) (*identity.Identity, error) {
 	if err != nil {
 		return nil, fmt.Errorf("the control plane returned an unusable identity: %w", err)
 	}
+	id.EnrolledWith = identity.TokenDigest(m.opts.EnrollmentToken)
 	if err := m.opts.Store.Save(ctx, id); err != nil {
 		// The token is spent and the certificate exists only in memory. Say
 		// so loudly: an operator has to issue a new token if this process dies.
@@ -496,6 +529,8 @@ func (m *Manager) renew(ctx context.Context, client pb.AgentGatewayClient, curre
 	if err != nil {
 		return nil, err
 	}
+	// Renewing is not enrolling: it keeps the record of the token this cluster was enrolled with.
+	next.EnrolledWith = current.EnrolledWith
 	if next.ClusterID != current.ClusterID {
 		return nil, errors.New("the renewed certificate names a different cluster")
 	}

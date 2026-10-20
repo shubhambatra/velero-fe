@@ -9,8 +9,8 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { parseBody } from '../common/parse-body';
 import { orgIdParam } from '../orgs/orgs.dto';
 import { OrgAccessService } from '../orgs/org-access.service';
-import { AuditService, type AuditEventView } from './audit.service';
-import { csvRow } from './csv';
+import { AuditService } from './audit.service';
+import { AUDIT_CSV_HEADER, auditCsvLine, csvRow } from './csv';
 
 const filterSchema = z.object({
   actorId: z.uuid().optional(),
@@ -25,39 +25,6 @@ const listSchema = filterSchema.extend({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.uuid().optional(),
 });
-
-const CSV_HEADER = [
-  'time',
-  'actor_type',
-  'actor_id',
-  'actor_email',
-  'action',
-  'target_type',
-  'target_id',
-  'cluster_id',
-  'outcome',
-  'ip',
-  'user_agent',
-  'request_id',
-  'details',
-] as const;
-
-const csvLine = (e: AuditEventView): string =>
-  csvRow([
-    e.createdAt,
-    e.actorType,
-    e.actorId,
-    e.actorEmail,
-    e.action,
-    e.targetType,
-    e.targetId,
-    e.clusterId,
-    e.outcome,
-    e.ip,
-    e.userAgent,
-    e.requestId,
-    e.details,
-  ]);
 
 /** `/orgs/{orgId}/audit` (PLAN.md §10, §11 screen 10). Owner and Admin only. */
 @ApiTags('audit')
@@ -98,11 +65,11 @@ export class AuditController {
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
     response.setHeader('Content-Disposition', 'attachment; filename="audit-log.csv"');
     // Reading the whole log is a data-egress event worth its own row.
-    response.write(csvRow(CSV_HEADER));
+    response.write(csvRow(AUDIT_CSV_HEADER));
     let rows = 0;
     for await (const batch of this.audit.iterate(id, filter)) {
       for (const event of batch) {
-        response.write(csvLine(event));
+        response.write(auditCsvLine(event));
         rows += 1;
       }
     }

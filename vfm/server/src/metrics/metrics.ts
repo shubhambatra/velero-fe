@@ -99,3 +99,17 @@ export const rateLimited = new Counter({
   labelNames: ['name'],
   registers: register,
 });
+
+export const retentionDeleted = new Counter({
+  name: `${p}retention_deleted_total`,
+  help: 'Rows removed by the retention job, by what they were: events, soft_deleted, files, commands, audit.',
+  labelNames: ['kind'],
+  registers: register,
+});
+
+export const retentionRuns = new Counter({
+  name: `${p}retention_runs_total`,
+  help: 'Retention runs, by outcome: ok, partial (something was skipped or refused) or failed.',
+  labelNames: ['status'],
+  registers: register,
+});

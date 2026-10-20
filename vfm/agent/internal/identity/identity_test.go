@@ -231,3 +231,30 @@ func TestACaBundleOfTwoAuthoritiesIsKeptAndTrustsBoth(t *testing.T) {
 		}
 	}
 }
+
+func TestTheTokenDigestSurvivesTheSecretAndLeavesNoTokenBehind(t *testing.T) {
+	ctx := context.Background()
+	cs := fake.NewClientset()
+	store := &SecretStore{Client: cs, Namespace: "vfm-system", Name: "vfm-agent-credentials"}
+	keyPEM, _, _ := NewKeyAndCSR()
+	start := time.Now().Add(-time.Minute)
+	certPEM, caPEM := issue(t, keyPEM, "spiffe://vfm/cluster/"+clusterID, start, start.Add(time.Hour))
+	id, _ := Parse(keyPEM, certPEM, caPEM)
+	id.EnrolledWith = TokenDigest("the-secret-bootstrap-token")
+	if err := store.Save(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Load(ctx)
+	if err != nil || got.EnrolledWith != id.EnrolledWith {
+		t.Fatalf("the digest did not survive the Secret: %v %q", err, got.EnrolledWith)
+	}
+	secret, _ := cs.CoreV1().Secrets("vfm-system").Get(ctx, "vfm-agent-credentials", metav1.GetOptions{})
+	for k, v := range secret.Data {
+		if strings.Contains(string(v), "the-secret-bootstrap-token") {
+			t.Errorf("the token itself is in the Secret under %q; only its digest may be", k)
+		}
+	}
+	if TokenDigest("a") == TokenDigest("b") || TokenDigest("a") != TokenDigest("a") {
+		t.Error("the digest is not a stable function of the token")
+	}
+}

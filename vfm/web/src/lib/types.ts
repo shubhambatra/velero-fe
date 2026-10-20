@@ -28,6 +28,8 @@ export interface OrgDetail {
     mfaRequired?: boolean;
     allowBackupContentDownload?: boolean;
     requireRestoreApproval?: boolean;
+    auditRetentionDays?: number;
+    auditExportBeforeDelete?: boolean;
   };
 }
 

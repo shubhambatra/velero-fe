@@ -1,3 +1,5 @@
+import type { AuditEventView } from './audit.service';
+
 /**
  * RFC 4180 CSV cell escaping, plus the spreadsheet formula guard.
  *
@@ -31,3 +33,36 @@ export function csvCell(value: unknown): string {
 export function csvRow(cells: readonly unknown[]): string {
   return `${cells.map(csvCell).join(',')}\r\n`;
 }
+
+export const AUDIT_CSV_HEADER = [
+  'time',
+  'actor_type',
+  'actor_id',
+  'actor_email',
+  'action',
+  'target_type',
+  'target_id',
+  'cluster_id',
+  'outcome',
+  'ip',
+  'user_agent',
+  'request_id',
+  'details',
+] as const;
+
+export const auditCsvLine = (e: AuditEventView): string =>
+  csvRow([
+    e.createdAt,
+    e.actorType,
+    e.actorId,
+    e.actorEmail,
+    e.action,
+    e.targetType,
+    e.targetId,
+    e.clusterId,
+    e.outcome,
+    e.ip,
+    e.userAgent,
+    e.requestId,
+    e.details,
+  ]);
