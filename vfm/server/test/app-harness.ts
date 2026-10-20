@@ -151,6 +151,7 @@ export async function createTestApp(
   rbacOptions.cacheMs = 0;
   resourceOptions.coverageCacheMs = 0;
   reportOptions.coverageInputsCacheMs = 0;
+  reportOptions.resultCacheMs = 0;
   app.use(json({ limit: MAX_JSON_BODY }));
   app.use(bodyErrors);
   app.useGlobalFilters(new ProblemExceptionFilter());

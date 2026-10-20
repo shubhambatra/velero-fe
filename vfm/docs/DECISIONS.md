@@ -2268,3 +2268,34 @@ tracing hook. The registry and the `:9090` listener existed since M0; only the r
   place to do both. Tracing has not been run against a collector.
 - A new metric needs a line in `OBSERVABILITY.md`; the label allow-list in `observability.test.ts` is the review point.
 - `pnpm audit` reports two moderate findings (vitest, dev-only, present before today). Nothing high or critical.
+
+## ADR-045 — Reports are shared answers (M7)
+
+**Status:** accepted · **Date:** 2026-10-21
+
+### Context
+
+Profiling the load test (docs/LOADTEST.md) showed that the three reports (success rate, RPO, coverage) took 0.4–1.0 s of event-loop
+time each and, asked by 100 people, used most of the process's CPU, starving every other endpoint and the event stream.
+
+### Decision
+
+- `ReportsService` shares each answer, single-flight, for `reportOptions.resultCacheMs` (30 s; 0 in tests). A report already
+  carries its own `generatedAt`; it is a summary, not a live view.
+- **The key is what the caller may see**: organization, report, parameters, the clusters they can read, and either `all` (every
+  one of those clusters is fully visible to them, so the answer is identical for everyone in that position) or their user id (they
+  are limited to some namespaces, so the answer is theirs alone). A number computed for someone who sees more is never served
+  to someone who sees less. A mutation that drops the user id from the key fails
+  `reports.e2e.test.ts` ("shares an answer between people who see the same things…").
+- `from`/`to` are keyed to the minute, because their defaults are "now".
+- The coverage report also reads its inputs once for all callers of the same clusters (5 s), and `coverageOfMany` parses each spec
+  once rather than once per namespace; both are equivalent to the old code (randomised test) and neither was the main cost.
+
+### Consequences
+
+- A report can be up to 30 s old. Access changes are not delayed by it: the visibility check runs on every request and is part of the
+  key, so a person whose access narrowed or was revoked gets a different key (their own answer, or a refusal), never the old shared one.
+- The body of a shared answer carries the time bounds of whoever asked first within the minute.
+- Memory: at most 500 cached answers per replica, cleared when exceeded; an answer is up to ~1 MB at 200 clusters.
+- Not addressed: the reports still cost 0.4–1 s each on a miss; a precomputed table is the next step if the 30 s window is not
+  enough at larger sizes.

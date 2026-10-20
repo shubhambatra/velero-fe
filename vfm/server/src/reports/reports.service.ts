@@ -26,7 +26,7 @@ export const ROW_CAP = 100_000;
 export const COVERAGE_CAP = 20_000;
 
 /** Tunable so tests, which read what they just wrote, can switch the sharing off. */
-export const reportOptions = { coverageInputsCacheMs: 5_000 };
+export const reportOptions = { coverageInputsCacheMs: 5_000, resultCacheMs: 30_000 };
 
 export interface ClusterSeries {
   clusterId: string;
@@ -115,11 +115,95 @@ export class ReportsService {
     return [one];
   }
 
+  private readonly resultCache = new Map<string, { at: number; value: Promise<unknown> }>();
+
+  /**
+   * A report is a minutes-old summary by nature (it says when it was generated), and computing one
+   * reads tens of thousands of rows: at 100 people on the page it was most of the control plane's
+   * CPU. So an answer is shared, single-flight, for `resultCacheMs`. What a person may see decides
+   * the key: people who see every namespace of the same clusters share one answer; anyone narrower
+   * gets their own, so a filtered number is never served to someone else. Time bounds are keyed to
+   * the minute because the defaults are "now".
+   */
+  private async shared<T>(
+    orgId: string,
+    userId: string,
+    name: string,
+    permission: 'backup:read' | 'schedule:read',
+    clusterId: string | undefined,
+    params: Record<string, unknown>,
+    compute: () => Promise<T>,
+  ): Promise<T> {
+    if (reportOptions.resultCacheMs <= 0) {
+      return compute();
+    }
+    const clusters = await this.scope(orgId, userId, clusterId);
+    const ids = clusters.map((c) => c.id);
+    const visibility = await this.rbac.visibilities(orgId, userId, ids, permission);
+    const everything = [...visibility.values()].every((v) => v.all);
+    const bounds = (v: unknown): unknown =>
+      v instanceof Date ? Math.floor(v.getTime() / 60_000) : v;
+    const key = JSON.stringify([
+      orgId,
+      name,
+      everything ? 'all' : userId,
+      ids,
+      Object.entries(params).map(([k, v]) => [k, bounds(v)]),
+    ]);
+    const held = this.resultCache.get(key);
+    if (held !== undefined && Date.now() - held.at < reportOptions.resultCacheMs) {
+      return held.value as Promise<T>;
+    }
+    const value = compute();
+    this.resultCache.set(key, { at: Date.now(), value });
+    if (this.resultCache.size > 500) this.resultCache.clear();
+    value.catch(() => {
+      if (this.resultCache.get(key)?.value === value) this.resultCache.delete(key);
+    });
+    return value;
+  }
+
+  successRate(
+    orgId: string,
+    userId: string,
+    q: { from: Date; to: Date; bucket: Bucket; clusterId?: string | undefined },
+  ): Promise<SuccessRateReport> {
+    return this.shared(orgId, userId, 'success-rate', 'backup:read', q.clusterId, { ...q }, () =>
+      this.computeSuccessRate(orgId, userId, q),
+    );
+  }
+
+  coverage(
+    orgId: string,
+    userId: string,
+    q: { hours: number; clusterId?: string | undefined },
+  ): Promise<CoverageReport> {
+    return this.shared(orgId, userId, 'coverage', 'backup:read', q.clusterId, { ...q }, () =>
+      this.computeCoverage(orgId, userId, q),
+    );
+  }
+
+  rpo(
+    orgId: string,
+    userId: string,
+    q: {
+      from: Date;
+      to: Date;
+      factor: number;
+      targetHours?: number | undefined;
+      clusterId?: string | undefined;
+    },
+  ): Promise<RpoReport> {
+    return this.shared(orgId, userId, 'rpo', 'schedule:read', q.clusterId, { ...q }, () =>
+      this.computeRpo(orgId, userId, q),
+    );
+  }
+
   /**
    * Success rate. Every cluster is read in one query (not one per cluster: at 200 clusters a page
    * was 200 round trips and 800 permission lookups), and the rows are sorted into clusters here.
    */
-  async successRate(
+  private async computeSuccessRate(
     orgId: string,
     userId: string,
     q: { from: Date; to: Date; bucket: Bucket; clusterId?: string | undefined },
@@ -249,7 +333,7 @@ export class ReportsService {
    * cluster at once. Older backups are read, per cluster, only for clusters that have a namespace
    * left over, to say when it was last backed up: in a healthy fleet that is none of them.
    */
-  async coverage(
+  private async computeCoverage(
     orgId: string,
     userId: string,
     q: { hours: number; clusterId?: string | undefined },
@@ -333,7 +417,7 @@ export class ReportsService {
     return { hours: q.hours, generatedAt: now.toISOString(), clusters: out, incomplete };
   }
 
-  async rpo(
+  private async computeRpo(
     orgId: string,
     userId: string,
     q: {

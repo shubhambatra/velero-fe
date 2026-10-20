@@ -1,9 +1,9 @@
 # Load test (M7 day 38)
 
-**Result: the PLAN §13 targets are NOT all met.** Agents, reconnects and the SSE
-path hold. The UI list endpoints (p95 < 300 ms) and command latency (p95 < 1 s) do
-not, on one Node process under the load below. This report states that plainly; it
-needs the human checkpoint's decision (see "What remains").
+**Result (updated 2026-10-21, see the last section): with the report cache of ADR-045 and two server
+replicas every target the simulator checks passed in one run.** The sections below are the
+history: on one process, before that cache, the list and command targets were NOT met, and a single
+process still misses the command target. Read "Profile of the list paths" for why.
 
 ## Method
 
@@ -133,3 +133,49 @@ Four replicas, `kill -9` of replica 2 at about 150 s, while 200 agents and 100 u
 
 R-121 therefore stays partial: loss of a replica is now run and nothing was lost, but it is one run on one host, with a
 balancer that does not health-check, and without a duplicate check.
+
+## Profile of the list paths (2026-10-21)
+
+One replica under the full load, `node --cpu-prof` (the process was 95 % busy: the event loop was saturated).
+
+- The cost was **not** the list handlers. On an idle server with this data a per-cluster list takes 10–26 ms (clusters 26 ms,
+  fleet 236 ms for 207 k rows scanned). The three **reports** take 406 ms (success rate), 498 ms (RPO) and 1 017 ms (coverage,
+  127 database round trips) each, because they read tens of thousands of rows and aggregate in JavaScript on the one event loop.
+- The simulator asks for a report on about 15 % of think cycles: ~570 report calls in 5 minutes, ~350 s of event-loop time in a 300 s
+  run, against ~50 s for the ~3 500 list requests. The reports starved everything else, which is why list p50 was seconds
+  (not milliseconds) and why 2 → 4 replicas bought only 40 %. The previous section's guess ("per-request work and the tail of a
+  shared Postgres") was wrong.
+- Fix (ADR-045): a report answer is shared and single-flight for 30 s. On one process, same load: list p95 from 3.9–6.5 s to
+  0.28–0.44 s (p50 60–100 ms), event to browser p95 4.5 s to 0.88 s, command to agent p95 5.3 s to 2.1 s, twice the list requests
+  completed. Reports still take 0.5–4 s p95 on one process when they do run.
+- What the profile shows after the fix: Prisma client JavaScript 34 %, native 19 % (GC 5 %, socket writes 4.5 %), Node core 10 %,
+  Prisma's wasm query engine 8 %, Express JSON 4.6 %. No application function is above 2 %: what is left is the cost of Prisma per
+  row and of JSON, not a hot spot.
+
+### Two replicas with the report cache, one run
+
+200 agents, 100 users, 5 minutes, `DATABASE_POOL_MAX=30`, two replicas behind the same TCP balancer (no health checks), one host.
+
+| Target (PLAN §13)               | Result                                               |      |
+| ------------------------------- | ---------------------------------------------------- | ---- |
+| UI list endpoints p95 < 300 ms  | worst: fleet 204 ms; others 85–118 ms (p50 17–43 ms) | PASS |
+| Command reaches agent p95 < 1 s | p95 132 ms                                           | PASS |
+| Event reaches browser p95 < 3 s | p95 294 ms                                           | PASS |
+| 200 agents connected            | peak 200                                             | PASS |
+| Agents reconnect within 60 s    | all back in 5.5 s                                    | PASS |
+| Request errors                  | 0 on every series                                    |      |
+
+Reports (not held to the list target): success rate p95 213 ms, RPO 227 ms, coverage 455 ms.
+
+**Read this as one good run, not a proof.** One 5-minute run on one host that also ran the simulator; not repeated;
+the simulator's change rate (0.27/s per cluster) is higher than real use; **50 k Velero objects and 20 k pods per cluster are
+not exercised**, and the real agent's footprint (R-120) is not measured (B-2). A single replica still misses the command target
+(p95 2.1 s) and drops ingest batches under this load (below), so two replicas is the lowest setting this evidence supports.
+
+### Open finding: ingest batches fail on a busy single replica
+
+On one replica, 220 agent messages failed with `Transaction API error: Unable to start a transaction in the given time`
+(Prisma's wait for a pooled connection) while users and ingest shared 30 connections. The server recovers by asking the agent for
+a new snapshot (the log says "delta batch out of sequence"), so no data is lost, but it is wasted work and it hid behind the CPU
+saturation. With two replicas the same run had **one**. Not fixed here: a separate pool or queue for ingest is a design choice
+for the checkpoint, and it needs a repeat run to be sure of the number.

@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { newId } from '../src/common/uuid';
+import { reportOptions } from '../src/reports/reports.service';
 import { createTestApp, type TestApp } from './app-harness';
 import { World, type Call } from './world';
 
@@ -484,6 +485,45 @@ describe('reports (e2e)', () => {
         )
       ).body;
       expect(rpo.schedules.map((s: any) => s.schedule)).toEqual(['shop-nightly']);
+    });
+
+    it('shares an answer between people who see the same things, and never with someone who sees less', async () => {
+      const { call, orgId, clusterId } = await org();
+      const when = utc('2026-10-10T10:00');
+      await backup(orgId, clusterId, 'shop-ok', 'Completed', when, {
+        spec: { includedNamespaces: ['shop'] },
+      });
+      await backup(orgId, clusterId, 'billing-bad', 'Failed', when, {
+        spec: { includedNamespaces: ['billing'] },
+      });
+      const v = await scopedViewer(call, orgId, clusterId, ['shop']);
+      const win = 'from=2026-10-10T00:00:00Z&to=2026-10-11T00:00:00Z';
+      const before = reportOptions.resultCacheMs;
+      reportOptions.resultCacheMs = 60_000;
+      try {
+        const first = (await get(call, orgId, `success-rate?${win}`).expect(200)).body;
+        expect(first.all.totals).toMatchObject({ completed: 1, failed: 1 });
+
+        // The scoped viewer is asked after the admin was answered: their numbers are their own.
+        const mine = (await get(v.call, orgId, `success-rate?${win}`).expect(200)).body;
+        expect(mine.all.totals).toMatchObject({ completed: 1, failed: 0 });
+
+        // A later backup is not in the shared answer yet (that is the sharing), but the scoped
+        // viewer still does not get the admin's.
+        await backup(orgId, clusterId, 'shop-bad', 'Failed', when, {
+          spec: { includedNamespaces: ['shop'] },
+        });
+        const again = (await get(call, orgId, `success-rate?${win}`).expect(200)).body;
+        expect(again.all.totals).toEqual(first.all.totals);
+        const mineAgain = (await get(v.call, orgId, `success-rate?${win}`).expect(200)).body;
+        expect(mineAgain.all.totals).toEqual(mine.all.totals);
+        expect(JSON.stringify(mineAgain)).not.toContain('billing');
+      } finally {
+        reportOptions.resultCacheMs = before;
+      }
+      // With the sharing off the new backup shows at once.
+      const fresh = (await get(call, orgId, `success-rate?${win}`).expect(200)).body;
+      expect(fresh.all.totals).toMatchObject({ completed: 1, failed: 2 });
     });
 
     it('gives a member with no access to any cluster nothing at all', async () => {
