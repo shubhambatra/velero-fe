@@ -87,7 +87,7 @@ step "an operator and an agent, end to end"
 # The banner is inside a JSON log line, so its quotes are escaped: ... \"token\":\"<43 chars>\" ...
 token="$(docker logs "$NET-cp" 2>&1 | sed -n 's/.*token\\":\\"\([A-Za-z0-9_-]*\)\\".*/\1/p' | head -1)"
 [ -n "$token" ] || { docker logs "$NET-cp" 2>&1 | grep -i -A8 "no users yet" | head -14; echo "FAIL: could not find the setup token in the log" >&2; exit 1; }
-docker run --rm --network "$NET" --entrypoint node -e SETUP_TOKEN="$token" -v "$here/drive.js:/drive.js:ro" "$IMAGE" /drive.js http://cp:3000 cp:8443
+docker run --rm --network "$NET" --entrypoint node -e SETUP_TOKEN="$token" -v "$here:/airgap:ro" "$IMAGE" /airgap/drive.js http://cp:3000 cp:8443
 
 step "no secret in the log"
 # The one-time setup token IS logged on purpose, only while no user exists (setup.service.ts); it must not

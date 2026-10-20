@@ -1,0 +1,67 @@
+# Try the Velero Fleet Manager on one machine with Docker. NOT for production (see docs/OPERATIONS.md):
+# development mode (cookies not marked Secure so plain http://localhost works), throwaway passwords,
+# one replica.
+#
+#   docker compose -f deploy/quickstart/compose.yml up -d
+#   docker compose -f deploy/quickstart/compose.yml logs control-plane | grep -A8 "no users yet"   # the setup token
+#   open http://localhost:3000
+#
+# The image must exist locally (docker build -f server/Dockerfile -t ghcr.io/shubhambatra/vfm-control-plane:0.1.0 .  from the vfm/ directory).
+name: vfm-quickstart
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    environment:
+      POSTGRES_USER: vfm
+      POSTGRES_PASSWORD: quickstart-only
+      POSTGRES_DB: vfm
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vfm -d vfm']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  valkey:
+    image: valkey/valkey:7.2.14-alpine
+    command: ['valkey-server', '--requirepass', 'quickstart-only']
+    healthcheck:
+      test: ['CMD-SHELL', 'valkey-cli -a quickstart-only ping | grep -q PONG']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  migrate:
+    image: ghcr.io/shubhambatra/vfm-control-plane:0.1.0
+    working_dir: /app
+    entrypoint: ['node', 'node_modules/prisma/build/index.js', 'migrate', 'deploy']
+    environment:
+      DATABASE_URL: postgresql://vfm:quickstart-only@postgres:5432/vfm
+      HOME: /tmp
+    depends_on:
+      postgres: { condition: service_healthy }
+  control-plane:
+    image: ghcr.io/shubhambatra/vfm-control-plane:0.1.0
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://vfm:quickstart-only@postgres:5432/vfm
+      REDIS_URL: redis://:quickstart-only@valkey:6379
+      # A throwaway key. Generate your own for anything real: openssl rand -base64 32
+      VFM_MASTER_KEY: cXVpY2tzdGFydC1vbmx5LWRvLW5vdC11c2UtaXQhISE=
+      PUBLIC_URL: http://localhost:3000
+      API_PUBLIC_URL: http://localhost:3000
+      GATEWAY_PUBLIC_ADDRESS: localhost:8443
+      GATEWAY_HOSTNAMES: localhost,127.0.0.1,control-plane
+    ports:
+      - '127.0.0.1:3000:3000' # the UI and the API
+      - '127.0.0.1:8443:8443' # the agent gateway (mTLS)
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      valkey: { condition: service_healthy }
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    user: '65532:65532'
+volumes:
+  pgdata: {}
