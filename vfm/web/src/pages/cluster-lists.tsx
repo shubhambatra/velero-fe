@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState, type ReactElement } from 'react';
 
@@ -84,7 +84,102 @@ function CreateBackupLink({ orgId, clusterId }: Props): ReactElement {
   );
 }
 
+/**
+ * Delete several backups at once (PLAN.md section 11.1 page 3, Backups: "bulk delete"). One typed confirmation
+ * for the whole set, then one DeleteBackupRequest each; the result says exactly which were
+ * accepted, because a half-finished batch must not look like a finished one.
+ */
+interface BulkOutcome {
+  accepted: number;
+  refused: string[];
+}
+
+function BulkDeleteBackups({
+  orgId,
+  clusterId,
+  selected,
+  clear,
+  onDone,
+}: Props & {
+  selected: BackupRow[];
+  clear: () => void;
+  /** Held by the page: this component is gone as soon as the selection is cleared. */
+  onDone: (outcome: BulkOutcome | undefined) => void;
+}): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  const client = useQueryClient();
+  const [asking, setAsking] = useState(false);
+  const level = access.level('backup:delete');
+  const deleting = selected.filter((b) => b.phase === 'Deleting');
+  const reason =
+    level === 'none'
+      ? access.why('backup:delete')
+      : deleting.length === selected.length
+        ? 'Every selected backup is already being deleted.'
+        : undefined;
+  const targets = selected.filter((b) => b.phase !== 'Deleting');
+  const n = targets.length.toString();
+
+  const run = useMutation({
+    mutationFn: async () => {
+      let accepted = 0;
+      const refused: string[] = [];
+      for (const b of targets) {
+        try {
+          await api(`/orgs/${orgId}/clusters/${clusterId}/backups/${encodeURIComponent(b.name)}`, {
+            method: 'DELETE',
+          });
+          accepted += 1;
+        } catch (error) {
+          refused.push(`${b.name}: ${errorMessage(error)}`);
+        }
+      }
+      return { accepted, refused };
+    },
+    onSuccess: async (result) => {
+      onDone(result);
+      setAsking(false);
+      clear();
+      await client.invalidateQueries({ queryKey: ['org', orgId, 'cluster', clusterId] });
+    },
+  });
+
+  return (
+    <>
+      <Button
+        variant="destructive"
+        disabled={reason !== undefined}
+        title={reason}
+        onClick={() => {
+          onDone(undefined);
+          setAsking(true);
+        }}
+      >
+        {`Delete ${n} selected…`}
+      </Button>
+      {asking && (
+        <ConfirmDelete
+          name={`delete ${n} backups`}
+          title={`Delete ${n} backups?`}
+          consequence="Velero removes each backup, its files in the object storage and its volume snapshots. This cannot be undone."
+          confirmLabel={`Delete ${n} backups`}
+          busyLabel="Requesting…"
+          busy={run.isPending}
+          error={undefined}
+          onConfirm={() => {
+            run.mutate();
+          }}
+          onCancel={() => {
+            setAsking(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 export function BackupsPage({ orgId, clusterId }: Props): ReactElement {
+  const [bulkOutcome, setBulkOutcome] = useState<BulkOutcome | undefined>();
   const columns: Column<BackupRow>[] = [
     {
       header: 'Name',
@@ -118,6 +213,16 @@ export function BackupsPage({ orgId, clusterId }: Props): ReactElement {
   return (
     <ClusterShell orgId={orgId} clusterId={clusterId} tab="backups">
       <CreateBackupLink orgId={orgId} clusterId={clusterId} />
+      {bulkOutcome !== undefined && (
+        <p role="status" aria-label="Bulk deletion result" className="text-sm">
+          {`Deletion was requested for ${bulkOutcome.accepted.toString()} backups; follow it on the Activity tab.`}
+          {bulkOutcome.refused.length > 0 && (
+            <span className="text-destructive">
+              {` ${bulkOutcome.refused.length.toString()} were refused: ${bulkOutcome.refused.join('; ')}`}
+            </span>
+          )}
+        </p>
+      )}
       <ResourceList<BackupRow>
         orgId={orgId}
         clusterId={clusterId}
@@ -125,6 +230,18 @@ export function BackupsPage({ orgId, clusterId }: Props): ReactElement {
         noun="backups"
         columns={columns}
         rowKey={(b) => b.name}
+        bulk={{
+          rowName: (b) => b.name,
+          render: (selected, clear) => (
+            <BulkDeleteBackups
+              orgId={orgId}
+              clusterId={clusterId}
+              selected={selected}
+              clear={clear}
+              onDone={setBulkOutcome}
+            />
+          ),
+        }}
         sorts={[
           { label: 'Started', value: 'startedAt' },
           { label: 'Finished', value: 'completedAt' },

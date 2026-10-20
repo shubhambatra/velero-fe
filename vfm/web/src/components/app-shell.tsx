@@ -15,20 +15,6 @@ import { useOrgs, useSession } from '@/lib/session';
 const MAIN_CONTENT_ID = 'main-content';
 
 /**
- * Navigation for pages that are planned but not built yet (PLAN.md §11.1).
- *
- * PLAN.md §11.2 requires unavailable actions to stay visible but disabled
- * with a tooltip giving the reason, which is exactly the right treatment
- * here: the shape of the product is visible without pretending the pages
- * exist (§16 forbids reporting stubs as done).
- */
-const PLANNED_SECTIONS: { label: string; reason: string }[] = [
-  { label: 'Backups', reason: 'Arrives with read-only Velero visibility (M3).' },
-  { label: 'Restores', reason: 'Arrives with read-only Velero visibility (M3).' },
-  { label: 'Schedules', reason: 'Arrives with read-only Velero visibility (M3).' },
-];
-
-/**
  * Application chrome: banner, navigation, main region (PLAN.md §16, Day 3).
  *
  * Accessibility baseline for every page built on top of this (PLAN.md §11.2):
@@ -207,18 +193,6 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
                 New organization
               </Link>
             )}
-
-            {PLANNED_SECTIONS.map((section) => (
-              <button
-                key={section.label}
-                type="button"
-                disabled
-                title={section.reason}
-                className="cursor-not-allowed rounded-md px-3 py-2 text-left text-sm font-medium text-muted-foreground"
-              >
-                {section.label}
-              </button>
-            ))}
           </nav>
 
           <main id={MAIN_CONTENT_ID} tabIndex={-1} className="flex-1 p-4 md:p-6">

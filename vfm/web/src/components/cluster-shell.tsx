@@ -5,23 +5,20 @@ import type { ReactElement, ReactNode } from 'react';
 import { ErrorNote } from '@/components/ui/field';
 import { api, errorMessage } from '@/lib/client';
 import { useRefreshInterval } from '@/lib/events';
+import { grafanaUrl } from '@/lib/cluster-settings';
 import type { ClusterOverview } from '@/lib/fleet';
 
 export type ClusterTab =
-  'overview' | 'backups' | 'restores' | 'schedules' | 'storage' | 'workloads' | 'events';
-
-/**
- * Tabs that do not exist yet are visible but disabled, each with the reason
- * (PLAN.md §11.2); none is a mock-up.
- */
-const LATER: { label: string; reason: string }[] = [
-  {
-    label: 'Activity',
-    reason:
-      'A command history page is not built yet; each action’s outcome appears as a notification.',
-  },
-  { label: 'Access', reason: 'Per-cluster role bindings are managed through the API for now.' },
-];
+  | 'overview'
+  | 'backups'
+  | 'restores'
+  | 'schedules'
+  | 'storage'
+  | 'workloads'
+  | 'events'
+  | 'activity'
+  | 'access'
+  | 'settings';
 
 const TABS: { id: ClusterTab; label: string; to: string }[] = [
   { id: 'overview', label: 'Overview', to: '/clusters/$clusterId' },
@@ -31,6 +28,9 @@ const TABS: { id: ClusterTab; label: string; to: string }[] = [
   { id: 'storage', label: 'Storage', to: '/clusters/$clusterId/storage' },
   { id: 'workloads', label: 'Workloads', to: '/clusters/$clusterId/workloads' },
   { id: 'events', label: 'Events', to: '/clusters/$clusterId/events' },
+  { id: 'activity', label: 'Activity', to: '/clusters/$clusterId/activity' },
+  { id: 'access', label: 'Access', to: '/clusters/$clusterId/access' },
+  { id: 'settings', label: 'Settings', to: '/clusters/$clusterId/settings' },
 ];
 
 /** The header and tab strip every cluster page shares. */
@@ -59,6 +59,10 @@ export function ClusterShell({
       api<ClusterOverview>(`/orgs/${orgId}/clusters/${clusterId}/overview`, { signal }),
   });
   const name = overview.data?.cluster.name;
+  const grafana =
+    overview.data === undefined
+      ? null
+      : grafanaUrl(overview.data.cluster.grafanaUrlTemplate, overview.data.cluster);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
@@ -77,7 +81,19 @@ export function ClusterShell({
           )}
           {crumbs}
         </p>
-        <h1 className="text-xl font-semibold">{title ?? name ?? 'Cluster'}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-semibold">{title ?? name ?? 'Cluster'}</h1>
+          {grafana !== null && (
+            <a
+              href={grafana}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm underline"
+            >
+              Metrics in Grafana<span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          )}
+        </div>
       </div>
 
       <nav
@@ -104,20 +120,6 @@ export function ClusterShell({
             </Link>
           ),
         )}
-        {LATER.map((t) => (
-          <button
-            key={t.label}
-            type="button"
-            disabled
-            title={t.reason}
-            className="cursor-not-allowed rounded-md px-3 py-2 text-sm font-medium text-muted-foreground"
-          >
-            {t.label}
-          </button>
-        ))}
-        <Link to="/clusters" className="rounded-md px-3 py-2 text-sm font-medium underline">
-          Settings
-        </Link>
       </nav>
 
       <ErrorNote message={overview.isError ? errorMessage(overview.error) : undefined} />

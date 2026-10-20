@@ -9,6 +9,9 @@ import { InvitePage } from '@/pages/invite-page';
 import { BackupDetailPage, RestoreDetailPage } from '@/pages/cluster-detail';
 import { LocationFormPage } from '@/pages/location-form';
 import { EventsPage, WorkloadsPage } from '@/pages/workloads';
+import { ClusterActivityPage } from '@/pages/cluster-activity';
+import { ClusterAccessPage } from '@/pages/cluster-access';
+import { ClusterSettingsPage } from '@/pages/cluster-settings';
 import { ScheduleWizardPage } from '@/pages/schedule-wizard';
 import { BackupsPage, RestoresPage, SchedulesPage, StoragePage } from '@/pages/cluster-lists';
 import { ClusterPage } from '@/pages/cluster-page';
@@ -167,6 +170,15 @@ export const storageRoute = clusterSubRoute('/clusters/$clusterId/storage', (o, 
 ));
 export const workloadsRoute = clusterSubRoute('/clusters/$clusterId/workloads', (o, c) => (
   <WorkloadsPage orgId={o} clusterId={c} />
+));
+export const activityRoute = clusterSubRoute('/clusters/$clusterId/activity', (o, c) => (
+  <ClusterActivityPage orgId={o} clusterId={c} />
+));
+export const accessRoute = clusterSubRoute('/clusters/$clusterId/access', (o, c) => (
+  <ClusterAccessPage orgId={o} clusterId={c} />
+));
+export const settingsRoute = clusterSubRoute('/clusters/$clusterId/settings', (o, c) => (
+  <ClusterSettingsPage orgId={o} clusterId={c} />
 ));
 export const eventsRoute = clusterSubRoute('/clusters/$clusterId/events', (o, c) => (
   <EventsPage orgId={o} clusterId={c} />

@@ -14,6 +14,7 @@ export function ConfirmDelete({
   title,
   consequence,
   confirmLabel,
+  busyLabel = 'Deleting…',
   busy,
   error,
   onConfirm,
@@ -23,6 +24,8 @@ export function ConfirmDelete({
   title: string;
   consequence: ReactNode;
   confirmLabel: string;
+  /** Shown on the button while the request is in flight. */
+  busyLabel?: string;
   busy: boolean;
   error: string | undefined;
   onConfirm: () => void;
@@ -87,7 +90,7 @@ export function ConfirmDelete({
               Cancel
             </Button>
             <Button type="submit" variant="destructive" disabled={!matches || busy}>
-              {busy ? 'Deleting…' : confirmLabel}
+              {busy ? busyLabel : confirmLabel}
             </Button>
           </div>
         </form>

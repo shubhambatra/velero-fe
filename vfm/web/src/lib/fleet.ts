@@ -16,6 +16,9 @@ export interface ClusterRow {
   agentPolicy: AgentPolicy | null;
   lastSeenAt: string | null;
   createdAt: string;
+  /** Absent in older responses and fixtures. */
+  labels?: Record<string, string>;
+  grafanaUrlTemplate?: string | null;
 }
 
 export interface AgentPolicy {

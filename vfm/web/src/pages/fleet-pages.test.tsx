@@ -234,14 +234,20 @@ describe('cluster overview', () => {
     expect(screen.queryByText('Recent restores')).toBeNull();
   });
 
-  it('keeps the tabs that do not exist yet visible but disabled, with the reason', async () => {
+  it('shows every tab of the plan as a working link', async () => {
     server('OWNER', [cluster()], overviewFor());
     renderApp({ path: '/clusters/c1' });
 
     const tabs = await screen.findByRole('navigation', { name: 'Cluster sections' });
-    const activity = within(tabs).getByRole('button', { name: 'Activity' });
-    expect(activity).toBeDisabled();
-    expect(activity.getAttribute('title') ?? '').toContain('not built yet');
+    for (const [label, href] of [
+      ['Activity', '/clusters/c1/activity'],
+      ['Access', '/clusters/c1/access'],
+      ['Settings', '/clusters/c1/settings'],
+    ] as const) {
+      expect(within(tabs).getByRole('link', { name: label })).toHaveAttribute('href', href);
+    }
+    // Nothing in the strip is a dead button.
+    expect(within(tabs).queryAllByRole('button')).toEqual([]);
     // The tabs that exist are real links, the live view's among them.
     expect(within(tabs).getByRole('link', { name: 'Workloads' })).toHaveAttribute(
       'href',

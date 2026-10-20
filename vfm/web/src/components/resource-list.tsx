@@ -11,6 +11,13 @@ export interface Column<T> {
   cell: (row: T) => ReactNode;
 }
 
+/** Opt-in row selection: a checkbox per row, and `render` gets the selected rows for the actions on them. */
+export interface Bulk<T> {
+  /** The row's name for screen readers: "Select nightly-1". */
+  rowName: (row: T) => string;
+  render: (selected: T[], clear: () => void) => ReactNode;
+}
+
 export interface Option {
   label: string;
   /** What is sent: for a phase this may be a comma list of phases. */
@@ -57,6 +64,7 @@ export function ResourceList<T>({
   extras = [],
   initialExtra,
   emptyHint,
+  bulk,
 }: {
   orgId: string;
   clusterId: string;
@@ -73,6 +81,7 @@ export function ResourceList<T>({
   /** Filter values the list starts with (for example a namespace chosen elsewhere). */
   initialExtra?: Record<string, string> | undefined;
   emptyHint: string;
+  bulk?: Bulk<T>;
 }): ReactElement {
   const [text, setText] = useState('');
   const [phase, setPhase] = useState('');
@@ -84,6 +93,16 @@ export function ResourceList<T>({
   const filters: Filters = { q, phase, sort, order, ...extra };
   const list = useResourceList<T>(orgId, clusterId, path, filters);
   const rows = list.data?.pages.flatMap((p) => p.items) ?? [];
+  // Selection is by key, and only rows still on screen count: a row that left the list is not acted on.
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const selected = rows.filter((r) => chosen.has(rowKey(r)));
+  const allChosen = rows.length > 0 && selected.length === rows.length;
+  const toggle = (key: string, on: boolean): void => {
+    const next = new Set(chosen);
+    if (on) next.add(key);
+    else next.delete(key);
+    setChosen(next);
+  };
   const filtered = q !== '' || phase !== '' || Object.values(extra).some((v) => v !== '');
 
   return (
@@ -188,11 +207,40 @@ export function ResourceList<T>({
           </p>
         )}
 
+        {bulk !== undefined && selected.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-control p-2 text-sm">
+            <span>{`${selected.length.toString()} selected`}</span>
+            {bulk.render(selected, () => {
+              setChosen(new Set());
+            })}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setChosen(new Set());
+              }}
+            >
+              Clear selection
+            </Button>
+          </div>
+        )}
+
         {rows.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr>
+                  {bulk !== undefined && (
+                    <th className="w-8 p-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select all ${noun} on this page`}
+                        checked={allChosen}
+                        onChange={(e) => {
+                          setChosen(e.target.checked ? new Set(rows.map(rowKey)) : new Set());
+                        }}
+                      />
+                    </th>
+                  )}
                   {columns.map((c) => (
                     <th key={c.header} className="p-2">
                       {c.header}
@@ -203,6 +251,18 @@ export function ResourceList<T>({
               <tbody>
                 {rows.map((row) => (
                   <tr key={rowKey(row)} className="border-t border-control align-top">
+                    {bulk !== undefined && (
+                      <td className="p-2">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${bulk.rowName(row)}`}
+                          checked={chosen.has(rowKey(row))}
+                          onChange={(e) => {
+                            toggle(rowKey(row), e.target.checked);
+                          }}
+                        />
+                      </td>
+                    )}
                     {columns.map((c) => (
                       <td key={c.header} className="p-2">
                         {c.cell(row)}

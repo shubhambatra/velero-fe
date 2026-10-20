@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { PRODUCT_NAME } from '@vfm/shared';
@@ -53,14 +53,18 @@ describe('application shell', () => {
     );
   });
 
-  it('shows planned sections as visible-but-disabled with the reason (PLAN.md §11.2)', async () => {
+  it('has no placeholder entries: every navigation item is a working link', async () => {
     renderApp();
 
-    const clusters = await screen.findByRole('button', { name: 'Backups' });
-
-    expect(clusters).toBeVisible();
-    expect(clusters).toBeDisabled();
-    expect(clusters.getAttribute('title') ?? '').toContain('M3');
+    await screen.findByRole('banner');
+    const nav = screen.getByRole('navigation', { name: /main|primary|sections/i });
+    // Backups, restores and schedules live under each cluster; the top level must not pretend otherwise.
+    expect(within(nav).queryByRole('button', { name: 'Backups' })).toBeNull();
+    expect(
+      within(nav)
+        .queryAllByRole('button')
+        .filter((b) => b.hasAttribute('disabled')),
+    ).toEqual([]);
   });
 
   it('keeps the shell around the not-found page for an unknown URL', async () => {
