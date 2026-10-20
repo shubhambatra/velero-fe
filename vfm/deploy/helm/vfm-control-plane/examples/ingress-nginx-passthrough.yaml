@@ -1,0 +1,21 @@
+# Needs ingress-nginx started with --enable-ssl-passthrough. The controller then routes by SNI
+# without decrypting, so the agent's client certificate reaches the pod.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vfm-agent-gateway
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: 'true'
+    nginx.ingress.kubernetes.io/backend-protocol: GRPCS
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: agents.vfm.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vfm-control-plane-gateway   # <release>-control-plane-gateway
+                port: { number: 8443 }

@@ -18,6 +18,13 @@ export class RedisService implements OnModuleDestroy {
   private readonly client: Redis;
 
   constructor(@Inject(ENV) env: Env) {
+    // Threat model G-13: a password is enforced when the configuration is read; transport
+    // encryption is the operator's call (an in-cluster network may be trusted), so say so.
+    if (env.NODE_ENV === 'production' && !env.REDIS_URL.startsWith('rediss://')) {
+      this.logger.warn(
+        'REDIS_URL is not rediss://: sessions and agent control messages cross the network unencrypted',
+      );
+    }
     this.client = new Redis(env.REDIS_URL, {
       // Fail fast rather than queueing commands forever behind a dead server;
       // readiness should flip within seconds, not minutes.

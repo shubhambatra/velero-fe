@@ -1,0 +1,28 @@
+# Gateway API: a TLS listener in Passthrough mode and a TLSRoute to the gateway Service.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: vfm-agents
+spec:
+  gatewayClassName: your-class
+  listeners:
+    - name: agents
+      port: 8443
+      protocol: TLS
+      hostname: agents.vfm.example.com
+      tls:
+        mode: Passthrough
+      allowedRoutes:
+        kinds: [{ kind: TLSRoute }]
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: vfm-agents
+spec:
+  parentRefs: [{ name: vfm-agents }]
+  hostnames: [agents.vfm.example.com]
+  rules:
+    - backendRefs:
+        - name: vfm-control-plane-gateway   # <release>-control-plane-gateway
+          port: 8443

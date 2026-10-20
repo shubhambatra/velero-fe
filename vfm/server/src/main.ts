@@ -18,6 +18,7 @@ import type { Env } from './config/env.schema';
 import { startMetricsServer } from './metrics/metrics.server';
 import { startTracing } from './metrics/tracing';
 import { applySecurity, bodyErrors, MAX_JSON_BODY } from './security';
+import { mountWeb } from './web-static';
 
 /**
  * Loads `server/.env` when it is present, for local development.
@@ -77,6 +78,16 @@ async function bootstrap(): Promise<void> {
   // excluded because orchestrators and load balancers expect them at the root
   // and must keep working across API versions.
   app.setGlobalPrefix('api/v1', { exclude: ['healthz', 'readyz'] });
+
+  // The built web UI, when this image carries one (WEB_DIST_DIR). Mounted last so the API wins.
+  if (env.WEB_DIST_DIR !== undefined) {
+    const mounted = mountWeb(app.getHttpAdapter().getInstance() as Express, env.WEB_DIST_DIR);
+    new NestLogger('Bootstrap').log(
+      mounted
+        ? `serving the web UI from ${env.WEB_DIST_DIR}`
+        : `WEB_DIST_DIR=${env.WEB_DIST_DIR} has no index.html; serving the API only`,
+    );
+  }
 
   app.enableShutdownHooks();
 

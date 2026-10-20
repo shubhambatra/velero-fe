@@ -19,6 +19,9 @@ import {
 } from '@grpc/grpc-js';
 
 import { CaService } from '../ca/ca.service';
+import { ThrottledException } from '../common/throttled.exception';
+import { rateLimited } from '../metrics/metrics';
+import { RedisService } from '../redis/redis.service';
 import { EnrollmentService } from '../clusters/enrollment.service';
 import { StreamsService } from '../streams/streams.service';
 import { ENV } from '../config/config.module';
@@ -57,6 +60,9 @@ function toServiceError(error: unknown, logger: Logger): Partial<ServiceError> {
   if (error instanceof ConflictException) {
     return { code: status.FAILED_PRECONDITION, details: error.message };
   }
+  if (error instanceof ThrottledException) {
+    return { code: status.RESOURCE_EXHAUSTED, details: error.message };
+  }
   logger.error(`gateway handler failed: ${error instanceof Error ? error.message : 'unknown'}`);
   return { code: status.INTERNAL, details: 'internal error' };
 }
@@ -84,6 +90,7 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
     private readonly ca: CaService,
     private readonly enrollment: EnrollmentService,
     private readonly streams: StreamsService,
+    private readonly redis: RedisService,
   ) {}
 
   /** The port actually bound; differs from `GATEWAY_PORT` only when that is 0. */
@@ -126,7 +133,7 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
         call: ServerUnaryCall<EnrollRequest, EnrollResponse>,
         cb: sendUnaryData<EnrollResponse>,
       ) => {
-        this.handle(cb, () => this.enroll(call.request));
+        this.handle(cb, () => this.enroll(call.request, call.getPeer()));
       },
       renewCertificate: (
         call: ServerUnaryCall<RenewCertificateRequest, RenewCertificateResponse>,
@@ -204,7 +211,57 @@ export class GatewayService implements OnApplicationBootstrap, OnApplicationShut
     );
   }
 
-  private async enroll(request: EnrollRequest): Promise<EnrollResponse> {
+  private enrollInFlight = 0;
+
+  /**
+   * Threat model G-11. `Enroll` needs no certificate, so before it does any work it is limited per
+   * source address (a fixed window in Redis, shared by every replica) and in how many run at once
+   * here. A Redis failure lets the call through and says so: a counter that is down must not stop
+   * a cluster from enrolling.
+   */
+  private async admitEnroll(peer: string): Promise<void> {
+    const limit = this.env.GATEWAY_ENROLL_PER_MINUTE;
+    if (limit === 0) {
+      return;
+    }
+    // "ip:port" or "[v6]:port"; the port is different on every connection, so it is not part of the key.
+    const address = peer.slice(0, Math.max(0, peer.lastIndexOf(':'))) || peer;
+    const key = `vfm:rl:enroll:${address}`;
+    try {
+      const count = await this.redis.connection.incr(key);
+      if (count === 1) {
+        await this.redis.connection.expire(key, 60);
+      }
+      if (count > limit) {
+        rateLimited.inc({ name: 'enroll' });
+        throw new ThrottledException('too many enrollment attempts from this address', 60);
+      }
+    } catch (error) {
+      if (error instanceof ThrottledException) {
+        throw error;
+      }
+      this.logger.warn(
+        `enrollment rate limit unavailable, letting the call through: ${error instanceof Error ? error.message : 'unknown'}`,
+      );
+    }
+  }
+
+  private async enroll(request: EnrollRequest, peer: string): Promise<EnrollResponse> {
+    // Checked and counted before the first await, or a burst would all pass the check together.
+    if (this.enrollInFlight >= this.env.GATEWAY_ENROLL_MAX_INFLIGHT) {
+      rateLimited.inc({ name: 'enroll' });
+      throw new ThrottledException('too many enrollments are running; retry shortly', 5);
+    }
+    this.enrollInFlight += 1;
+    try {
+      await this.admitEnroll(peer);
+      return await this.enrollAdmitted(request);
+    } finally {
+      this.enrollInFlight -= 1;
+    }
+  }
+
+  private async enrollAdmitted(request: EnrollRequest): Promise<EnrollResponse> {
     if (
       request.bootstrapToken.length > MAX_TOKEN ||
       request.csrPem.length > MAX_CSR ||

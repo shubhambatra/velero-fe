@@ -152,30 +152,37 @@ One replica under the full load, `node --cpu-prof` (the process was 95 % busy: t
   Prisma's wasm query engine 8 %, Express JSON 4.6 %. No application function is above 2 %: what is left is the cost of Prisma per
   row and of JSON, not a hot spot.
 
-### Two replicas with the report cache, one run
+### Replicas with the report cache: five runs, and what they show
 
-200 agents, 100 users, 5 minutes, `DATABASE_POOL_MAX=30`, two replicas behind the same TCP balancer (no health checks), one host.
+All runs: 200 agents, 100 users, 5 minutes, report cache on, one host that also runs the simulator, a TCP balancer
+without health checks. "Lists" is the worst list-endpoint p95 of the nine the simulator checks.
 
-| Target (PLAN §13)               | Result                                               |      |
-| ------------------------------- | ---------------------------------------------------- | ---- |
-| UI list endpoints p95 < 300 ms  | worst: fleet 204 ms; others 85–118 ms (p50 17–43 ms) | PASS |
-| Command reaches agent p95 < 1 s | p95 132 ms                                           | PASS |
-| Event reaches browser p95 < 3 s | p95 294 ms                                           | PASS |
-| 200 agents connected            | peak 200                                             | PASS |
-| Agents reconnect within 60 s    | all back in 5.5 s                                    | PASS |
-| Request errors                  | 0 on every series                                    |      |
+| Run | Replicas (pool each) | Lists p95 (worst) | Command to agent p95 | Event to browser p95 | Request errors  | Ingest failures | All targets |
+| --- | -------------------- | ----------------- | -------------------- | -------------------- | --------------- | --------------- | ----------- |
+| 9   | 1 (30)               | 275-438 ms        | 2 062 ms             | 883 ms               | 2-13 per series | 220             | no          |
+| 10  | 2 (30)               | 85-204 ms         | 132 ms               | 294 ms               | 0               | 1               | **yes**     |
+| 11  | 2 (30)               | 421-722 ms        | 2 224 ms             | 1 201 ms             | 3-12 per series | 163             | no          |
+| 12  | 2 (30)               | 251-436 ms        | 524 ms               | 525 ms               | 0-4 per series  | 84              | no (lists)  |
+| 13  | **4 (15)**           | **130-295 ms**    | **218 ms**           | **370 ms**           | **0**           | **10**          | **yes**     |
 
-Reports (not held to the list target): success rate p95 213 ms, RPO 227 ms, coverage 455 ms.
+What this does and does not say:
 
-**Read this as one good run, not a proof.** One 5-minute run on one host that also ran the simulator; not repeated;
-the simulator's change rate (0.27/s per cluster) is higher than real use; **50 k Velero objects and 20 k pods per cluster are
-not exercised**, and the real agent's footprint (R-120) is not measured (B-2). A single replica still misses the command target
-(p95 2.1 s) and drops ingest batches under this load (below), so two replicas is the lowest setting this evidence supports.
+- **Two replicas are not reliably enough on this host.** The identical configuration passed once (run 10) and missed the list
+  target twice (11 and 12; run 11 also missed the command target). An earlier version of this report called run 10 "the
+  result"; it was the best of three and that was wrong. The spread is large and the cause of it is not established (other
+  processes on the host, the order Postgres warms up, and the ingest pool contention below are candidates).
+- **Four replicas passed with margin** except the fleet page, which is the closest to the line (295 ms against 300). With
+  `DATABASE_POOL_MAX=15` (4 x 15 = 60 connections, well under Postgres's 100).
+- **The chart therefore defaults to 3 replicas (HPA 3 to 6)**, a number between the two measured ones that has itself _not_ been
+  measured. Run it before relying on it; add replicas first if the lists slow down.
+- Reports (not held to the list target) on four replicas: success rate p95 525 ms, RPO 595 ms, coverage 1 390 ms.
+- Still **one host, one 5-minute run per row**, a simulator that changes inventory faster than real clusters do, and
+  **50 000 Velero objects / 20 000 pods per cluster not exercised**. The real agent's footprint (R-120) is not measured (B-2).
 
 ### Open finding: ingest batches fail on a busy single replica
 
 On one replica, 220 agent messages failed with `Transaction API error: Unable to start a transaction in the given time`
 (Prisma's wait for a pooled connection) while users and ingest shared 30 connections. The server recovers by asking the agent for
 a new snapshot (the log says "delta batch out of sequence"), so no data is lost, but it is wasted work and it hid behind the CPU
-saturation. With two replicas the same run had **one**. Not fixed here: a separate pool or queue for ingest is a design choice
+saturation. With two replicas the count ranged from 1 to 163 between runs; with four it was 10. Not fixed here: a separate pool or queue for ingest is a design choice
 for the checkpoint, and it needs a repeat run to be sure of the number.

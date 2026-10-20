@@ -131,7 +131,8 @@ jobs:
         # skipping them.
         env:
           VFM_REQUIRE_HELM: '1'
-        run: go test -race ./...
+        # -count=1: the chart tests read files outside the Go module, which Go's test cache cannot see.
+        run: go test -race -count=1 ./...
 
       - name: Helm lint
         if: steps.agent.outputs.present == 'true'

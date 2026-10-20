@@ -1,0 +1,163 @@
+# Values for the Velero Fleet Manager control-plane chart.
+#
+# Required: `secrets.existingSecret` (see below) and `gateway.publicAddress`.
+# Postgres and Redis are NOT installed by this chart: bring your own, and give
+# Redis a password (the server refuses to start in production without one).
+
+image:
+  repository: ghcr.io/shubhambatra/vfm-control-plane
+  # Defaults to the chart's appVersion.
+  tag: ''
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# Three. The load test (docs/LOADTEST.md) met the targets reliably with four and only sometimes with two,
+# so three is the default floor; it also lets a node or a rollout go without an outage. Not measured at 3.
+replicaCount: 3
+
+secrets:
+  # An existing Secret in the release namespace. Required. Keys (names are configurable below):
+  #   database-url    postgresql://user:pass@host:5432/vfm
+  #   redis-url       redis://:password@host:6379   (rediss:// when Redis offers TLS)
+  #   master-key      32 random bytes, base64 (`openssl rand -base64 32`)
+  existingSecret: ''
+  keys:
+    databaseUrl: database-url
+    redisUrl: redis-url
+    masterKey: master-key
+    # Optional: previous master keys (comma-separated), kept while rotating.
+    masterKeyPrevious: ''
+    smtpPassword: ''
+
+# Settings the server reads from its environment (docs/OPERATIONS.md lists them all).
+config:
+  # Where users reach the web UI, and where they reach this API (the OIDC redirect URI is
+  # <apiPublicUrl>/api/v1/auth/oidc/callback). Same value when one hostname serves both.
+  publicUrl: ''
+  apiPublicUrl: ''
+  logLevel: info
+  # How many proxies sit in front: a number, `true`, or a subnet. `false` ignores X-Forwarded-For.
+  trustProxy: '1'
+  # Postgres connections PER REPLICA. replicas x this (plus the migration job) must stay under the
+  # database's max_connections (100 by default).
+  databasePoolMax: 15
+  # Agent limits (threat model G-10, G-11). The defaults are far above a real agent.
+  agentMessagesPerSecond: 100
+  agentMessageBurst: 1000
+  gatewayEnrollPerMinute: 30
+  smtp:
+    host: ''
+    port: 587
+    # true = implicit TLS (usually port 465); false = STARTTLS when offered.
+    secure: false
+    user: ''
+    from: ''
+  # Extra environment, as name/value pairs or valueFrom references.
+  extraEnv: []
+
+web:
+  # The built web UI is served by the same process (one image, one CSP).
+  enabled: true
+
+service:
+  type: ClusterIP
+  port: 80
+
+gateway:
+  # host:port agents dial; printed in the install command of the "Add cluster" page and put in the
+  # gateway certificate. Required.
+  publicAddress: ''
+  # Extra DNS names / IPs for the gateway certificate, comma-separated.
+  hostnames: ''
+  service:
+    # LoadBalancer, NodePort, or ClusterIP behind your own gRPC passthrough (see examples/).
+    type: ClusterIP
+    port: 8443
+    annotations: {}
+    loadBalancerSourceRanges: []
+
+# HTTPS for the UI and API. The agent gateway is separate: it speaks mTLS and must reach the pod
+# as TCP/TLS passthrough, NOT terminated at an L7 ingress (it asks agents for a client certificate).
+ingress:
+  enabled: false
+  className: ''
+  annotations: {}
+  host: ''
+  tls:
+    secretName: ''
+
+metrics:
+  # A separate Service on the metrics port; never put it behind the public ingress.
+  service:
+    enabled: true
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+  prometheusRule:
+    enabled: false
+    labels: {}
+  # The Grafana dashboard as a labelled ConfigMap (picked up by the Grafana sidecar).
+  dashboard:
+    enabled: false
+    label: grafana_dashboard
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: '2'
+    memory: 2Gi
+
+# Database migrations run as a Helm pre-install/pre-upgrade hook before any new pod starts.
+# They are written expand -> migrate -> contract so the previous release keeps working against the
+# new schema while the rollout is in progress (docs/OPERATIONS.md, "Upgrades").
+migrations:
+  enabled: true
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: '1'
+      memory: 512Mi
+
+networkPolicy:
+  enabled: true
+  # Namespaces/pods allowed to reach the HTTP port (your ingress controller).
+  ingressFrom:
+    - namespaceSelector: {}
+  # Anywhere agents come from. Default: everywhere (they are outside the cluster); narrow it to
+  # your agents' egress addresses when you can.
+  gatewayFrom:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+  # Who may scrape metrics.
+  metricsFrom:
+    - namespaceSelector: {}
+  # Egress is off by default because where Postgres, Redis, SMTP and your identity providers live is
+  # yours to say. When on, DNS is always allowed; add one rule per destination.
+  egress:
+    enabled: false
+    to: []
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+priorityClassName: ''
+topologySpreadConstraints: []

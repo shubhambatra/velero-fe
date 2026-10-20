@@ -4,6 +4,7 @@ import type { Readable } from 'node:stream';
 
 import { status, type ServerDuplexStream } from '@grpc/grpc-js';
 import {
+  Inject,
   Injectable,
   Logger,
   type OnApplicationBootstrap,
@@ -11,12 +12,20 @@ import {
 } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 
+import { TokenBucket } from '../common/token-bucket';
+import { ENV } from '../config/config.module';
+import type { Env } from '../config/env.schema';
 import { EventsService } from '../events/events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { AgentMessage, ServerMessage } from '../gateway/pb/vfm/agent/v1/gateway';
 import { sanitizeHello, SUPPORTED_PROTOCOL_VERSIONS, type SanitizedHello } from './hello';
-import { agentsConnected, agentStreamConnects, agentStreamEnds } from '../metrics/metrics';
+import {
+  agentsConnected,
+  agentStreamConnects,
+  agentStreamEnds,
+  rateLimited,
+} from '../metrics/metrics';
 
 /** PLAN.md §5.2 / §5.6 defaults, sent to every agent in `HelloAck`. */
 const HEARTBEAT_INTERVAL_S = 15;
@@ -51,6 +60,8 @@ interface LiveStream {
   /** Why the stream is being closed, set by whoever closes it first. */
   closing: { code: status; details: string } | undefined;
   connectedAt: Date;
+  /** Threat model G-10: what this stream may still send. */
+  budget: TokenBucket;
 }
 
 interface ControlMessage {
@@ -129,6 +140,7 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly events: EventsService,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -253,6 +265,7 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
       call,
       closing: undefined,
       connectedAt: new Date(),
+      budget: new TokenBucket(this.env.AGENT_MESSAGES_PER_SECOND, this.env.AGENT_MESSAGE_BURST),
     };
 
     // `destroyOnReturn: false`: by default the iterator destroys the duplex when
@@ -502,6 +515,17 @@ export class StreamsService implements OnApplicationBootstrap, OnApplicationShut
   }
 
   private async dispatch(live: LiveStream, message: AgentMessage): Promise<void> {
+    // Every other message costs a database or Redis round trip, so one stream may not send them
+    // without limit. Log chunks are the exception: a live log is legitimately fast, and its size
+    // and session count are capped where it is accepted.
+    if (message.logChunk === undefined && !live.budget.take()) {
+      rateLimited.inc({ name: 'agent-messages' });
+      this.logger.warn(
+        `cluster ${live.identity.clusterId} sent messages faster than its budget; closing the stream`,
+      );
+      this.close(live, status.RESOURCE_EXHAUSTED, 'message rate limit exceeded; reconnect later');
+      return;
+    }
     if (message.heartbeat !== undefined) {
       const { clusterId, orgId } = live.identity;
       await Promise.all([

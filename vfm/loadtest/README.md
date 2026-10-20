@@ -19,6 +19,11 @@ against PLAN §13. The tool is `agent/cmd/loadtest` (code in `agent/internal/loa
 
 ## Run
 
+The simulator enrols every agent from one address, so start the server under test with
+`GATEWAY_ENROLL_PER_MINUTE=100000` (the default of 30 per source address is the G-11 limit and would
+throttle the ramp). Leave `AGENT_MESSAGES_PER_SECOND` / `AGENT_MESSAGE_BURST` at their defaults: a run in which
+the log says "faster than its budget" has found that a real agent's traffic exceeds G-10.
+
 ```
 go build -o loadtest ./agent/cmd/loadtest
 ./loadtest --fixture fixture.json --agents 200 --users 100 --duration 5m \

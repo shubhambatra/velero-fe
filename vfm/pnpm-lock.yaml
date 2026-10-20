@@ -129,6 +129,9 @@ importers:
       pino-http:
         specifier: 11.0.0
         version: 11.0.0
+      prisma:
+        specifier: 7.10.0
+        version: 7.10.0(@types/node@22.15.33)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3)
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2
@@ -172,9 +175,6 @@ importers:
       pino-pretty:
         specifier: 13.2.0
         version: 13.2.0
-      prisma:
-        specifier: 7.10.0
-        version: 7.10.0(@types/node@22.15.33)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3)
       supertest:
         specifier: 7.3.1
         version: 7.3.1

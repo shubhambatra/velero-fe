@@ -161,4 +161,52 @@ describe('validateEnv', () => {
       ).toThrow(/VFM_MASTER_KEY_PREVIOUS/);
     });
   });
+
+  describe('Redis in production (threat model G-13)', () => {
+    const production = { ...minimal, NODE_ENV: 'production' } satisfies NodeJS.ProcessEnv;
+
+    it('refuses to start without a password, naming the variable and never its value', () => {
+      const attempt = (): unknown =>
+        validateEnv({ ...production, REDIS_URL: 'redis://redis.internal:6379/0' });
+
+      expect(attempt).toThrow(/REDIS_URL.*password/);
+      expect(attempt).not.toThrow(/redis\.internal/);
+    });
+
+    it('refuses a username with no password too', () => {
+      expect(() => validateEnv({ ...production, REDIS_URL: 'redis://default@redis:6379' })).toThrow(
+        /REDIS_URL/,
+      );
+    });
+
+    it('starts with a password, with or without TLS', () => {
+      expect(
+        validateEnv({ ...production, REDIS_URL: 'redis://:s3cret@redis:6379' }).REDIS_URL,
+      ).toBeDefined();
+      expect(
+        validateEnv({ ...production, REDIS_URL: 'rediss://default:s3cret@redis:6379' }).REDIS_URL,
+      ).toBeDefined();
+    });
+
+    it('does not apply outside production, where the dev stack has none', () => {
+      expect(validateEnv({ ...minimal, NODE_ENV: 'development' }).REDIS_URL).toBeDefined();
+      expect(validateEnv({ ...minimal, NODE_ENV: 'test' }).REDIS_URL).toBeDefined();
+    });
+  });
+
+  describe('agent limits (threat model G-10, G-11)', () => {
+    it('has defaults a real agent is far below, and rejects nonsense', () => {
+      const env = validateEnv({ ...minimal });
+      expect(env.AGENT_MESSAGES_PER_SECOND).toBe(100);
+      expect(env.AGENT_MESSAGE_BURST).toBe(1000);
+      expect(env.GATEWAY_ENROLL_PER_MINUTE).toBe(30);
+      expect(env.GATEWAY_ENROLL_MAX_INFLIGHT).toBe(16);
+      expect(() => validateEnv({ ...minimal, AGENT_MESSAGES_PER_SECOND: '0' })).toThrow(
+        /AGENT_MESSAGES_PER_SECOND/,
+      );
+      expect(() => validateEnv({ ...minimal, GATEWAY_ENROLL_MAX_INFLIGHT: '0' })).toThrow(
+        /GATEWAY_ENROLL_MAX_INFLIGHT/,
+      );
+    });
+  });
 });

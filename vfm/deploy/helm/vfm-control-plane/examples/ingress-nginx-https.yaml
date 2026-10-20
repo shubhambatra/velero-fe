@@ -1,0 +1,16 @@
+# helm upgrade --install vfm deploy/helm/vfm-control-plane -f this-file -f your-secrets-values.yaml
+ingress:
+  enabled: true
+  className: nginx
+  host: vfm.example.com
+  tls:
+    secretName: vfm-example-com-tls
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 2m
+    # The live-log and event streams are long-lived SSE connections.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-buffering: 'off'
+config:
+  publicUrl: https://vfm.example.com
+  apiPublicUrl: https://vfm.example.com
+  trustProxy: '1'

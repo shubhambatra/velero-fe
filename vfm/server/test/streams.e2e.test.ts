@@ -2,11 +2,14 @@ import 'reflect-metadata';
 
 import { createHash } from 'node:crypto';
 
+import { status as grpcStatus } from '@grpc/grpc-js';
 import type { AgentGatewayClient } from '../src/gateway/pb/vfm/agent/v1/gateway';
 import type request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { CaService } from '../src/ca/ca.service';
+import { ENV } from '../src/config/config.module';
+import type { Env } from '../src/config/env.schema';
 import { CSRF_HEADER } from '../src/auth/csrf.guard';
 import { SessionService } from '../src/auth/session.service';
 import { ResourceEventType, ResourceKind } from '../src/gateway/pb/vfm/agent/v1/inventory';
@@ -573,6 +576,142 @@ describe('agent streams (e2e, two replicas)', () => {
       // The administrator's request lands on B; the stream lives on A.
       await callB('post', `/orgs/${orgId}/clusters/${clusterId}/disable`).expect(200);
       expect(((await stream.ended) as { code: number }).code).toBe(PERMISSION_DENIED);
+    });
+  });
+
+  describe('limits on what an agent can cost (threat model G-10, G-11)', () => {
+    async function withEnv<T>(patch: Partial<Env>, run: () => Promise<T>): Promise<T> {
+      const env = a.app.get<Env>(ENV);
+      const before = { ...env };
+      Object.assign(env, patch);
+      try {
+        return await run();
+      } finally {
+        Object.assign(env, before);
+      }
+    }
+
+    it('closes a stream that sends faster than its budget, and the agent can come back', async () => {
+      const { clusterId, cert } = await enrolledAgent();
+      await withEnv({ AGENT_MESSAGE_BURST: 5, AGENT_MESSAGES_PER_SECOND: 1 }, async () => {
+        const stream = connect(portA, cert);
+        await stream.next();
+        for (let i = 0; i < 30; i += 1) {
+          stream.send({ messageId: `hb${i.toString()}`, heartbeat: {} });
+        }
+        const end = (await stream.ended) as { code: number };
+        expect(end.code).toBe(grpcStatus.RESOURCE_EXHAUSTED);
+      });
+      // The budget is per stream: a fresh stream starts full.
+      const again = connect(portA, cert);
+      await again.next();
+      again.send({ messageId: 'hb', heartbeat: {} });
+      await eventually(
+        'CONNECTED',
+        () => stateOf(clusterId),
+        (c) => c.status === 'CONNECTED',
+      );
+      again.cancel();
+    });
+
+    it('does not close a stream that stays inside its budget', async () => {
+      const { cert } = await enrolledAgent();
+      await withEnv({ AGENT_MESSAGE_BURST: 50, AGENT_MESSAGES_PER_SECOND: 1 }, async () => {
+        const stream = connect(portA, cert);
+        await stream.next();
+        for (let i = 0; i < 20; i += 1) {
+          stream.send({ messageId: `hb${i.toString()}`, heartbeat: {} });
+        }
+        await new Promise((r) => setTimeout(r, 300));
+        stream.send({ messageId: 'last', heartbeat: {} });
+        const early = await Promise.race([
+          stream.ended.then(() => 'ended'),
+          new Promise((r) =>
+            setTimeout(() => {
+              r('open');
+            }, 300),
+          ),
+        ]);
+        expect(early).toBe('open');
+        stream.cancel();
+      });
+    });
+
+    it('does not count log chunks, which have their own caps', async () => {
+      const { cert } = await enrolledAgent();
+      await withEnv({ AGENT_MESSAGE_BURST: 3, AGENT_MESSAGES_PER_SECOND: 1 }, async () => {
+        const stream = connect(portA, cert);
+        await stream.next();
+        for (let i = 0; i < 40; i += 1) {
+          stream.send({
+            messageId: `lc${i.toString()}`,
+            logChunk: {
+              sessionId: 'no-such-session',
+              sequence: i,
+              data: Buffer.from('x'),
+              eof: false,
+            },
+          });
+        }
+        const early = await Promise.race([
+          stream.ended.then(() => 'ended'),
+          new Promise((r) =>
+            setTimeout(() => {
+              r('open');
+            }, 400),
+          ),
+        ]);
+        expect(early).toBe('open');
+        stream.cancel();
+      });
+    });
+
+    it('limits Enroll per source address before it looks at the token', async () => {
+      const keys = await keypair();
+      const client = makeClient(portA, caPem, undefined, clients);
+      // The window is per address and counts in Redis; start clean.
+      for (const key of await a.redis.connection.keys('vfm:rl:enroll:*')) {
+        await a.redis.connection.del(key);
+      }
+      await withEnv({ GATEWAY_ENROLL_PER_MINUTE: 3 }, async () => {
+        for (let i = 0; i < 3; i += 1) {
+          const error = await errorOf(
+            enrollWith(client, 'not-a-real-token', keys.csrPem, FINGERPRINT),
+          );
+          expect(error.code).not.toBe(grpcStatus.RESOURCE_EXHAUSTED);
+        }
+        const refused = await errorOf(
+          enrollWith(client, 'not-a-real-token', keys.csrPem, FINGERPRINT),
+        );
+        expect(refused.code).toBe(grpcStatus.RESOURCE_EXHAUSTED);
+      });
+      for (const key of await a.redis.connection.keys('vfm:rl:enroll:*')) {
+        await a.redis.connection.del(key);
+      }
+    });
+
+    it('caps how many enrollments run at once on a replica', async () => {
+      const keys = await keypair();
+      const client = makeClient(portA, caPem, undefined, clients);
+      // A high per-address ceiling keeps the Redis round trip in every call: the window in which a
+      // count taken after the first await would let a whole burst through.
+      await withEnv(
+        { GATEWAY_ENROLL_PER_MINUTE: 100_000, GATEWAY_ENROLL_MAX_INFLIGHT: 2 },
+        async () => {
+          const codes = await Promise.all(
+            Array.from({ length: 12 }, () =>
+              errorOf(enrollWith(client, 'not-a-real-token', keys.csrPem, FINGERPRINT)).then(
+                (e) => e.code,
+              ),
+            ),
+          );
+          // Some are turned away because two were already running; none of the others is a server error.
+          expect(codes.filter((c) => c === grpcStatus.RESOURCE_EXHAUSTED).length).toBeGreaterThan(
+            0,
+          );
+          expect(codes.every((c) => c !== grpcStatus.INTERNAL)).toBe(true);
+        },
+      );
     });
   });
 

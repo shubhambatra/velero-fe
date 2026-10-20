@@ -115,7 +115,7 @@ test-go: ## Run Go unit tests
 			echo '  install: https://go.dev/dl/ (1.27.2 or newer)' >&2; \
 			exit 1; \
 		}; \
-		cd $(AGENT_DIR) && go test ./...; \
+		cd $(AGENT_DIR) && go test -count=1 ./...; \
 	fi
 
 .PHONY: e2e

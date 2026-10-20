@@ -7,6 +7,8 @@
 //
 // The tests need the `helm` binary. In CI it is always present and the tests set
 // VFM_REQUIRE_HELM=1, so a missing helm fails instead of silently skipping.
+// NOTE: run with -count=1 (the Makefile and CI do). Go's test cache cannot see the chart, which is outside
+// the Go module, so a changed chart would otherwise be answered from the cache.
 package chart_test
 
 import (
