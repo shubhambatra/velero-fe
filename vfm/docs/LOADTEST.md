@@ -83,7 +83,7 @@ Same method, same host (load average ~3 from unrelated processes), three 5-minut
 **The §13 list and command targets are still not met, and these runs were slower than the day 38 figures above**
 (list p95 3.4–4.5 s, not 1.2–1.8 s; command-to-agent p95 5.3 s; event-to-browser p95 3.8 s, over its 3 s target this time).
 They are not comparable run to run: the day 38 numbers were not reproduced on today's host, and nothing here explains
-the gap, so treat the absolute values as unreliable and the *direction* of each change as the only usable signal.
+the gap, so treat the absolute values as unreliable and the _direction_ of each change as the only usable signal.
 
 - Run 1 used `LOG_LEVEL=debug` and `LOG_PRETTY=true` by accident (`server/.env` is read by the app itself). Run 2 repeated it
   at `info`/JSON: the numbers did not change, so logging was not the cause.
