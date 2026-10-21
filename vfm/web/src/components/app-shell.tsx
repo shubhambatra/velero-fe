@@ -4,6 +4,7 @@ import { useEffect, type ReactElement, type ReactNode } from 'react';
 import { PRODUCT_NAME, PRODUCT_SHORT_NAME } from '@vfm/shared';
 
 import { HealthIndicator } from '@/components/health-indicator';
+import { ClusterSwitcher } from '@/components/cluster-switcher';
 import { OrgSwitcher } from '@/components/org-switcher';
 import { ToastProvider } from '@/components/toasts';
 import { useLiveUpdates, useStreamStatus } from '@/lib/events';
@@ -67,6 +68,7 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
           <span className="hidden text-base font-semibold sm:inline">{PRODUCT_NAME}</span>
 
           <div className="ml-auto flex items-center gap-2">
+            {session.status === 'ready' && active !== undefined && <ClusterSwitcher />}
             {session.status === 'ready' && <OrgSwitcher email={session.user.email} />}
             {session.status === 'ready' && active !== undefined && (
               <span
@@ -116,6 +118,45 @@ export function AppShell({ children }: { children: ReactNode }): ReactElement {
                 }}
               >
                 Clusters
+              </Link>
+            )}
+
+            {session.status === 'ready' && active !== undefined && (
+              <Link
+                to="/fleet/backups"
+                className="rounded-md px-3 py-2 pl-6 text-sm text-foreground hover:bg-muted"
+                activeProps={{
+                  className: 'bg-accent text-accent-foreground',
+                  'aria-current': 'page',
+                }}
+              >
+                All backups
+              </Link>
+            )}
+
+            {session.status === 'ready' && active !== undefined && (
+              <Link
+                to="/fleet/restores"
+                className="rounded-md px-3 py-2 pl-6 text-sm text-foreground hover:bg-muted"
+                activeProps={{
+                  className: 'bg-accent text-accent-foreground',
+                  'aria-current': 'page',
+                }}
+              >
+                All restores
+              </Link>
+            )}
+
+            {session.status === 'ready' && active !== undefined && (
+              <Link
+                to="/fleet/schedules"
+                className="rounded-md px-3 py-2 pl-6 text-sm text-foreground hover:bg-muted"
+                activeProps={{
+                  className: 'bg-accent text-accent-foreground',
+                  'aria-current': 'page',
+                }}
+              >
+                All schedules
               </Link>
             )}
 
