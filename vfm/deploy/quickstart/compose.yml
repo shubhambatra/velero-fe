@@ -2,11 +2,11 @@
 # development mode (cookies not marked Secure so plain http://localhost works), throwaway passwords,
 # one replica.
 #
-#   docker compose -f deploy/quickstart/compose.yml up -d
+#   docker compose -f deploy/quickstart/compose.yml up -d --build   # builds the image on first run (a few minutes)
 #   docker compose -f deploy/quickstart/compose.yml logs control-plane | grep -A8 "no users yet"   # the setup token
 #   open http://localhost:3000
 #
-# The image must exist locally (docker build -f server/Dockerfile -t ghcr.io/shubhambatra/vfm-control-plane:0.1.0 .  from the vfm/ directory).
+# `--build` builds the control-plane image (API, gateway and web UI) from this checkout; run it from the vfm/ directory.
 name: vfm-quickstart
 services:
   postgres:
@@ -30,6 +30,7 @@ services:
       timeout: 3s
       retries: 30
   migrate:
+    build: { context: ../.., dockerfile: server/Dockerfile }
     image: ghcr.io/shubhambatra/vfm-control-plane:0.1.0
     working_dir: /app
     entrypoint: ['node', 'node_modules/prisma/build/index.js', 'migrate', 'deploy']
@@ -39,6 +40,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
   control-plane:
+    build: { context: ../.., dockerfile: server/Dockerfile }
     image: ghcr.io/shubhambatra/vfm-control-plane:0.1.0
     environment:
       NODE_ENV: development

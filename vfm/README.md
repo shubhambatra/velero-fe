@@ -56,6 +56,72 @@ real-Velero golden paths with `vfm/e2e/stack.sh up`, `vfm/e2e/load-agent.sh` and
 `make` with no target lists everything available. `make dev-down` tears the
 environment back down.
 
+## Running each service
+
+All commands run from `vfm/` unless stated. Run `make setup` once first (installs workspace dependencies).
+
+### Everything in Docker (quickest)
+
+```bash
+docker compose -f deploy/quickstart/compose.yml up -d --build
+docker compose -f deploy/quickstart/compose.yml logs control-plane | grep -A8 "no users yet"   # one-time setup token
+```
+
+Open <http://localhost:3000> (UI and API; the agent gateway is on `:8443`). Stop with `... down` (`down -v` also wipes the database).
+Throwaway passwords: for trying the product only.
+
+### Backing services (Postgres, Valkey, MinIO, Mailpit, Dex)
+
+```bash
+docker compose --env-file deploy/dev/dev.env -f deploy/dev/docker-compose.yml up -d --wait
+```
+
+Ports are on `127.0.0.1` only; Postgres is `55432`, Valkey `56379`. Tear down with `deploy/dev/scripts/dev-down.sh`.
+
+### Control plane (API + agent gateway) — `server/`
+
+```bash
+cd server
+cp .env.example .env          # then set VFM_MASTER_KEY: openssl rand -base64 32
+pnpm exec prisma migrate deploy
+pnpm dev                      # http://localhost:3000, hot reload; metrics on :9090
+```
+
+Optional: `pnpm build && pnpm seed` creates development accounts (an admin, two orgs, a user per role). A fresh database otherwise shows **Setup** in the UI.
+
+### Web UI — `web/`
+
+```bash
+pnpm --filter @vfm/web dev    # http://localhost:5173, talks to the control plane on :3000
+```
+
+In production the control plane serves the built UI itself (`pnpm --filter @vfm/web build`), so there is no separate web process.
+
+### Agent — `agent/` (one per managed cluster)
+
+In the UI use **Clusters → Add cluster**; it prints a Helm command with a single-use bootstrap token (valid 24 h):
+
+```bash
+helm install vfm-agent oci://ghcr.io/shubhambatra/charts/vfm-agent -n vfm-system --create-namespace \
+  --set controlPlane.address=<host>:8443 --set-file controlPlane.caBundle=ca.pem --set enrollment.token=<token>
+```
+
+Out-of-cluster for development: `cd agent && go run ./cmd/agent -dev -kubeconfig ~/.kube/config` with the settings from `agent/README.md`
+(control-plane address, CA bundle and enrollment token, as `VFM_*` variables or flags).
+
+### Clusters with Velero for local testing
+
+```bash
+make dev-up                   # two kind clusters + Velero (needs raised inotify limits)
+VFM_DEV_SOLO=1 make dev-up    # one single-node cluster, no root needed
+make smoke                    # a Velero backup must complete on each cluster
+node e2e/sim-clusters.mjs     # simulated clusters, no kind required (see docs/OPERATIONS.md §10a)
+```
+
+### Checks
+
+`make test`, `make lint`, `pnpm -r typecheck`.
+
 ## Current state
 
 This is an in-progress build. `docs/PROGRESS.md` records what each session
