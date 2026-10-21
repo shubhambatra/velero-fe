@@ -298,6 +298,9 @@ when `NODE_ENV=production`, and a second run changes nothing.
 **Real-Velero development stack.** `vfm/e2e/stack.sh up` starts Postgres, Redis and the control plane as containers on the kind network;
 `VFM_DEV_SOLO=1 make dev-up` builds one single-node kind cluster with Velero v1.18.4 and MinIO (no inotify change needed);
 `vfm/e2e/load-agent.sh` builds the agent image under a unique tag and installs it (an image tag reused in kind is not re-pulled);
+`node vfm/e2e/sim-clusters.mjs` enrols four SIMULATED clusters (`sim-*`, with labels) beside the real one so the multi-cluster UI has a fleet
+to show (run the printed `loadtest` command to bring them online; they have generated data and no Velero behind them). A second REAL kind cluster
+(`VFM_DEV_SOLO=1 VFM_DEV_SOLO_B=1 deploy/dev/scripts/dev-up.sh --cluster vfm-b`) needs more inotify instances than the default 128 when other kind clusters exist.
 `node vfm/e2e/golden.mjs [--only gp5]` runs the golden paths against all of it, after `vfm/e2e/reset-workloads.sh`.
 
 ## 11. Troubleshooting
