@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { BreachedPasswordsService } from './breached-passwords';
+import { LdapService } from './ldap.service';
 import { LoginThrottleService } from './login-throttle.service';
 import { MfaController } from './mfa.controller';
 import { MfaService } from './mfa.service';
@@ -27,6 +28,7 @@ import { TotpService } from './totp.service';
     AuthService,
     BreachedPasswordsService,
     FactorThrottleService,
+    LdapService,
     LoginThrottleService,
     MfaService,
     PasswordService,

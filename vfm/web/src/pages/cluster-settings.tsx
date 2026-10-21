@@ -1,3 +1,4 @@
+import { ENVIRONMENT_TYPES } from '@vfm/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type ReactElement, type SyntheticEvent } from 'react';
@@ -83,6 +84,9 @@ function SettingsBody({
   const base = `/orgs/${orgId}/clusters/${cluster.id}`;
   const [name, setName] = useState(cluster.name);
   const [labels, setLabels] = useState(formatLabels(cluster.labels));
+  const [envType, setEnvType] = useState(cluster.environmentType ?? 'other');
+  const [apiEndpoint, setApiEndpoint] = useState(cluster.apiEndpoint ?? '');
+  const [owner, setOwner] = useState(cluster.owner ?? '');
   const [grafana, setGrafana] = useState(cluster.grafanaUrlTemplate ?? '');
   const [formError, setFormError] = useState<string | undefined>();
   const [saved, setSaved] = useState(false);
@@ -128,6 +132,9 @@ function SettingsBody({
     save.mutate({
       name: name.trim(),
       labels: parsed.labels,
+      environmentType: envType,
+      apiEndpoint: apiEndpoint.trim() === '' ? null : apiEndpoint.trim(),
+      owner: owner.trim() === '' ? null : owner.trim(),
       grafanaUrlTemplate: grafana.trim() === '' ? null : grafana.trim(),
     });
   };
@@ -173,6 +180,44 @@ function SettingsBody({
               />
               <p className="text-xs text-muted-foreground">One per line, as key=value.</p>
             </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="cluster-env" className="text-sm font-medium">
+                Environment type
+              </label>
+              <select
+                id="cluster-env"
+                className={inputClass}
+                value={envType}
+                disabled={!admin}
+                onChange={(e) => {
+                  setEnvType(e.target.value);
+                }}
+              >
+                {ENVIRONMENT_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Field
+              label="API endpoint (informational)"
+              type="url"
+              placeholder="https://k8s.example:6443"
+              value={apiEndpoint}
+              disabled={!admin}
+              onChange={(e) => {
+                setApiEndpoint(e.target.value);
+              }}
+            />
+            <Field
+              label="Owner"
+              value={owner}
+              disabled={!admin}
+              onChange={(e) => {
+                setOwner(e.target.value);
+              }}
+            />
             <Field
               label="Grafana URL template"
               type="url"

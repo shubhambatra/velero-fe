@@ -5,6 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import type { AuthenticatedUser } from './authenticated-user';
 import { MailService } from '../mail/mail.service';
+import { LdapService } from './ldap.service';
 import { LoginThrottleService } from './login-throttle.service';
 import { MfaService } from './mfa.service';
 import { PasswordService } from './password.service';
@@ -51,6 +52,7 @@ export class AuthService {
     private readonly throttle: LoginThrottleService,
     private readonly mfa: MfaService,
     private readonly mail: MailService,
+    private readonly ldap: LdapService,
   ) {}
 
   private dummyHash(): Promise<string> {
@@ -81,13 +83,16 @@ export class AuthService {
     // Spend the same work whether or not the account exists, and whether or
     // not it has a password set (an OIDC-only user has a null hash, §9).
     const hash = candidate?.passwordHash ?? (await this.dummyHash());
-    const passwordMatches = await this.passwords.verify(hash, input.password);
+    let passwordMatches = await this.passwords.verify(hash, input.password);
 
-    const usable =
-      candidate !== null &&
-      candidate.passwordHash !== null &&
-      candidate.disabledAt === null &&
-      passwordMatches;
+    // A directory password counts too, for an account that exists here. The directory is asked
+    // for unknown addresses as well, so the work does not reveal which accounts exist.
+    if (!passwordMatches && this.ldap.enabled) {
+      const directoryMatches = await this.ldap.verify(email, input.password);
+      passwordMatches = directoryMatches && candidate !== null;
+    }
+
+    const usable = candidate !== null && candidate.disabledAt === null && passwordMatches;
 
     if (!usable) {
       const outcome = await this.throttle.recordFailure(identity);
@@ -109,7 +114,11 @@ export class AuthService {
 
     // Opportunistic upgrade: if the stored hash predates the current argon2
     // parameters, replace it now that the plaintext is in hand and verified.
-    if (candidate.passwordHash !== null && this.passwords.needsRehash(candidate.passwordHash)) {
+    if (
+      candidate.passwordHash !== null &&
+      this.passwords.needsRehash(candidate.passwordHash) &&
+      (await this.passwords.verify(candidate.passwordHash, input.password))
+    ) {
       const rehashed = await this.passwords.hash(input.password);
       await this.users.updatePasswordHash(candidate.id, rehashed);
     }

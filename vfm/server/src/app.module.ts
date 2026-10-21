@@ -13,6 +13,7 @@ import type { Env } from './config/env.schema';
 import { AuditModule } from './audit/audit.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { ApprovalsModule } from './approvals/approvals.module';
+import { ConfigBackupModule } from './config-backup/config-backup.module';
 import { ReportsModule } from './reports/reports.module';
 import { RetentionModule } from './retention/retention.module';
 import { AuthModule } from './auth/auth.module';
@@ -145,6 +146,7 @@ export function serializeResponse(res: { statusCode?: number }): Record<string, 
     LogsModule,
     AlertsModule,
     ReportsModule,
+    ConfigBackupModule,
     RetentionModule,
     ApprovalsModule,
     EventsModule,

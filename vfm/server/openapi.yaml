@@ -2534,6 +2534,21 @@ paths:
       summary: "Per schedule: the share of the time the newest successful backup was within the objective"
       tags:
         - reports
+  /orgs/{orgId}/config-export:
+    get:
+      operationId: ConfigBackupController_export
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Download the organization configuration as JSON, without secrets (Owner/Admin)
+      tags:
+        - config-backup
   /stream:
     get:
       description: Events carry no object names. Re-read through the REST API on an event.

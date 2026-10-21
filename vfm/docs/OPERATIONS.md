@@ -135,6 +135,13 @@ The authoritative list is `server/src/config/env.schema.ts`; a bad value stops t
   created on first sign-in (JIT) and their team membership follows the claim.
 - **Roles**: see `RBAC.md`. Organization Owners/Admins administer everything in their organization.
 
+### LDAP sign-in (optional)
+
+Set `LDAP_URL` (`ldaps://…`, or `ldap://…` with `LDAP_START_TLS=true`, the default), `LDAP_SEARCH_BASE`, and optionally `LDAP_BIND_DN` /
+`LDAP_BIND_PASSWORD` (a read-only service account) and `LDAP_USER_FILTER` (default `(mail={email})`). When a local password does not match,
+the server finds the entry by e-mail and binds as it. LDAP never creates accounts: the person must already exist (invitation or admin
+creation), keeps their role bindings and MFA rules, and the same throttling applies. A filter matching zero or several entries refuses the sign-in.
+
 ## 5. Install an agent
 
 In the UI: _Clusters -> Add cluster_. It creates the cluster record and prints the exact command (a Helm install carrying the
@@ -220,6 +227,13 @@ sessions and counters only; losing it signs everyone out and nothing more.
 - **Restore order**: database, then the master key Secret, then `helm upgrade --install`. The audit log is append-only in the
   database and is included.
 - **Practise it.** An untested backup is a hope. Restore into a scratch namespace before you need to.
+
+### Configuration export (SOW FR-19)
+
+**Administration → Audit → Export configuration** (or `GET /api/v1/orgs/{orgId}/config-export`, Owner/Admin, audited as `config.export`) downloads
+one JSON file: organization settings, members and roles, teams, cluster metadata (name, environment type, API endpoint, owner, labels), role bindings,
+alert rules and the names of notification channels. It contains **no** password hashes, MFA secrets, tokens, certificates or channel settings.
+It is a record for audit and rebuild, not a restore format: the way back is the database restore above, and a lost cluster re-enrols its agent.
 
 ## 8. Rotation
 

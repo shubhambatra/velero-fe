@@ -88,12 +88,21 @@ export function ReportsPage({ orgId }: { orgId: string }): ReactElement {
   );
 }
 
-/** A plain link to the same report as CSV; the session cookie authenticates it. */
+/** Plain links to the same report as CSV and PDF; the session cookie authenticates them. */
 function CsvLink({ path }: { path: string }): ReactElement {
   return (
-    <a className="text-sm underline" href={`${API_BASE_URL}${path}`} download>
-      Download CSV
-    </a>
+    <span className="flex gap-3">
+      {(['csv', 'pdf'] as const).map((format) => (
+        <a
+          key={format}
+          className="text-sm underline"
+          href={`${API_BASE_URL}${path}&format=${format}`}
+          download
+        >
+          Download {format.toUpperCase()}
+        </a>
+      ))}
+    </span>
   );
 }
 
@@ -162,7 +171,7 @@ function SuccessRate({ orgId, cluster }: { orgId: string; cluster: string }): Re
             <option value="week">Week</option>
           </select>
         </label>
-        {data !== undefined && <CsvLink path={`${path}&format=csv`} />}
+        {data !== undefined && <CsvLink path={path} />}
       </div>
       <ErrorNote message={report.isError ? errorMessage(report.error) : undefined} />
       {report.isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
@@ -274,7 +283,7 @@ function Coverage({ orgId, cluster }: { orgId: string; cluster: string }): React
             ))}
           </select>
         </label>
-        {data !== undefined && <CsvLink path={`${path}&format=csv`} />}
+        {data !== undefined && <CsvLink path={path} />}
       </div>
       <ErrorNote message={report.isError ? errorMessage(report.error) : undefined} />
       {report.isPending && <p className="text-sm text-muted-foreground">Loading…</p>}
@@ -369,7 +378,7 @@ function Rpo({ orgId, cluster }: { orgId: string; cluster: string }): ReactEleme
             ))}
           </select>
         </label>
-        {data !== undefined && <CsvLink path={`${path}&format=csv`} />}
+        {data !== undefined && <CsvLink path={path} />}
       </div>
       <ErrorNote message={report.isError ? errorMessage(report.error) : undefined} />
       {report.isPending && <p className="text-sm text-muted-foreground">Loading…</p>}

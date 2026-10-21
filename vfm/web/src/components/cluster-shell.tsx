@@ -1,3 +1,4 @@
+import { VELERO_COMPATIBILITY_MATRIX } from '@vfm/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { ReactElement, ReactNode } from 'react';
@@ -59,6 +60,8 @@ export function ClusterShell({
       api<ClusterOverview>(`/orgs/${orgId}/clusters/${clusterId}/overview`, { signal }),
   });
   const name = overview.data?.cluster.name;
+  const compat = overview.data?.cluster.veleroCompatibility;
+  const version = overview.data?.cluster.veleroVersion;
   const grafana =
     overview.data === undefined
       ? null
@@ -123,6 +126,13 @@ export function ClusterShell({
       </nav>
 
       <ErrorNote message={overview.isError ? errorMessage(overview.error) : undefined} />
+      {compat !== undefined && compat !== 'supported' && compat !== 'unknown' && (
+        <p role="alert" className="rounded-md border border-border bg-muted px-3 py-2 text-sm">
+          {compat === 'blocked'
+            ? `Velero ${version ?? ''} is outside the tested window (${VELERO_COMPATIBILITY_MATRIX.oldest} or newer). Commands are refused until Velero is upgraded.`
+            : `Velero ${version ?? ''} is newer than the tested ${VELERO_COMPATIBILITY_MATRIX.primary}. It may work, but it is not verified.`}
+        </p>
+      )}
       {children}
     </div>
   );

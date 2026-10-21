@@ -1,3 +1,4 @@
+import { veleroCompatibility, type VeleroCompatibility } from '@vfm/shared';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type Cluster } from '@prisma/client';
 
@@ -17,6 +18,8 @@ export interface ClusterView {
   status: Cluster['status'];
   k8sVersion: string | null;
   veleroVersion: string | null;
+  /** UI build vs Velero version (SOW FR-20). */
+  veleroCompatibility: VeleroCompatibility;
   veleroPlugins: unknown;
   agentVersion: string | null;
   chartVersion: string | null;
@@ -28,6 +31,9 @@ export interface ClusterView {
   capabilities: unknown;
   lastSeenAt: Date | null;
   labels: unknown;
+  environmentType: string;
+  apiEndpoint: string | null;
+  owner: string | null;
   grafanaUrlTemplate: string | null;
   /** This cluster asks for restore approval by itself; the org setting may require it as well. */
   requireRestoreApproval: boolean;
@@ -42,12 +48,28 @@ export interface EnrollmentGrant {
   installCommand: string;
 }
 
+interface ClusterMetadata {
+  environmentType?: string | undefined;
+  apiEndpoint?: string | null | undefined;
+  owner?: string | null | undefined;
+}
+
+/** Only the metadata fields the caller sent, so a PATCH leaves the others alone. */
+const metadataData = (
+  input: ClusterMetadata,
+): { environmentType?: string; apiEndpoint?: string | null; owner?: string | null } => ({
+  ...(input.environmentType === undefined ? {} : { environmentType: input.environmentType }),
+  ...(input.apiEndpoint === undefined ? {} : { apiEndpoint: input.apiEndpoint }),
+  ...(input.owner === undefined ? {} : { owner: input.owner }),
+});
+
 const view = (c: Cluster, expectedChart: string): ClusterView => ({
   id: c.id,
   name: c.name,
   status: c.status,
   k8sVersion: c.k8sVersion,
   veleroVersion: c.veleroVersion,
+  veleroCompatibility: veleroCompatibility(c.veleroVersion),
   veleroPlugins: c.veleroPlugins,
   agentVersion: c.agentVersion,
   chartVersion: c.chartVersion,
@@ -58,6 +80,9 @@ const view = (c: Cluster, expectedChart: string): ClusterView => ({
   capabilities: c.capabilities,
   lastSeenAt: c.lastSeenAt,
   labels: c.labels,
+  environmentType: c.environmentType,
+  apiEndpoint: c.apiEndpoint,
+  owner: c.owner,
   grafanaUrlTemplate: c.grafanaUrlTemplate,
   requireRestoreApproval: c.requireRestoreApproval,
   createdAt: c.createdAt,
@@ -99,13 +124,19 @@ export class ClustersService {
 
   async create(
     orgId: string,
-    input: { name: string; labels?: Record<string, string> | undefined },
+    input: { name: string; labels?: Record<string, string> | undefined } & ClusterMetadata,
   ): Promise<{ cluster: ClusterView } & EnrollmentGrant> {
     let cluster: Cluster;
     try {
       cluster = await this.prisma.inOrg(orgId, () =>
         this.prisma.cluster.create({
-          data: { id: newId(), orgId, name: input.name, labels: input.labels ?? {} },
+          data: {
+            id: newId(),
+            orgId,
+            name: input.name,
+            labels: input.labels ?? {},
+            ...metadataData(input),
+          },
         }),
       );
     } catch (error) {
@@ -152,7 +183,7 @@ export class ClustersService {
       name?: string | undefined;
       labels?: Record<string, string> | undefined;
       grafanaUrlTemplate?: string | null | undefined;
-    },
+    } & ClusterMetadata,
   ): Promise<ClusterView> {
     await this.find(orgId, clusterId);
     try {
@@ -162,6 +193,7 @@ export class ClustersService {
           data: {
             ...(input.name === undefined ? {} : { name: input.name }),
             ...(input.labels === undefined ? {} : { labels: input.labels }),
+            ...metadataData(input),
             ...(input.grafanaUrlTemplate === undefined
               ? {}
               : { grafanaUrlTemplate: input.grafanaUrlTemplate }),

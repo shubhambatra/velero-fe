@@ -528,6 +528,12 @@ model Cluster {
   inventorySyncedAt   DateTime? @map("inventory_synced_at") @db.Timestamptz(6)
 
   labels             Json    @default("{}")
+
+  /// Inventory metadata (SOW FR-02): what the cluster is for, where its API lives, who answers for it.
+  environmentType String  @default("other") @map("environment_type")
+  apiEndpoint     String? @map("api_endpoint")
+  owner           String?
+
   grafanaUrlTemplate String? @map("grafana_url_template")
 
   /// Restores on this cluster need another person's approval (PLAN.md §8.4). Adds to the org
