@@ -2,7 +2,7 @@
 
 _Generated from `server/openapi.yaml` by `pnpm --filter @vfm/server run gen:docs`. Do not edit by hand: a test fails when it drifts._
 
-All paths are under `/api/v1`. 133 operations. Authentication is a session cookie (browser) or a `Bearer vfm_...`
+All paths are under `/api/v1`. 134 operations. Authentication is a session cookie (browser) or a `Bearer vfm_...`
 API token; every state-changing request also needs the `X-CSRF-Token` header (sessions) and a recent
 re-authentication ("sudo") where the operation is marked as needing one. Errors are RFC 9457
 `application/problem+json`. Lists use cursor pagination (`limit` up to 200, `cursor`). The machine-readable
@@ -105,6 +105,7 @@ contract is `server/openapi.yaml` (OpenAPI 3.1).
 | POST | `/orgs/{orgId}/clusters/{clusterId}/restores/{name}/logs` | Fetch a restore’s log from the cluster (or report a fresh copy) | 201 |
 | GET | `/orgs/{orgId}/clusters/{clusterId}/restores/{name}/details/{part}` | A detail file of a restore; 204 when none is held | 200 |
 | POST | `/orgs/{orgId}/clusters/{clusterId}/restores/{name}/details/{part}` | Fetch a detail file of a restore (results, resource-list, ...) | 201 |
+| POST | `/orgs/{orgId}/clusters/{clusterId}/backups/{name}/download-url` | A short-lived signed link to a backup’s contents (backup:download, sudo) | 200, 403, 404, 409, 504 |
 
 ## health
 

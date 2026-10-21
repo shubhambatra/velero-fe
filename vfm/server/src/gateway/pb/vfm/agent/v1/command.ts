@@ -102,6 +102,12 @@ export interface Command {
    * asked about and nothing else, so a caller learns nothing about other namespaces.
    */
   checkNamespaces?: CheckNamespaces | undefined;
+  /**
+   * `velero backup download`: a short-lived signed URL to the backup's contents (PLAN.md section 6, P2).
+   * The data itself is never proxied. Answers with `signed_url`, which the control plane hands to
+   * one browser and never stores.
+   */
+  getBackupDownloadUrl?: GetBackupDownloadUrl | undefined;
 }
 
 export interface CreateBackup {
@@ -186,6 +192,10 @@ export interface FetchDownload {
   maxBytes: number;
 }
 
+export interface GetBackupDownloadUrl {
+  backupName: string;
+}
+
 export interface RefreshServerStatus {}
 
 export interface CheckNamespaces {
@@ -217,6 +227,16 @@ export interface CommandResult {
   created?: CreatedObject | undefined;
   download?: DownloadSummary | undefined;
   namespaces?: NamespaceReport | undefined;
+  signedUrl?: SignedUrl | undefined;
+}
+
+/**
+ * A URL that grants read access to a backup's data until `expires_at`. It is a credential: the
+ * control plane must not log it, store it, or put it in a command's recorded result.
+ */
+export interface SignedUrl {
+  url: string;
+  expiresAt: Date | undefined;
 }
 
 /**
@@ -281,6 +301,7 @@ function createBaseCommand(): Command {
     fetchDownload: undefined,
     refreshStatus: undefined,
     checkNamespaces: undefined,
+    getBackupDownloadUrl: undefined,
   };
 }
 
@@ -348,6 +369,9 @@ export const Command: MessageFns<Command> = {
     }
     if (message.checkNamespaces !== undefined) {
       CheckNamespaces.encode(message.checkNamespaces, writer.uint32(210).fork()).join();
+    }
+    if (message.getBackupDownloadUrl !== undefined) {
+      GetBackupDownloadUrl.encode(message.getBackupDownloadUrl, writer.uint32(218).fork()).join();
     }
     return writer;
   },
@@ -525,6 +549,14 @@ export const Command: MessageFns<Command> = {
             message.checkNamespaces = CheckNamespaces.decode(reader, reader.uint32());
             continue;
           }
+          case 27: {
+            if (tag !== 218) {
+              break;
+            }
+
+            message.getBackupDownloadUrl = GetBackupDownloadUrl.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -635,6 +667,11 @@ export const Command: MessageFns<Command> = {
         : isSet(object.check_namespaces)
           ? CheckNamespaces.fromJSON(object.check_namespaces)
           : undefined,
+      getBackupDownloadUrl: isSet(object.getBackupDownloadUrl)
+        ? GetBackupDownloadUrl.fromJSON(object.getBackupDownloadUrl)
+        : isSet(object.get_backup_download_url)
+          ? GetBackupDownloadUrl.fromJSON(object.get_backup_download_url)
+          : undefined,
     };
   },
 
@@ -699,6 +736,9 @@ export const Command: MessageFns<Command> = {
     }
     if (message.checkNamespaces !== undefined) {
       obj.checkNamespaces = CheckNamespaces.toJSON(message.checkNamespaces);
+    }
+    if (message.getBackupDownloadUrl !== undefined) {
+      obj.getBackupDownloadUrl = GetBackupDownloadUrl.toJSON(message.getBackupDownloadUrl);
     }
     return obj;
   },
@@ -778,6 +818,10 @@ export const Command: MessageFns<Command> = {
     message.checkNamespaces =
       object.checkNamespaces !== undefined && object.checkNamespaces !== null
         ? CheckNamespaces.fromPartial(object.checkNamespaces)
+        : undefined;
+    message.getBackupDownloadUrl =
+      object.getBackupDownloadUrl !== undefined && object.getBackupDownloadUrl !== null
+        ? GetBackupDownloadUrl.fromPartial(object.getBackupDownloadUrl)
         : undefined;
     return message;
   },
@@ -2143,6 +2187,79 @@ export const FetchDownload: MessageFns<FetchDownload> = {
   },
 };
 
+function createBaseGetBackupDownloadUrl(): GetBackupDownloadUrl {
+  return { backupName: '' };
+}
+
+export const GetBackupDownloadUrl: MessageFns<GetBackupDownloadUrl> = {
+  encode(message: GetBackupDownloadUrl, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.backupName !== '') {
+      writer.uint32(10).string(message.backupName);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetBackupDownloadUrl {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGetBackupDownloadUrl();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.backupName = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GetBackupDownloadUrl {
+    return {
+      backupName: isSet(object.backupName)
+        ? globalThis.String(object.backupName)
+        : isSet(object.backup_name)
+          ? globalThis.String(object.backup_name)
+          : '',
+    };
+  },
+
+  toJSON(message: GetBackupDownloadUrl): unknown {
+    const obj: any = {};
+    if (message.backupName !== '') {
+      obj.backupName = message.backupName;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GetBackupDownloadUrl>): GetBackupDownloadUrl {
+    return GetBackupDownloadUrl.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GetBackupDownloadUrl>): GetBackupDownloadUrl {
+    const message = createBaseGetBackupDownloadUrl();
+    message.backupName = object.backupName ?? '';
+    return message;
+  },
+};
+
 function createBaseRefreshServerStatus(): RefreshServerStatus {
   return {};
 }
@@ -2439,6 +2556,7 @@ function createBaseCommandResult(): CommandResult {
     created: undefined,
     download: undefined,
     namespaces: undefined,
+    signedUrl: undefined,
   };
 }
 
@@ -2470,6 +2588,9 @@ export const CommandResult: MessageFns<CommandResult> = {
     }
     if (message.namespaces !== undefined) {
       NamespaceReport.encode(message.namespaces, writer.uint32(106).fork()).join();
+    }
+    if (message.signedUrl !== undefined) {
+      SignedUrl.encode(message.signedUrl, writer.uint32(114).fork()).join();
     }
     return writer;
   },
@@ -2559,6 +2680,14 @@ export const CommandResult: MessageFns<CommandResult> = {
             message.namespaces = NamespaceReport.decode(reader, reader.uint32());
             continue;
           }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.signedUrl = SignedUrl.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -2604,6 +2733,11 @@ export const CommandResult: MessageFns<CommandResult> = {
       namespaces: isSet(object.namespaces)
         ? NamespaceReport.fromJSON(object.namespaces)
         : undefined,
+      signedUrl: isSet(object.signedUrl)
+        ? SignedUrl.fromJSON(object.signedUrl)
+        : isSet(object.signed_url)
+          ? SignedUrl.fromJSON(object.signed_url)
+          : undefined,
     };
   },
 
@@ -2636,6 +2770,9 @@ export const CommandResult: MessageFns<CommandResult> = {
     if (message.namespaces !== undefined) {
       obj.namespaces = NamespaceReport.toJSON(message.namespaces);
     }
+    if (message.signedUrl !== undefined) {
+      obj.signedUrl = SignedUrl.toJSON(message.signedUrl);
+    }
     return obj;
   },
 
@@ -2665,6 +2802,99 @@ export const CommandResult: MessageFns<CommandResult> = {
       object.namespaces !== undefined && object.namespaces !== null
         ? NamespaceReport.fromPartial(object.namespaces)
         : undefined;
+    message.signedUrl =
+      object.signedUrl !== undefined && object.signedUrl !== null
+        ? SignedUrl.fromPartial(object.signedUrl)
+        : undefined;
+    return message;
+  },
+};
+
+function createBaseSignedUrl(): SignedUrl {
+  return { url: '', expiresAt: undefined };
+}
+
+export const SignedUrl: MessageFns<SignedUrl> = {
+  encode(message: SignedUrl, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.url !== '') {
+      writer.uint32(10).string(message.url);
+    }
+    if (message.expiresAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.expiresAt), writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SignedUrl {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error('protobuf decode recursion limit exceeded');
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSignedUrl();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.url = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.expiresAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SignedUrl {
+    return {
+      url: isSet(object.url) ? globalThis.String(object.url) : '',
+      expiresAt: isSet(object.expiresAt)
+        ? fromJsonTimestamp(object.expiresAt)
+        : isSet(object.expires_at)
+          ? fromJsonTimestamp(object.expires_at)
+          : undefined,
+    };
+  },
+
+  toJSON(message: SignedUrl): unknown {
+    const obj: any = {};
+    if (message.url !== '') {
+      obj.url = message.url;
+    }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SignedUrl>): SignedUrl {
+    return SignedUrl.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SignedUrl>): SignedUrl {
+    const message = createBaseSignedUrl();
+    message.url = object.url ?? '';
+    message.expiresAt = object.expiresAt ?? undefined;
     return message;
   },
 };

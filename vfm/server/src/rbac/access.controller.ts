@@ -24,9 +24,16 @@ const ASKED = [
   'storage:write',
   'advanced:write',
   'logs:read',
+  'backup:download',
 ] as const;
 
-const READ_ONLY_ALLOWS: ReadonlySet<string> = new Set(['backup:logs', 'restore:logs', 'logs:read']);
+// Reading is not a change: a read-only agent still hands out logs and a link to a backup's contents.
+const READ_ONLY_ALLOWS: ReadonlySet<string> = new Set([
+  'backup:logs',
+  'restore:logs',
+  'logs:read',
+  'backup:download',
+]);
 
 /**
  * Permissions the cluster's own agent policy refuses, with the reason (PLAN.md §5.5, §12).

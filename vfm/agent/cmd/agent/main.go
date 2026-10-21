@@ -222,12 +222,14 @@ func leaderTask(logger *slog.Logger, cfg *config.Config, kubeClient *kube.Client
 		dispatcher.Register("create_restore", restoreOps.Create)
 		dispatcher.Register("delete_restore", restoreOps.Delete)
 		dispatcher.Register("check_namespaces", (&velero.NamespaceChecker{Client: kubeClient.Clientset()}).Check)
-		dispatcher.Register("fetch_download", (&velero.DownloadHandler{
+		downloads := &velero.DownloadHandler{
 			Dynamic:   kubeClient.Dynamic(),
 			Namespace: cfg.VeleroNamespace,
 			Send:      func(m *pb.AgentMessage) bool { return manager.Send(m) },
 			NewID:     gateway.NewMessageID,
-		}).Handle)
+		}
+		dispatcher.Register("fetch_download", downloads.Handle)
+		dispatcher.Register("get_backup_download_url", downloads.HandleURL)
 
 		streamer := logs.New(logs.Options{
 			Source:      logs.KubeSource{Client: kubeClient.Clientset()},

@@ -2183,6 +2183,42 @@ paths:
       summary: A detail file of a restore; 204 when none is held
       tags:
         - downloads
+  /orgs/{orgId}/clusters/{clusterId}/backups/{name}/download-url:
+    post:
+      description: "Backup data is not proxied: this returns a presigned URL to the object storage, valid
+        for a few minutes. Refused unless the organization allows backup downloads (off by default)
+        and the caller holds `backup:download` over every namespace in the backup."
+      operationId: BackupContentsController_link
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "`{ url, expiresAt }`."
+        "403":
+          description: Downloads are off for the organization, or not permitted.
+        "404":
+          description: No such backup, or not one the caller may download.
+        "409":
+          description: The backup has no contents (not Completed or PartiallyFailed).
+        "504":
+          description: The agent did not answer in time.
+      summary: A short-lived signed link to a backup’s contents (backup:download, sudo)
+      tags:
+        - downloads
   /orgs/{orgId}/clusters/{clusterId}/log-sessions:
     post:
       description: Returns the session to stream from. Needs `logs:read` on the pod’s namespace, an agent

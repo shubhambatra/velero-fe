@@ -579,8 +579,17 @@ describe('backup operations (e2e)', () => {
       const scopedAdmin = await member(s.call, s.orgId, s.agent, 'CLUSTER_ADMIN', only('dev'));
       const stranger = await world.member(s.call, s.orgId, 'nobody@acme.test');
 
+      // The Owner can do everything, except downloading backup contents: that stays off until the organization allows it.
       const owner = await accessOf(s.call, s.base);
-      expect(Object.values(owner).every((v) => v === 'cluster')).toBe(true);
+      expect(owner['backup:download']).toBe('none');
+      expect(
+        Object.entries(owner)
+          .filter(([permission]) => permission !== 'backup:download')
+          .every(([, level]) => level === 'cluster'),
+      ).toBe(true);
+      await s.call('patch', `/orgs/${s.orgId}`, { allowBackupContentDownload: true }).expect(200);
+      expect((await accessOf(s.call, s.base))['backup:download']).toBe('cluster');
+      await s.call('patch', `/orgs/${s.orgId}`, { allowBackupContentDownload: false }).expect(200);
 
       expect(await accessOf(viewer.call, s.base)).toMatchObject({
         'backup:create': 'none',

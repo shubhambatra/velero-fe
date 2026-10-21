@@ -65,6 +65,8 @@ func OpOf(cmd *pb.Command) Op {
 		return "refresh_status"
 	case *pb.Command_CheckNamespaces:
 		return "check_namespaces"
+	case *pb.Command_GetBackupDownloadUrl:
+		return "get_backup_download_url"
 	default:
 		return ""
 	}

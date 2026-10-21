@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -376,4 +377,54 @@ func (h *DownloadHandler) describe(ctx context.Context, err error) *pb.CommandRe
 		return &pb.CommandResult{ErrorCode: pb.ErrorCode_ERROR_CODE_KUBE_API_ERROR,
 			ErrorMessage: "the Kubernetes API returned an error"}
 	}
+}
+
+// DefaultSignedURLLifetime is what the control plane is told when Velero's DownloadRequest names no
+// expiry: Velero signs for ten minutes, and this stays under it so a caller never holds an expired link.
+const DefaultSignedURLLifetime = 9 * time.Minute
+
+// HandleURL implements `GetBackupDownloadUrl` (PLAN.md section 6, `backup download`; principle P2).
+//
+// It creates a `DownloadRequest` of kind `BackupContents`, waits for Velero to sign a URL, and answers with
+// **the URL only**. The backup's data never passes through the agent or the control plane: the browser
+// fetches it from the object storage with the link. The URL is a credential until it expires, so it is not
+// logged, not put in an error, and not kept in the agent's idempotency cache (that keeps only a whitelist
+// of small details, `outcomeOf`).
+func (h *DownloadHandler) HandleURL(ctx context.Context, cmd *pb.Command) *pb.CommandResult {
+	name := cmd.GetGetBackupDownloadUrl().GetBackupName()
+	if !dnsSubdomain.MatchString(name) {
+		return invalid("the backup name is not a valid Kubernetes object name")
+	}
+	resource := h.Dynamic.Resource(downloadRequests).Namespace(h.Namespace)
+	obj, err := h.ensureRequest(ctx, resource, cmd, "BackupContents", name)
+	if err != nil {
+		return h.describe(ctx, err)
+	}
+	defer func() {
+		// Deleting the request does not revoke a signed URL (the signature is in the link); it only
+		// stops a stale request object from lingering in the customer's cluster.
+		cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = resource.Delete(cleanup, obj.GetName(), metav1.DeleteOptions{})
+	}()
+
+	signed, failure := h.waitForURL(ctx, resource, obj.GetName())
+	if failure != nil {
+		return failure
+	}
+	parsed, err := url.Parse(signed)
+	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" {
+		return &pb.CommandResult{ErrorCode: pb.ErrorCode_ERROR_CODE_INTERNAL, ErrorMessage: "Velero returned a download address that is not an http(s) URL"}
+	}
+	expires := time.Now().Add(DefaultSignedURLLifetime)
+	if current, err := resource.Get(ctx, obj.GetName(), metav1.GetOptions{}); err == nil {
+		if exp, found, _ := unstructured.NestedString(current.Object, "status", "expiration"); found {
+			if t, perr := time.Parse(time.RFC3339, exp); perr == nil && t.After(time.Now()) {
+				expires = t
+			}
+		}
+	}
+	return &pb.CommandResult{Ok: true, Detail: &pb.CommandResult_SignedUrl{
+		SignedUrl: &pb.SignedUrl{Url: signed, ExpiresAt: timestamppb.New(expires)},
+	}}
 }

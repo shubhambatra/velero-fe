@@ -44,6 +44,7 @@ const TIMEOUT_SWEEP_EVERY_MS = 10_000;
 const TIMEOUT_LOCK_KEY = 'vfm:commands:sweeper';
 const TIMEOUT_LOCK_TTL_S = 8;
 const LIST_LIMIT = 50;
+const SIGNED_URL_KEY = (commandId: string): string => `vfm:dlurl:${commandId}`;
 const MAX_PENDING_APPROVALS_PER_CLUSTER = 25;
 const MAX_ERROR_TEXT = 1_000;
 
@@ -690,10 +691,12 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     // A download is judged before anything else: the file must be whole and match
     // its checksum, or the command fails whatever the agent says.
     const download = result.ok ? await this.finishDownload(row, result) : undefined;
+    // A signed backup link is a credential: held briefly in Redis for the one request waiting for it, never recorded.
+    const link = result.ok ? await this.holdSignedUrl(row, result) : undefined;
     if (!result.ok) {
       this.assembler.drop(row.id);
     }
-    const ok = result.ok && download?.error === undefined;
+    const ok = result.ok && download?.error === undefined && link?.error === undefined;
 
     const code = ErrorCode[result.errorCode] as string | undefined;
     const errorCode = ok
@@ -702,10 +705,12 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
         ? 'INTERNAL'
         : (code ?? 'INTERNAL').replace(/^ERROR_CODE_/, '');
     const status = ok ? 'SUCCEEDED' : 'FAILED';
-    const errorMessage = ok ? null : (download?.error ?? text(result.errorMessage));
+    const errorMessage = ok ? null : (download?.error ?? link?.error ?? text(result.errorMessage));
 
     let detail: Prisma.InputJsonValue | undefined;
-    if (ok && download?.detail !== undefined) {
+    if (ok && link?.detail !== undefined) {
+      detail = link.detail;
+    } else if (ok && download?.detail !== undefined) {
       detail = download.detail;
     } else if (result.ok && result.serverStatus !== undefined) {
       detail = sanitizeVeleroStatus(result.serverStatus);
@@ -755,6 +760,65 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
           data: { veleroVersion: velero.serverVersion, veleroPlugins: velero.plugins },
         }),
       );
+    }
+  }
+
+  /**
+   * Keeps the link of a `GET_BACKUP_DOWNLOAD_URL` answer where only the request waiting for it can take it:
+   * Redis, two minutes, read once. The command's own recorded result says only that a link was issued.
+   * Any other op that comes back with a link is ignored (an agent cannot smuggle one onto another command).
+   */
+  private async holdSignedUrl(
+    row: { id: string; op: string },
+    result: NonNullable<AgentMessage['result']>,
+  ): Promise<{ detail?: Prisma.InputJsonValue; error?: string } | undefined> {
+    if (row.op !== 'GET_BACKUP_DOWNLOAD_URL') {
+      return undefined;
+    }
+    const signed = result.signedUrl;
+    if (signed === undefined) {
+      // A replayed duplicate: succeeded, but the link was not kept by the agent. Nothing to hold.
+      return { detail: { linkIssued: false } };
+    }
+    const valid = ((): boolean => {
+      try {
+        const u = new URL(signed.url);
+        return (u.protocol === 'https:' || u.protocol === 'http:') && signed.url.length <= 4_096;
+      } catch {
+        return false;
+      }
+    })();
+    const expiresAt = signed.expiresAt;
+    if (
+      !valid ||
+      expiresAt === undefined ||
+      expiresAt.getTime() <= Date.now() ||
+      expiresAt.getTime() > Date.now() + 30 * 60_000
+    ) {
+      return { error: 'the agent returned a download link that is not usable' };
+    }
+    await this.redis.connection.set(
+      SIGNED_URL_KEY(row.id),
+      JSON.stringify({ url: signed.url, expiresAt: expiresAt.toISOString() }),
+      'EX',
+      120,
+    );
+    return { detail: { linkIssued: true, expiresAt: expiresAt.toISOString() } };
+  }
+
+  /** Takes the link a finished `GET_BACKUP_DOWNLOAD_URL` left, once: a second call finds nothing. */
+  async takeSignedUrl(commandId: string): Promise<{ url: string; expiresAt: string } | null> {
+    const raw = await this.redis.connection.getdel(SIGNED_URL_KEY(commandId));
+    if (raw === null) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw) as { url?: unknown; expiresAt?: unknown };
+      return typeof parsed.url === 'string' && typeof parsed.expiresAt === 'string'
+        ? { url: parsed.url, expiresAt: parsed.expiresAt }
+        : null;
+    } catch {
+      return null;
     }
   }
 

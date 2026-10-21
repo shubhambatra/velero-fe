@@ -1,10 +1,13 @@
 package dispatch
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -520,4 +523,49 @@ func TestACorruptStateConfigMapIsReportedAndLeavesTheCacheEmpty(t *testing.T) {
 	if err := (&Store{Client: fake.NewClientset(), Namespace: "n", Name: "state"}).Load(ctx, c); err != nil {
 		t.Errorf("a missing state ConfigMap is not an error: %v", err)
 	}
+}
+
+func TestASignedURLNeverReachesTheCacheOrTheConfigMapItIsSavedTo(t *testing.T) {
+	// The cache is persisted to a ConfigMap in the customer's cluster every 30 seconds. A signed URL is a
+	// credential for a backup's data until it expires: it must be replayed as "succeeded", not as the link.
+	const secret = "https://store.example/backups/b/b.tar.gz?X-Amz-Signature=VERY-SECRET-SIGNATURE"
+	ctx := context.Background()
+	cs := fake.NewClientset()
+	store := &Store{Client: cs, Namespace: "n", Name: "state"}
+	c := NewCache(CacheSize)
+	c.Put("download", outcomeOf(&pb.CommandResult{
+		Ok:     true,
+		Detail: &pb.CommandResult_SignedUrl{SignedUrl: &pb.SignedUrl{Url: secret}},
+	}))
+	if err := store.Save(ctx, c); err != nil {
+		t.Fatal(err)
+	}
+	cm, err := cs.CoreV1().ConfigMaps("n").Get(ctx, "state", metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var all strings.Builder
+	for _, v := range cm.Data {
+		all.WriteString(v)
+	}
+	for _, v := range cm.BinaryData {
+		raw, _ := gzipRead(v)
+		all.Write(raw)
+		all.Write(v)
+	}
+	if strings.Contains(all.String(), "VERY-SECRET-SIGNATURE") || strings.Contains(all.String(), "store.example") {
+		t.Error("the signed URL was written to the ConfigMap")
+	}
+	if o, ok := c.Get("download"); !ok || !o.OK || len(o.Detail) != 0 {
+		t.Errorf("want a plain success without detail, got %+v", o)
+	}
+}
+
+func gzipRead(b []byte) ([]byte, error) {
+	zr, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = zr.Close() }()
+	return io.ReadAll(zr)
 }

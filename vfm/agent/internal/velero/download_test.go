@@ -439,3 +439,82 @@ func TestARedirectIsNotFollowedEvenToAnAllowedAddress(t *testing.T) {
 		t.Fatalf("followed=%d data=%q res=%v", followed.Load(), s.data(), res)
 	}
 }
+
+func urlCmd(name string) *pb.Command {
+	return &pb.Command{CommandId: cmdID, RequestedBy: "0194f9d2-0000-7000-8000-0000000000aa",
+		Op: &pb.Command_GetBackupDownloadUrl{GetBackupDownloadUrl: &pb.GetBackupDownloadUrl{BackupName: name}}}
+}
+
+func TestTheBackupDownloadReturnsOnlyTheSignedURLAndFetchesNothing(t *testing.T) {
+	// P2: backup data never passes through VFM. The agent must not contact the object storage at all.
+	var contacted atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		contacted.Add(1)
+		_, _ = w.Write([]byte("backup data"))
+	}))
+	t.Cleanup(srv.Close)
+	signed := srv.URL + "/backups/b1/b1.tar.gz?X-Amz-Signature=secret"
+
+	c := newDownloadClient()
+	veleroProcesses(c, 1, signed)
+	s := &sink{}
+	h := &DownloadHandler{Dynamic: c, Namespace: "velero", Send: s.send, NewID: func() string { return "id" }, PollInterval: time.Millisecond}
+
+	res := h.HandleURL(context.Background(), urlCmd("b1"))
+
+	if !res.GetOk() || res.GetSignedUrl().GetUrl() != signed {
+		t.Fatalf("want the signed URL back, got %v", res)
+	}
+	if exp := res.GetSignedUrl().GetExpiresAt().AsTime(); !exp.After(time.Now()) || exp.After(time.Now().Add(15*time.Minute)) {
+		t.Errorf("the expiry %v is not a short time from now", exp)
+	}
+	if contacted.Load() != 0 {
+		t.Error("the agent fetched the backup's data; it must only hand out the link")
+	}
+	if len(s.chunks) != 0 {
+		t.Error("the agent streamed data to the control plane")
+	}
+	// The request asked Velero for the backup's contents, by the backup's name, and was cleaned up.
+	objs, _ := c.Resource(downloadRequests).Namespace("velero").List(context.Background(), metav1.ListOptions{})
+	if len(objs.Items) != 0 {
+		t.Errorf("a DownloadRequest was left behind: %d", len(objs.Items))
+	}
+}
+
+func TestTheBackupDownloadAsksVeleroForTheBackupContentsOfThatBackup(t *testing.T) {
+	c := newDownloadClient()
+	veleroProcesses(c, 0, "https://store.example/backups/b1/b1.tar.gz?sig=x")
+	var asked atomic.Value
+	c.PrependReactor("create", "downloadrequests", func(a clienttesting.Action) (bool, runtime.Object, error) {
+		u := a.(clienttesting.CreateAction).GetObject().(*unstructured.Unstructured)
+		kind, _, _ := unstructured.NestedString(u.Object, "spec", "target", "kind")
+		name, _, _ := unstructured.NestedString(u.Object, "spec", "target", "name")
+		asked.Store(kind + "/" + name)
+		return false, nil, nil
+	})
+	h := &DownloadHandler{Dynamic: c, Namespace: "velero", Send: (&sink{}).send, NewID: func() string { return "id" }, PollInterval: time.Millisecond}
+	if res := h.HandleURL(context.Background(), urlCmd("b1")); !res.GetOk() {
+		t.Fatalf("%v", res)
+	}
+	if got, _ := asked.Load().(string); got != "BackupContents/b1" {
+		t.Errorf("asked Velero for %q", got)
+	}
+}
+
+func TestTheBackupDownloadRefusesWhatIsNotABackupNameOrAnHTTPLink(t *testing.T) {
+	c := newDownloadClient()
+	h := &DownloadHandler{Dynamic: c, Namespace: "velero", Send: (&sink{}).send, NewID: func() string { return "id" }, PollInterval: time.Millisecond}
+	for _, bad := range []string{"", "Not A Name", "../etc", strings.Repeat("a", 300)} {
+		if res := h.HandleURL(context.Background(), urlCmd(bad)); res.GetOk() || res.GetErrorCode() != pb.ErrorCode_ERROR_CODE_INVALID_ARGUMENT {
+			t.Errorf("name %q accepted: %v", bad, res)
+		}
+	}
+	for _, link := range []string{"file:///etc/passwd", "javascript:alert(1)", "ftp://x/y"} {
+		c2 := newDownloadClient()
+		veleroProcesses(c2, 0, link)
+		h2 := &DownloadHandler{Dynamic: c2, Namespace: "velero", Send: (&sink{}).send, NewID: func() string { return "id" }, PollInterval: time.Millisecond}
+		if res := h2.HandleURL(context.Background(), urlCmd("b1")); res.GetOk() {
+			t.Errorf("a non-http link %q was handed out", link)
+		}
+	}
+}

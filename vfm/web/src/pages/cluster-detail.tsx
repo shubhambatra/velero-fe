@@ -120,6 +120,82 @@ interface Props {
  * name to be typed and, through `api()`, for a recent re-authentication.
  */
 /** Starts the restore wizard with this backup chosen. */
+/**
+ * `velero backup download` (PLAN.md section 6): a short-lived signed link to the backup's contents. VFM does not
+ * carry the data; the link goes straight to the object storage. It is a credential, so it is held in this
+ * component's state only (never the query cache, storage or the URL), shown as a link, and dropped on dismiss.
+ */
+function DownloadBackup({
+  orgId,
+  clusterId,
+  name,
+  phase,
+}: Props & { phase: string | null }): ReactElement {
+  const access = useAccess(orgId, clusterId);
+  const level = access.level('backup:download');
+  const [link, setLink] = useState<{ url: string; expiresAt: string } | undefined>();
+  const get = useMutation({
+    mutationFn: () =>
+      api<{ url: string; expiresAt: string }>(
+        `/orgs/${orgId}/clusters/${clusterId}/backups/${encodeURIComponent(name)}/download-url`,
+        { method: 'POST', body: {} },
+      ),
+    onSuccess: (result) => {
+      setLink(result);
+    },
+  });
+  const hasContents = phase === 'Completed' || phase === 'PartiallyFailed';
+  const reason =
+    level === undefined || level === 'none'
+      ? 'Downloading backup contents needs the backup:download permission (Cluster Admin) and the organization’s setting to be on.'
+      : !hasContents
+        ? 'This backup has no contents to download yet.'
+        : undefined;
+  return (
+    <>
+      <Button
+        disabled={reason !== undefined || get.isPending}
+        title={reason}
+        onClick={() => {
+          setLink(undefined);
+          get.reset();
+          get.mutate();
+        }}
+      >
+        {get.isPending ? 'Getting a link…' : 'Download contents'}
+      </Button>
+      <ErrorNote message={get.isError ? errorMessage(get.error) : undefined} />
+      {link !== undefined && (
+        <div role="status" className="basis-full rounded-md border border-control p-3 text-sm">
+          <p>
+            A download link was made. It works until <Time value={link.expiresAt} /> and goes
+            straight to the object storage.
+          </p>
+          <p className="mt-2 flex gap-3">
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium underline"
+            >
+              Download backup contents<span className="sr-only"> (opens in a new tab)</span>
+            </a>
+            <button
+              type="button"
+              className="underline"
+              onClick={() => {
+                setLink(undefined);
+              }}
+            >
+              Discard the link
+            </button>
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
 function RestoreFromBackup({
   orgId,
   clusterId,
@@ -338,6 +414,7 @@ export function BackupDetailPage({ orgId, clusterId, name }: Props): ReactElemen
                   name={b.name}
                   phase={b.phase}
                 />
+                <DownloadBackup orgId={orgId} clusterId={clusterId} name={b.name} phase={b.phase} />
                 <DeleteBackup orgId={orgId} clusterId={clusterId} name={b.name} phase={b.phase} />
               </div>
             </CardContent>

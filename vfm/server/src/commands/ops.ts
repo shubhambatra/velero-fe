@@ -109,6 +109,14 @@ const DEFINITIONS = {
       };
     },
   },
+  /**
+   * `velero backup download` (PLAN.md section 6): a short-lived signed URL to a backup's contents. The data is
+   * never proxied; the answer is a credential and is held, not recorded (`CommandsService.holdSignedUrl`).
+   */
+  GET_BACKUP_DOWNLOAD_URL: {
+    timeoutMs: 60_000,
+    build: (payload) => ({ getBackupDownloadUrl: { backupName: String(payload.backupName) } }),
+  },
 } as const satisfies Record<string, OpDefinition>;
 
 export type OpKey = keyof typeof DEFINITIONS;

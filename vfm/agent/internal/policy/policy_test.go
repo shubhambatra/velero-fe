@@ -56,6 +56,9 @@ func TestReadOnlyAllowsOnlyTheDiagnosticRefresh(t *testing.T) {
 	if d := p.Check(&pb.Command{Op: &pb.Command_FetchDownload{}}); d != nil {
 		t.Errorf("reading a backup's logs must work read-only: %v", d)
 	}
+	if d := p.Check(&pb.Command{Op: &pb.Command_GetBackupDownloadUrl{}}); d != nil {
+		t.Errorf("asking for a backup's download link changes nothing in the cluster and must work read-only: %v", d)
+	}
 	if d := p.Check(&pb.Command{Op: &pb.Command_RefreshStatus{}}); d != nil {
 		t.Errorf("refresh must work read-only, it is how the UI learns the Velero version: %v", d)
 	}
