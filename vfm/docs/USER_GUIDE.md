@@ -21,6 +21,17 @@ again ("sudo mode", a few minutes) and are refused to API tokens.
   A button you may not use is disabled and says why. The cluster's **Access** tab shows what each person can do and lets you ask for more.
 - The installer can also put the cluster in **read-only** mode (agent policy `readOnly`): every change is refused by the agent itself.
 
+## Working with many clusters
+
+- **Cluster switcher** (header, from two clusters up): jump straight to any cluster, or back to _All clusters_. It follows the page you are on.
+- **Fleet overview** (home): a _Health_ map with one tile per cluster, most urgent first (critical: latest backup failed or storage unavailable;
+  warning: agent disconnected, invalid schedule or partially failed backup; offline: not enrolled or disabled), the fleet totals, what needs attention, and the
+  cluster table. Filter the table by name, status or a **group**: a group is a cluster label such as `env=prod` (set labels in _Cluster → Settings_).
+  Totals and the attention list always cover the whole fleet.
+- **All backups / All restores / All schedules** (left menu): one list across every cluster you can read, newest first, with a cluster column, the same
+  filters and a phase filter. Each cluster is read with your own permissions, so a cluster you may not read is named under the list and none of its data is shown.
+  Each cluster contributes its latest 50 rows, and at most 25 clusters are read at a time; narrow with the filters to see others.
+
 ## Backups
 
 Cluster → **Backups** → _Create_. Choose namespaces (or all, which needs a binding over all), what to do about volumes, a TTL and
