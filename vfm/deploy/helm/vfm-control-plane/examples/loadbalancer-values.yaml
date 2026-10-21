@@ -1,0 +1,8 @@
+gateway:
+  publicAddress: agents.vfm.example.com:8443
+  hostnames: agents.vfm.example.com
+  service:
+    type: LoadBalancer
+    annotations: {}
+    # Narrow this to your agents' egress addresses when you know them.
+    loadBalancerSourceRanges: []

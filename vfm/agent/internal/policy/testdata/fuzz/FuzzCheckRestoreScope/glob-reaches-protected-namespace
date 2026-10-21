@@ -1,0 +1,7 @@
+go test fuzz v1
+string("kube-system")
+string("kube-*")
+string("")
+string("")
+string("")
+string("")

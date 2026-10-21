@@ -1,0 +1,9 @@
+apiVersion: v2
+name: vfm-agent
+description: The Velero Fleet Manager in-cluster agent. Dials out to the control plane and executes typed Velero commands.
+type: application
+# The chart and the agent are versioned together until they need not be.
+version: 0.1.0
+appVersion: '0.1.0'
+kubeVersion: '>=1.27.0-0'
+keywords: [velero, backup, fleet]

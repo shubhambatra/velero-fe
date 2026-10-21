@@ -1,0 +1,110 @@
+# Dex — mock OIDC provider for local development (PLAN.md §14.1, M1 day 7).
+#
+# DEV ONLY. Every secret and password hash here is committed on purpose and is
+# worthless outside this machine. Mounted read-only into the container by
+# docker-compose.yml.
+#
+# The issuer is the *published host* URL, not the container URL, because the
+# browser and the control plane must both see byte-identical issuer strings or
+# OIDC discovery validation fails.
+
+issuer: http://localhost:55556/dex
+
+# In-memory storage: the only state Dex would persist is auth codes and refresh
+# tokens. Static users live in this file, so a restart costs nothing but open
+# login flows, and Dex needs no volume (it runs as uid 1001 and a fresh named
+# volume would be root-owned).
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+# /healthz and /metrics. docker-compose.yml's healthcheck hits /healthz here.
+telemetry:
+  http: 0.0.0.0:5558
+
+logger:
+  level: info
+  format: text
+
+oauth2:
+  # Skip the "grant access" screen so Playwright E2E runs do not have to click
+  # through it.
+  skipApprovalScreen: true
+  responseTypes: ['code']
+  # Enables the resource-owner-password grant against the local password DB:
+  #
+  #   curl -u vfm-control-plane:vfm-dev-oidc-client-secret \
+  #     -d grant_type=password -d scope='openid email profile' \
+  #     -d username=viewer@vfm.local -d password=vfm-dev-password \
+  #     http://localhost:55556/dex/token
+  #
+  # That lets tests and scripts obtain a real ID token without driving a
+  # browser. DEV ONLY — the password grant is deprecated by OAuth 2.1 and VFM
+  # itself never uses it.
+  passwordConnector: local
+
+expiry:
+  idTokens: 10m
+  signingKeys: 6h
+
+staticClients:
+  - id: vfm-control-plane
+    name: VFM control plane (dev)
+    secret: vfm-dev-oidc-client-secret
+    redirectURIs:
+      # NestJS control plane, local hot-reload. Routes live under /api/v1
+      # (PLAN.md §10), so that is the path the server actually serves.
+      - http://localhost:3000/api/v1/auth/oidc/callback
+      - http://127.0.0.1:3000/api/v1/auth/oidc/callback
+      # Control plane on the e2e/port used by the built-server checks.
+      - http://localhost:3100/api/v1/auth/oidc/callback
+      # Vite dev server proxying /api to the control plane, with
+      # API_PUBLIC_URL=http://localhost:5173 so the browser stays on one origin.
+      - http://localhost:5173/api/v1/auth/oidc/callback
+      - http://127.0.0.1:5173/api/v1/auth/oidc/callback
+      # OIDC debugging without the app.
+      - http://localhost:55556/callback
+
+# -----------------------------------------------------------------------------
+# Static users, one per built-in role in PLAN.md §8.2, plus a platform admin.
+#
+# Password for ALL of them: vfm-dev-password
+# (bcrypt cost 10; see README.md "Dev credentials" for how to regenerate.)
+#
+# Caveat worth knowing before M1 day 7: Dex's local password database does NOT
+# emit a `groups` claim — groups only come from a real connector. So these
+# accounts exercise the login / JIT-provisioning path, and the mockCallback
+# connector below is what exercises group → team mapping.
+# -----------------------------------------------------------------------------
+enablePasswordDB: true
+
+staticPasswords:
+  - email: admin@vfm.local
+    username: admin
+    userID: 00000000-0000-4000-8000-000000000001
+    hash: '$2b$10$GyGnp3dD/oh83SEgBXW5B.OTlg4XVW0PDj2nuj3uDiybZ0c7nFDoC'
+
+  - email: operator@vfm.local
+    username: operator
+    userID: 00000000-0000-4000-8000-000000000002
+    hash: '$2b$10$rJR4nY6.jU7UzFEoKQdkNuCHRox7gOkKUTDX9deOIBif4PlfAEh3u'
+
+  - email: restorer@vfm.local
+    username: restorer
+    userID: 00000000-0000-4000-8000-000000000003
+    hash: '$2b$10$tylTdtiAjJsBTx9SyU.wZeO3WByqUJf2coVFCQMtQfkJgoBxwW2oe'
+
+  - email: viewer@vfm.local
+    username: viewer
+    userID: 00000000-0000-4000-8000-000000000004
+    hash: '$2b$10$8fmaDXid.6zeWzxtjidhBOk0YzyZ7U0NVmkJtfrNkZhIJ9Jan/qvG'
+
+connectors:
+  # Returns a fixed identity *with* group claims, which is the only way to test
+  # group → team mapping against Dex. Logging in through this connector yields
+  # kilgore@kilgore.trout in group "authors".
+  - type: mockCallback
+    id: mock
+    name: Mock connector (groups)

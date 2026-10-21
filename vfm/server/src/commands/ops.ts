@@ -1,0 +1,127 @@
+import type { Transient } from './transient';
+import { buildCreateBackup } from '../backups/backup-request';
+import { buildCreateRestore } from '../restores/restore-request';
+import {
+  buildCreateSchedule,
+  buildSetSchedulePaused,
+  buildUpdateSchedule,
+} from '../schedules/schedule-request';
+import {
+  buildDeleteLocation,
+  buildSetDefaultBsl,
+  buildUpsertBsl,
+  buildUpsertVsl,
+} from '../storage/location-request';
+import { DEFAULT_MAX_BYTES, partByKey } from '../downloads/parts';
+import type { Command } from '../gateway/pb/vfm/agent/v1/command';
+
+/**
+ * The operations the control plane can send, and how each becomes a protobuf
+ * `Command` (PLAN.md §5.2). One entry per operation keeps the set closed: a
+ * caller cannot enqueue an op that is not listed here, and the agent applies the
+ * same rule on its side (typed commands only, PLAN.md §1.1 P3).
+ *
+ * `REFRESH_STATUS`, `FETCH_DOWNLOAD` and the backup operations are the entries so far. The M4 mutations (backups, restores,
+ * schedules, storage locations) are added here with their own validation.
+ */
+export { TransientUnavailableError, type Transient } from './transient';
+
+export interface OpDefinition {
+  /** Default deadline: a command still non-terminal after this is `TIMED_OUT`. */
+  timeoutMs: number;
+  /** Builds the oneof arm of the protobuf `Command`. */
+  build: (payload: Record<string, unknown>, transient?: Transient) => Partial<Command>;
+}
+
+const DEFINITIONS = {
+  REFRESH_STATUS: {
+    timeoutMs: 60_000,
+    build: () => ({ refreshStatus: {} }),
+  },
+  /** `velero backup create` (PLAN.md §6); the payload is the validated API body. */
+  CREATE_BACKUP: { timeoutMs: 60_000, build: buildCreateBackup },
+  /** Deletes through a `DeleteBackupRequest`, so the data in storage goes too. */
+  DELETE_BACKUP: {
+    timeoutMs: 60_000,
+    build: (payload) => ({ deleteBackup: { name: String(payload.name) } }),
+  },
+  /** `velero restore create`; the payload is the validated API body. */
+  CREATE_RESTORE: { timeoutMs: 60_000, build: buildCreateRestore },
+  /** Which of the named namespaces exist now: the restore wizard's impact summary. */
+  CHECK_NAMESPACES: {
+    timeoutMs: 30_000,
+    build: (payload) => ({
+      checkNamespaces: {
+        names: Array.isArray(payload.names) ? payload.names.map((n) => String(n)) : [],
+      },
+    }),
+  },
+  /** `velero restore delete`. */
+  DELETE_RESTORE: {
+    timeoutMs: 60_000,
+    build: (payload) => ({ deleteRestore: { name: String(payload.name) } }),
+  },
+  /** `velero schedule create`; the payload is the validated API body. */
+  CREATE_SCHEDULE: { timeoutMs: 60_000, build: buildCreateSchedule },
+  /** Replaces a schedule's spec; the payload is its name and the validated body. */
+  UPDATE_SCHEDULE: { timeoutMs: 60_000, build: buildUpdateSchedule },
+  /** `velero schedule pause` / `unpause`. */
+  SET_SCHEDULE_PAUSED: { timeoutMs: 60_000, build: buildSetSchedulePaused },
+  /** `velero schedule delete`: the backups it made stay. */
+  DELETE_SCHEDULE: {
+    timeoutMs: 60_000,
+    build: (payload) => ({ deleteSchedule: { name: String(payload.name) } }),
+  },
+  /** `velero backup-location create` / `set`; the credential, if any, is transient. */
+  UPSERT_BSL: { timeoutMs: 60_000, build: buildUpsertBsl },
+  /** `velero backup-location set --default`. */
+  SET_DEFAULT_BSL: { timeoutMs: 60_000, build: buildSetDefaultBsl },
+  /** `velero backup-location delete`: the bucket and its contents are not touched. */
+  DELETE_BSL: { timeoutMs: 60_000, build: buildDeleteLocation('deleteBsl') },
+  /** `velero snapshot-location create` / `set`; the credential, if any, is transient. */
+  UPSERT_VSL: { timeoutMs: 60_000, build: buildUpsertVsl },
+  /** `velero snapshot-location delete`. */
+  DELETE_VSL: { timeoutMs: 60_000, build: buildDeleteLocation('deleteVsl') },
+  /** `velero backup create --from-schedule`. */
+  TRIGGER_SCHEDULE: {
+    timeoutMs: 60_000,
+    build: (payload) => ({
+      triggerSchedule: {
+        scheduleName: String(payload.scheduleName),
+        backupName: typeof payload.backupName === 'string' ? payload.backupName : '',
+      },
+    }),
+  },
+  /** Fetch one of Velero's files for a backup or restore (PLAN.md §7.3); see `downloads/`. */
+  FETCH_DOWNLOAD: {
+    timeoutMs: 120_000,
+    build: (payload) => {
+      const part = partByKey(String(payload.part));
+      if (part === undefined) {
+        throw new Error('unknown download part');
+      }
+      return {
+        fetchDownload: {
+          targetKind: part.target,
+          targetName: String(payload.targetName),
+          maxBytes: typeof payload.maxBytes === 'number' ? payload.maxBytes : DEFAULT_MAX_BYTES,
+        },
+      };
+    },
+  },
+  /**
+   * `velero backup download` (PLAN.md section 6): a short-lived signed URL to a backup's contents. The data is
+   * never proxied; the answer is a credential and is held, not recorded (`CommandsService.holdSignedUrl`).
+   */
+  GET_BACKUP_DOWNLOAD_URL: {
+    timeoutMs: 60_000,
+    build: (payload) => ({ getBackupDownloadUrl: { backupName: String(payload.backupName) } }),
+  },
+} as const satisfies Record<string, OpDefinition>;
+
+export type OpKey = keyof typeof DEFINITIONS;
+
+/** Widened so every entry is called through the same `build(payload)` signature. */
+export const OPS: Record<OpKey, OpDefinition> = DEFINITIONS;
+
+export const isOp = (value: string): value is OpKey => Object.hasOwn(OPS, value);

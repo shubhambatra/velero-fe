@@ -1,0 +1,2591 @@
+openapi: 3.1.0
+paths:
+  /auth/setup:
+    get:
+      description: True only while no user exists. The SPA uses this to decide between the login form and
+        the setup form.
+      operationId: AuthController_setupStatus
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Whether first-time setup is still available
+      tags:
+        - auth
+    post:
+      description: Consumes the one-time token printed to the logs on first start. Closes permanently once
+        a user exists; there is no open self-signup.
+      operationId: AuthController_createFirstAdmin
+      parameters: []
+      responses:
+        "201":
+          description: The administrator was created and is signed in.
+        "401":
+          description: The token is missing, wrong, expired or already used.
+        "422":
+          description: The password does not meet the policy.
+      summary: Create the first platform administrator
+      tags:
+        - auth
+  /auth/login:
+    post:
+      operationId: AuthController_login
+      parameters: []
+      responses:
+        "200":
+          description: Signed in; a session cookie is set.
+        "401":
+          description: Invalid credentials.
+        "429":
+          description: Too many attempts. Retry-After gives the wait in seconds.
+      summary: Sign in with email and password
+      tags:
+        - auth
+  /auth/sudo:
+    post:
+      description: PLAN.md §8.3 requires re-authentication within the last 5 minutes for restore create,
+        any delete, storage write, cluster delete and role-binding changes. Accepts the account
+        password or a second factor.
+      operationId: AuthController_sudo
+      parameters: []
+      responses:
+        "200":
+          description: The sudo window is open.
+        "401":
+          description: The password or code did not verify.
+      summary: Re-authenticate to open the sudo window
+      tags:
+        - auth
+  /auth/logout:
+    post:
+      operationId: AuthController_logout
+      parameters: []
+      responses:
+        "204":
+          description: ""
+      summary: Sign out of the current session
+      tags:
+        - auth
+  /auth/sessions:
+    delete:
+      description: Revokes every other session for the current user, keeping this one. PLAN.md §8.3.
+      operationId: AuthController_signOutEverywhere
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Sign out everywhere
+      tags:
+        - auth
+  /auth/me:
+    get:
+      operationId: AuthController_me
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: The currently authenticated user
+      tags:
+        - auth
+  /auth/mfa:
+    get:
+      description: Reports whether MFA is on, whether an enrolment is half-finished, how many recovery
+        codes remain, and whether the user is obliged to have MFA at all.
+      operationId: MfaController_status
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Multi-factor authentication status for the current user
+      tags:
+        - auth
+    delete:
+      description: Requires a currently valid second factor as well as recent re-authentication. Destroys
+        the stored secret and every recovery code.
+      operationId: MfaController_disable
+      parameters: []
+      responses:
+        "204":
+          description: MFA disabled.
+        "401":
+          description: The code did not verify.
+        "403":
+          description: Recent re-authentication required, or MFA is obliged.
+      summary: Disable multi-factor authentication
+      tags:
+        - auth
+  /auth/mfa/enrol:
+    post:
+      description: "Generates a shared secret and returns it with an otpauth:// URI for a QR code. MFA is
+        not yet active: it is turned on only once a code from this secret has been verified, so an
+        unscanned QR cannot lock the account out."
+      operationId: MfaController_beginEnrolment
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Begin TOTP enrolment
+      tags:
+        - auth
+  /auth/mfa/enrol/confirm:
+    post:
+      description: Verifies a code from the pending secret, turns MFA on, and returns ten single-use
+        recovery codes. The codes are shown exactly once and stored only as hashes.
+      operationId: MfaController_confirmEnrolment
+      parameters: []
+      responses:
+        "200":
+          description: MFA enabled; recovery codes returned once.
+        "401":
+          description: The code did not verify.
+      summary: Confirm TOTP enrolment and receive recovery codes
+      tags:
+        - auth
+  /auth/mfa/challenge:
+    post:
+      description: Accepts either a six-digit TOTP code or a recovery code. On success the session becomes
+        fully authenticated and its id is rotated.
+      operationId: MfaController_challenge
+      parameters: []
+      responses:
+        "200":
+          description: The factor was accepted.
+        "401":
+          description: The code did not verify.
+      summary: Answer the second-factor challenge for the current session
+      tags:
+        - auth
+  /auth/mfa/recovery-codes:
+    post:
+      description: Issues ten new single-use codes and invalidates the previous set. Shown once. Requires
+        recent re-authentication.
+      operationId: MfaController_regenerateRecoveryCodes
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Replace the recovery codes
+      tags:
+        - auth
+  /me/orgs:
+    get:
+      operationId: OrgsController_myOrgs
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: Organizations the caller belongs to (org switcher)
+      tags:
+        - orgs
+  /me/active-org:
+    post:
+      operationId: OrgsController_setActive
+      parameters: []
+      responses:
+        "204":
+          description: ""
+      summary: Switch the active organization
+      tags:
+        - orgs
+  /orgs:
+    post:
+      description: "Platform administrators only. PLAN.md §8.1: the platform admin bootstraps orgs; there
+        is no open org creation. The creator becomes the first Owner."
+      operationId: OrgsController_create
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      summary: Create an organization
+      tags:
+        - orgs
+  /orgs/{orgId}:
+    get:
+      operationId: OrgsController_get
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Organization details and settings
+      tags:
+        - orgs
+    patch:
+      operationId: OrgsController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Update the name or MFA policy (Owner/Admin)
+      tags:
+        - orgs
+  /orgs/{orgId}/members:
+    get:
+      operationId: OrgsController_members
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Members of the organization
+      tags:
+        - orgs
+  /orgs/{orgId}/members/{userId}:
+    patch:
+      operationId: OrgsController_changeRole
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Change a member’s org role (Owner/Admin)
+      tags:
+        - orgs
+    delete:
+      operationId: OrgsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Remove a member, or leave (sudo required)
+      tags:
+        - orgs
+  /orgs/{orgId}/invites:
+    post:
+      description: Responds 503 if SMTP is not configured; no invitation is stored in that case.
+      operationId: InvitesController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Invite someone by email (Owner/Admin)
+      tags:
+        - invites
+    get:
+      operationId: InvitesController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Pending invitations (Owner/Admin)
+      tags:
+        - invites
+  /orgs/{orgId}/invites/{inviteId}:
+    delete:
+      operationId: InvitesController_revoke
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: inviteId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Revoke an invitation (Owner/Admin, sudo required)
+      tags:
+        - invites
+  /invites/accept:
+    post:
+      description: The signed-in account must hold the invited address. Single use. Responds with the same
+        400 for an unknown, expired, used or foreign token.
+      operationId: InvitesController_accept
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      summary: Accept an invitation with an existing account
+      tags:
+        - invites
+  /invites/register:
+    post:
+      description: The only user-creation path after first-time setup. Requires a valid token for an
+        address that has no account.
+      operationId: InvitesController_register
+      parameters: []
+      responses:
+        "201":
+          description: ""
+      summary: Accept an invitation by creating an account
+      tags:
+        - invites
+  /orgs/{orgId}/teams:
+    get:
+      operationId: TeamsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List teams
+      tags:
+        - teams
+    post:
+      operationId: TeamsController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Create a team (Owner/Admin)
+      tags:
+        - teams
+  /orgs/{orgId}/teams/{teamId}:
+    patch:
+      operationId: TeamsController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Rename or describe a team (Owner/Admin)
+      tags:
+        - teams
+    delete:
+      operationId: TeamsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Delete a team (Owner/Admin, sudo required)
+      tags:
+        - teams
+  /orgs/{orgId}/teams/{teamId}/members:
+    get:
+      operationId: TeamsController_members
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Members of a team
+      tags:
+        - teams
+  /orgs/{orgId}/teams/{teamId}/members/{userId}:
+    put:
+      operationId: TeamsController_addMember
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Add an org member to a team (Owner/Admin)
+      tags:
+        - teams
+    delete:
+      operationId: TeamsController_removeMember
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: teamId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Remove a member from a team (Owner/Admin)
+      tags:
+        - teams
+  /orgs/{orgId}/audit:
+    get:
+      operationId: AuditController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Audit log, newest first (Owner/Admin)
+      tags:
+        - audit
+  /orgs/{orgId}/audit/export:
+    get:
+      operationId: AuditController_export
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Audit log as CSV (Owner/Admin); the export is itself audited
+      tags:
+        - audit
+  /orgs/{orgId}/tokens:
+    get:
+      operationId: TokensController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "List tokens: your own, or the whole org with ?scope=org (Owner/Admin)"
+      tags:
+        - tokens
+    post:
+      description: The secret is returned once and never again. A token acts as its owner and can only
+        narrow, never widen, what the owner holds.
+      operationId: TokensController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Create a token (sudo)
+      tags:
+        - tokens
+  /orgs/{orgId}/tokens/{tokenId}:
+    delete:
+      operationId: TokensController_revoke
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: tokenId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Revoke a token (own, or any as Owner/Admin)
+      tags:
+        - tokens
+  /auth/oidc/providers:
+    get:
+      description: Public. Returns only id and display name of enabled providers.
+      operationId: OidcController_list
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: SSO buttons for an org’s sign-in page
+      tags:
+        - auth
+  /auth/oidc/{providerId}/start:
+    get:
+      operationId: OidcController_start
+      parameters:
+        - name: providerId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "Begin SSO: redirects to the identity provider"
+      tags:
+        - auth
+  /auth/oidc/callback:
+    get:
+      description: Always answers with a redirect to the web app. Every failure carries the same
+        `sso=failed` marker; the reason is logged, not disclosed.
+      operationId: OidcController_callback
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: SSO callback
+      tags:
+        - auth
+  /orgs/{orgId}/oidc-providers:
+    get:
+      operationId: OidcAdminController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List OIDC providers (Owner/Admin). The secret is never returned.
+      tags:
+        - oidc
+    post:
+      operationId: OidcAdminController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Add an OIDC provider (Owner/Admin)
+      tags:
+        - oidc
+  /orgs/{orgId}/oidc-providers/{providerId}:
+    patch:
+      operationId: OidcAdminController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: providerId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Update an OIDC provider (Owner/Admin)
+      tags:
+        - oidc
+    delete:
+      operationId: OidcAdminController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: providerId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Remove an OIDC provider (Owner/Admin, sudo required)
+      tags:
+        - oidc
+  /clusters/{clusterId}/my-access:
+    get:
+      operationId: RoleBindingsController_myAccess
+      parameters:
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: What the caller may do on this cluster
+      tags:
+        - rbac
+  /clusters/{clusterId}/role-bindings:
+    get:
+      operationId: RoleBindingsController_list
+      parameters:
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List role bindings (cluster:manage)
+      tags:
+        - rbac
+    post:
+      operationId: RoleBindingsController_create
+      parameters:
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Grant a role (cluster:manage, sudo)
+      tags:
+        - rbac
+  /clusters/{clusterId}/role-bindings/{bindingId}:
+    delete:
+      operationId: RoleBindingsController_remove
+      parameters:
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: bindingId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Revoke a role binding (cluster:manage, sudo)
+      tags:
+        - rbac
+  /orgs/{orgId}/clusters/{clusterId}/access:
+    get:
+      description: "Per permission: `cluster` (everywhere), `scoped` (only in some namespaces) or `none`.
+        What the cluster agent’s own policy refuses (read-only, no restores, no storage changes)
+        shows as `none`, with the reason in `blocked`. A hint for the UI; each request is still
+        authorized on its own."
+      operationId: AccessController_access
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: What the caller may do on this cluster
+      tags:
+        - rbac
+  /orgs/{orgId}/clusters:
+    get:
+      operationId: ClustersController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List the clusters you can see
+      tags:
+        - clusters
+    post:
+      description: Returns a one-time bootstrap token and the install command. The token is shown once.
+      operationId: ClustersController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Add a cluster (Owner/Admin, sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}:
+    get:
+      operationId: ClustersController_get
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Get one cluster
+      tags:
+        - clusters
+    patch:
+      operationId: ClustersController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Rename a cluster or change its labels
+      tags:
+        - clusters
+    delete:
+      operationId: ClustersController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Delete a cluster and lock its agent out (sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/disable:
+    post:
+      operationId: ClustersController_disable
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "Disable a cluster: revoke its certificates (sudo)"
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/enable:
+    post:
+      operationId: ClustersController_enable
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Re-enable a disabled cluster and issue a new token (sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/bootstrap-token:
+    post:
+      description: Invalidates any earlier unused token. Existing certificates are untouched.
+      operationId: ClustersController_reissue
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Issue a new bootstrap token (sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/rotate-certificate:
+    post:
+      operationId: ClustersController_rotate
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Revoke the agent’s certificates and require it to enrol again (sudo)
+      tags:
+        - clusters
+  /orgs/{orgId}/clusters/{clusterId}/refresh-status:
+    post:
+      description: Returns 202 with the command; poll `/commands/{id}` for the result.
+      operationId: CommandsController_refreshStatus
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Ask the agent to re-read Velero’s version and plugins
+      tags:
+        - commands
+  /orgs/{orgId}/clusters/{clusterId}/commands:
+    get:
+      operationId: CommandsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: The most recent commands for this cluster
+      tags:
+        - commands
+  /orgs/{orgId}/clusters/{clusterId}/commands/{commandId}:
+    get:
+      operationId: CommandsController_get
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: commandId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: One command and its outcome
+      tags:
+        - commands
+  /orgs/{orgId}/clusters/{clusterId}/commands/{commandId}/cancel:
+    post:
+      description: 409 once the agent has acknowledged it or it has finished.
+      operationId: CommandsController_cancel
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: commandId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Cancel a command the agent has not started
+      tags:
+        - commands
+  /orgs/{orgId}/clusters/{clusterId}/inventory:
+    get:
+      operationId: InventoryController_summary
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Counts of Velero objects by kind and phase, for the kinds you may read
+      tags:
+        - inventory
+  /orgs/{orgId}/fleet:
+    get:
+      description: A section you may not read is null, not zero.
+      operationId: FleetController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Every cluster you can see, with backup, schedule and storage health
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/overview:
+    get:
+      operationId: FleetController_overview
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Health, versions, policy, storage locations and recent activity of one cluster
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/backups:
+    get:
+      description: "Filters: phase (comma list), q, schedule, location, createdByVfm. Sorts: startedAt,
+        completedAt, expiresAt, name, phase."
+      operationId: ResourcesController_backups
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Backups you may see
+      tags:
+        - inventory
+    post:
+      description: "A user with a namespace-scoped binding must name every namespace and set
+        `includeClusterResources: false`. `advancedSpec` needs `advanced:write`. Returns 202 with
+        the command; follow it, and the backup appears in the inventory."
+      operationId: BackupsController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create a backup (velero backup create)
+      tags:
+        - backups
+  /orgs/{orgId}/clusters/{clusterId}/restores:
+    get:
+      description: "Filters: phase, q, backup, schedule, createdByVfm. Sorts: startedAt, completedAt,
+        name, phase."
+      operationId: ResourcesController_restores
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Restores you may see
+      tags:
+        - inventory
+    post:
+      description: "Needs recent re-authentication. When the cluster (or the org) requires approval the
+        answer is 202 with status `PENDING_APPROVAL` and nothing is sent until someone else approves
+        it. The caller needs `restore:create` over every namespace the restore reads and writes,
+        after namespace mapping; a user with a namespace-scoped binding must name them all and send
+        `includeClusterResources: false`. `advancedSpec` needs `advanced:write`."
+      operationId: RestoresController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Restore from a backup or a schedule (velero restore create)
+      tags:
+        - restores
+  /orgs/{orgId}/clusters/{clusterId}/schedules:
+    get:
+      description: "Filters: phase, q, paused, createdByVfm. Sorts: name, phase."
+      operationId: ResourcesController_schedules
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Schedules you may see
+      tags:
+        - inventory
+    post:
+      description: "The template takes the fields of a backup. A user with a namespace-scoped binding must
+        name every namespace and set `template.includeClusterResources: false`. `advancedSpec` needs
+        `advanced:write`."
+      operationId: SchedulesController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create a schedule (velero schedule create)
+      tags:
+        - schedules
+  /orgs/{orgId}/clusters/{clusterId}/backup-locations:
+    get:
+      operationId: ResourcesController_backupLocations
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Backup storage locations
+      tags:
+        - inventory
+    post:
+      description: A `credential` with `content` is written by the agent to a Secret and is never stored
+        by the control plane. A `credential` with only `secretName` and `key` points at a Secret
+        that already exists.
+      operationId: StorageController_createBackupLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create a backup storage location (velero backup-location create)
+      tags:
+        - storage
+  /orgs/{orgId}/clusters/{clusterId}/snapshot-locations:
+    get:
+      operationId: ResourcesController_snapshotLocations
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Volume snapshot locations
+      tags:
+        - inventory
+    post:
+      description: A `credential` with `content` is written by the agent to a Secret and is never stored
+        by the control plane. A `credential` with only `secretName` and `key` points at a Secret
+        that already exists.
+      operationId: StorageController_createSnapshotLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Create a volume snapshot location (velero snapshot-location create)
+      tags:
+        - storage
+  /orgs/{orgId}/clusters/{clusterId}/repositories:
+    get:
+      operationId: ResourcesController_repositories
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Backup repositories
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/backups/{name}:
+    get:
+      operationId: ResourcesController_backup
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One backup: summary, timeline, spec, status, YAML and its volumes. 404 if you may not see
+        it."
+      tags:
+        - inventory
+    delete:
+      description: Needs recent re-authentication. Velero removes the backup, its files in object storage
+        and its snapshots through a DeleteBackupRequest.
+      operationId: BackupsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a backup and its data (velero backup delete)
+      tags:
+        - backups
+  /orgs/{orgId}/clusters/{clusterId}/restores/{name}:
+    get:
+      operationId: ResourcesController_restore
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One restore: summary, timeline, spec, status and YAML. 404 if you may not see it."
+      tags:
+        - inventory
+    delete:
+      description: Needs recent re-authentication. The restored resources stay where they are.
+      operationId: RestoresController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a restore (velero restore delete)
+      tags:
+        - restores
+  /orgs/{orgId}/clusters/{clusterId}/schedules/{name}:
+    get:
+      operationId: ResourcesController_schedule
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One schedule: summary, spec, status and YAML. 404 if you may not see it."
+      tags:
+        - inventory
+    put:
+      description: The whole spec is replaced by the body. Hooks already on the template stay unless
+        `advancedSpec` sets them.
+      operationId: SchedulesController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Replace a schedule’s spec
+      tags:
+        - schedules
+    delete:
+      description: Needs recent re-authentication. The backups the schedule made stay.
+      operationId: SchedulesController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a schedule (velero schedule delete)
+      tags:
+        - schedules
+  /orgs/{orgId}/clusters/{clusterId}/backup-locations/{name}:
+    get:
+      description: Holds only the reference to a credential Secret, never its contents.
+      operationId: ResourcesController_backupLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One backup storage location: summary, spec, status and YAML"
+      tags:
+        - inventory
+    put:
+      description: A `credential` with `content` is written by the agent to a Secret and is never stored
+        by the control plane. A `credential` with only `secretName` and `key` points at a Secret
+        that already exists. Leave `credential` out to keep the Secret the location uses now.
+      operationId: StorageController_updateBackupLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Replace a backup storage location’s spec
+      tags:
+        - storage
+    delete:
+      description: Needs recent re-authentication. The bucket and the backups in it are not touched. The
+        default location cannot be deleted while others exist.
+      operationId: StorageController_deleteBackupLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a backup storage location (velero backup-location delete)
+      tags:
+        - storage
+  /orgs/{orgId}/clusters/{clusterId}/snapshot-locations/{name}:
+    get:
+      operationId: ResourcesController_snapshotLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "One volume snapshot location: summary, spec, status and YAML"
+      tags:
+        - inventory
+    put:
+      description: A `credential` with `content` is written by the agent to a Secret and is never stored
+        by the control plane. A `credential` with only `secretName` and `key` points at a Secret
+        that already exists. Leave `credential` out to keep the Secret the location uses now.
+      operationId: StorageController_updateSnapshotLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Replace a volume snapshot location’s spec
+      tags:
+        - storage
+    delete:
+      description: Needs recent re-authentication. Snapshots already taken are not touched.
+      operationId: StorageController_deleteSnapshotLocation
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Delete a volume snapshot location (velero snapshot-location delete)
+      tags:
+        - storage
+  /orgs/{orgId}/clusters/{clusterId}/inventory/nodes:
+    get:
+      operationId: ResourcesController_nodes
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Nodes of the cluster
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/inventory/namespaces:
+    get:
+      operationId: ResourcesController_namespaces
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Namespaces you may see
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/inventory/pods:
+    get:
+      operationId: ResourcesController_pods
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Pod summaries in the namespaces you may see (no env vars, specs or annotations)
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/inventory/pvcs:
+    get:
+      operationId: ResourcesController_pvcs
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Persistent volume claims in the namespaces you may see
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/inventory/events:
+    get:
+      operationId: ResourcesController_events
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Warnings and Velero events of the last hour in the namespaces you may see
+      tags:
+        - inventory
+  /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/trigger:
+    post:
+      description: Makes a backup from the schedule’s template. The caller needs `backup:create` over
+        everything the template covers.
+      operationId: BackupsController_trigger
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Run a schedule now (velero backup create --from-schedule)
+      tags:
+        - backups
+  /orgs/{orgId}/clusters/{clusterId}/restores/impact:
+    post:
+      description: The caller needs `restore:create` over every namespace named. Returns 202 with the
+        command; its result lists, for each name asked about, whether the namespace exists.
+      operationId: RestoresController_impact
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Which of these namespaces exist now (the restore wizard’s impact summary)
+      tags:
+        - restores
+  /orgs/{orgId}/approvals:
+    get:
+      operationId: ApprovalsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Restore requests waiting for approval, or decided in the last 30 days
+      tags:
+        - approvals
+  /orgs/{orgId}/approvals/count:
+    get:
+      operationId: ApprovalsController_count
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: How many waiting requests the caller may decide
+      tags:
+        - approvals
+  /orgs/{orgId}/approvals/{commandId}/approve:
+    post:
+      description: The approver needs `restore:create` over the namespaces the restore will write. The
+        restore is queued and sent to the agent.
+      operationId: ApprovalsController_approve
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: commandId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Approve a restore request (someone other than its requester; sudo required)
+      tags:
+        - approvals
+  /orgs/{orgId}/approvals/{commandId}/reject:
+    post:
+      operationId: ApprovalsController_reject
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: commandId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Reject a restore request (someone other than its requester)
+      tags:
+        - approvals
+  /orgs/{orgId}/clusters/{clusterId}/restore-approval:
+    get:
+      operationId: ClusterApprovalController_get
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Whether restores on this cluster need approval, and why
+      tags:
+        - approvals
+    put:
+      operationId: ClusterApprovalController_put
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Ask for approval of restores on this cluster, or stop asking (sudo)
+      tags:
+        - approvals
+  /orgs/{orgId}/clusters/{clusterId}/schedules/{name}/pause:
+    post:
+      description: 'Body: `{ "paused": true }` or `{ "paused": false }`.'
+      operationId: SchedulesController_setPaused
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Pause or resume a schedule (velero schedule pause / unpause)
+      tags:
+        - schedules
+  /orgs/{orgId}/clusters/{clusterId}/backup-locations/{name}/default:
+    post:
+      operationId: StorageController_setDefault
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "202":
+          description: ""
+      summary: Make a backup storage location the default (velero backup-location set --default)
+      tags:
+        - storage
+  /orgs/{orgId}/clusters/{clusterId}/backups/{name}/logs:
+    post:
+      operationId: DownloadsController_fetchBackupLog
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Fetch a backup’s log from the cluster (or report a fresh copy)
+      tags:
+        - downloads
+    get:
+      operationId: DownloadsController_backupLog
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: A backup’s log, as text; 204 when none is held
+      tags:
+        - downloads
+  /orgs/{orgId}/clusters/{clusterId}/backups/{name}/details/{part}:
+    post:
+      operationId: DownloadsController_fetchBackupDetail
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: part
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Fetch a detail file of a backup (results, resource-list, ...)
+      tags:
+        - downloads
+    get:
+      operationId: DownloadsController_backupDetail
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: part
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: A detail file of a backup; 204 when none is held
+      tags:
+        - downloads
+  /orgs/{orgId}/clusters/{clusterId}/restores/{name}/logs:
+    post:
+      operationId: DownloadsController_fetchRestoreLog
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Fetch a restore’s log from the cluster (or report a fresh copy)
+      tags:
+        - downloads
+    get:
+      operationId: DownloadsController_restoreLog
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: A restore’s log, as text; 204 when none is held
+      tags:
+        - downloads
+  /orgs/{orgId}/clusters/{clusterId}/restores/{name}/details/{part}:
+    post:
+      operationId: DownloadsController_fetchRestoreDetail
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: part
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Fetch a detail file of a restore (results, resource-list, ...)
+      tags:
+        - downloads
+    get:
+      operationId: DownloadsController_restoreDetail
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: part
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: A detail file of a restore; 204 when none is held
+      tags:
+        - downloads
+  /orgs/{orgId}/clusters/{clusterId}/backups/{name}/download-url:
+    post:
+      description: "Backup data is not proxied: this returns a presigned URL to the object storage, valid
+        for a few minutes. Refused unless the organization allows backup downloads (off by default)
+        and the caller holds `backup:download` over every namespace in the backup."
+      operationId: BackupContentsController_link
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: name
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "`{ url, expiresAt }`."
+        "403":
+          description: Downloads are off for the organization, or not permitted.
+        "404":
+          description: No such backup, or not one the caller may download.
+        "409":
+          description: The backup has no contents (not Completed or PartiallyFailed).
+        "504":
+          description: The agent did not answer in time.
+      summary: A short-lived signed link to a backup’s contents (backup:download, sudo)
+      tags:
+        - downloads
+  /orgs/{orgId}/clusters/{clusterId}/log-sessions:
+    post:
+      description: Returns the session to stream from. Needs `logs:read` on the pod’s namespace, an agent
+        policy that allows it, and a connected agent. Every start is audited with the namespace, pod
+        and container — never the log.
+      operationId: LogSessionsController_start
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Start a live log session for one container
+      tags:
+        - logs
+  /orgs/{orgId}/clusters/{clusterId}/log-sessions/{sessionId}:
+    delete:
+      operationId: LogSessionsController_stop
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Stop a live log session
+      tags:
+        - logs
+  /orgs/{orgId}/clusters/{clusterId}/log-sessions/{sessionId}/stream:
+    get:
+      description: Nothing is stored, so lines produced while no stream is open are not replayed. The
+        agent starts the session when the first stream opens.
+      operationId: LogSessionsController_stream
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: sessionId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "Server-sent events for a log session: `chunk` events, then one `ended`"
+      tags:
+        - logs
+  /orgs/{orgId}/clusters/{clusterId}/log-shortcuts:
+    get:
+      description: Found by the controller that owns each pod. Empty when Velero’s namespace is not known
+        yet or its pods are not named as Velero names them; the pod picker still works.
+      operationId: LogSessionsController_shortcuts
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: clusterId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: The Velero server and node-agent pods, for one-click log views
+      tags:
+        - logs
+  /orgs/{orgId}/alerts/rules:
+    get:
+      operationId: AlertsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List alert rules, with how many of each are firing (Owner/Admin)
+      tags:
+        - alerts
+    post:
+      operationId: AlertsController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Create an alert rule (Owner/Admin)
+      tags:
+        - alerts
+  /orgs/{orgId}/alerts/rules/{ruleId}:
+    patch:
+      operationId: AlertsController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: ruleId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Change an alert rule (Owner/Admin)
+      tags:
+        - alerts
+    delete:
+      operationId: AlertsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: ruleId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Delete an alert rule and its history (Owner/Admin, sudo required)
+      tags:
+        - alerts
+  /orgs/{orgId}/alerts/events:
+    get:
+      operationId: AlertsController_events
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Alert history, newest first (Owner/Admin)
+      tags:
+        - alerts
+  /orgs/{orgId}/channels:
+    get:
+      operationId: ChannelsController_list
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: List notification channels (Owner/Admin)
+      tags:
+        - alerts
+    post:
+      operationId: ChannelsController_create
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "201":
+          description: ""
+      summary: Create a channel (Owner/Admin); a webhook’s signing secret is returned once
+      tags:
+        - alerts
+  /orgs/{orgId}/channels/{channelId}:
+    patch:
+      operationId: ChannelsController_update
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Change a channel, or make a webhook a new secret (Owner/Admin)
+      tags:
+        - alerts
+    delete:
+      operationId: ChannelsController_remove
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "204":
+          description: ""
+      summary: Delete a channel and remove it from rules (Owner/Admin, sudo required)
+      tags:
+        - alerts
+  /orgs/{orgId}/channels/{channelId}/test:
+    post:
+      operationId: ChannelsController_test
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: channelId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Send a test message through a channel (Owner/Admin); one attempt
+      tags:
+        - alerts
+  /orgs/{orgId}/reports/success-rate:
+    get:
+      operationId: ReportsController_successRate
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Backups that finished, by outcome, per day or week and cluster, with the success rate
+      tags:
+        - reports
+  /orgs/{orgId}/reports/coverage:
+    get:
+      operationId: ReportsController_coverage
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: Namespaces with no successful backup in the last N hours, or ever
+      tags:
+        - reports
+  /orgs/{orgId}/reports/rpo:
+    get:
+      description: The objective is `factor` (default 1.5) times the schedule’s longest interval, or
+        `targetHours` for every schedule. Paused schedules are left out.
+      operationId: ReportsController_rpo
+      parameters:
+        - name: orgId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+      summary: "Per schedule: the share of the time the newest successful backup was within the objective"
+      tags:
+        - reports
+  /stream:
+    get:
+      description: Events carry no object names. Re-read through the REST API on an event.
+      operationId: StreamController_stream
+      parameters: []
+      responses:
+        "200":
+          description: ""
+      summary: "Server-sent events: cluster status, inventory changes and command progress"
+      tags:
+        - stream
+  /healthz:
+    get:
+      description: Returns 200 while the process is able to serve requests.
+      operationId: HealthController_liveness
+      parameters: []
+      responses:
+        "200":
+          description: The process is alive.
+      summary: Liveness probe
+      tags:
+        - health
+  /readyz:
+    get:
+      description: Reports whether PostgreSQL and Redis are reachable. Returns 503 when any dependency is down.
+      operationId: HealthController_readiness
+      parameters: []
+      responses:
+        "200":
+          description: All dependencies are reachable.
+        "503":
+          description: At least one dependency is unreachable.
+      summary: Readiness probe
+      tags:
+        - health
+info:
+  title: Velero Fleet Manager API
+  description: Control-plane REST API. Errors use RFC 9457 application/problem+json and every response
+    carries an X-Request-Id header.
+  version: v1
+  contact: {}
+tags: []
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: vfm_session
+    apiToken:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas: {}

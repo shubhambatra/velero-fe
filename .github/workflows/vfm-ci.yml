@@ -1,0 +1,401 @@
+name: VFM CI
+
+# Velero Fleet Manager lives in the vfm/ subtree alongside the legacy
+# application (see vfm/docs/DECISIONS.md ADR-003). This workflow is
+# path-filtered so legacy-only commits are unaffected, and vice versa.
+#
+# BRANCH PROTECTION: these checks must be marked *required* on main, or a red scan
+# does not stop a merge (threat model G-15, vfm/docs/THREAT_MODEL.md):
+#   - "TypeScript lint, typecheck and tests"
+#   - "Go lint and tests"            (includes the agent image Trivy scan and its SBOM)
+#   - "Dependency vulnerability scan" (pnpm audit, govulncheck, Trivy filesystem scan)
+#   - "Control-plane end-to-end tests"
+#   - "Proto lint and breaking-change check"
+# Third-party actions are pinned to a commit SHA (tag in the trailing comment); to update
+# one, resolve the new tag to its SHA and review the diff. Token permissions are read-only.
+
+on:
+  push:
+    branches: ['main', 'vfm/**']
+    paths:
+      - 'vfm/**'
+      - '.github/workflows/vfm-ci.yml'
+  pull_request:
+    paths:
+      - 'vfm/**'
+      - '.github/workflows/vfm-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: vfm-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: vfm
+
+env:
+  # Pinned in vfm/docs/DECISIONS.md ADR-002 and ADR-004.
+  GO_VERSION: '1.27.3'
+  NODE_VERSION: '22'
+  # An exact release, not @latest: a scanner that changes under a build is a build that changes.
+  # Chosen at least two weeks after release; raise it deliberately.
+  GOVULNCHECK_VERSION: 'v1.8.0'
+
+jobs:
+  typescript:
+    name: TypeScript lint, typecheck and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # Pinned to v4 deliberately: v5 activates the `packageManager` field of
+      # the repository-root package.json, which belongs to the legacy Nx
+      # workspace (pnpm 7.27.0 with an unverifiable sha1) and fails before any
+      # step of ours runs. VFM's own pnpm is activated by the next step.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # pnpm comes from vfm/package.json's packageManager field via corepack
+      # (ADR-004), so the repository-root npm/Nx workspace is never involved.
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Unit tests
+        run: pnpm run test
+
+  go:
+    name: Go lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Check whether the agent module is buildable yet
+        id: agent
+        run: |
+          if [ -f agent/go.sum ]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          elif [ -f agent/go.mod ]; then
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '### Go jobs skipped'
+              echo
+              echo '`vfm/agent/go.mod` exists but `go.sum` does not, so modules'
+              echo 'cannot be verified and `go build` would fail. Run'
+              echo '`go mod tidy` in `vfm/agent` and commit `go.sum` to activate'
+              echo 'these jobs — see blocker B-1 in DEVELOPMENT_STATUS.md.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'agent module not present yet — skipping' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        if: steps.agent.outputs.present == 'true'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: vfm/agent/go.sum
+
+      - name: Build
+        if: steps.agent.outputs.present == 'true'
+        working-directory: vfm/agent
+        run: go build ./...
+
+      - name: Vet
+        if: steps.agent.outputs.present == 'true'
+        working-directory: vfm/agent
+        run: go vet ./...
+
+      - name: Unit tests
+        if: steps.agent.outputs.present == 'true'
+        working-directory: vfm/agent
+        # The chart tests render the agent's Helm chart and diff its RBAC against
+        # PLAN.md §12.2; with this set a missing `helm` fails them instead of
+        # skipping them.
+        env:
+          VFM_REQUIRE_HELM: '1'
+        # -count=1: the chart tests read files outside the Go module, which Go's test cache cannot see.
+        run: go test -race -count=1 ./...
+
+      - name: Helm lint
+        if: steps.agent.outputs.present == 'true'
+        run: |
+          printf -- '-----BEGIN CERTIFICATE-----\nMIIBabc\n-----END CERTIFICATE-----\n' > /tmp/ca.pem
+          helm lint deploy/helm/vfm-agent \
+            --set controlPlane.address=vfm.example.com:8443 \
+            --set-file controlPlane.caBundle=/tmp/ca.pem
+
+      - name: Build the agent image
+        if: steps.agent.outputs.present == 'true'
+        # Not pushed: this only proves the Dockerfile still builds.
+        run: docker build --build-arg VERSION=ci -t vfm-agent:ci agent
+
+      # The image is what customers run, so it is scanned as built (PLAN.md §12.1). The SBOM is
+      # written first and never fails; the scan after it is the gate.
+      - name: SBOM of the agent image
+        if: steps.agent.outputs.present == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: vfm-agent:ci
+          format: cyclonedx
+          output: sbom-agent-image.cdx.json
+          exit-code: '0'
+
+      - name: Trivy image scan
+        if: steps.agent.outputs.present == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: vfm-agent:ci
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Keep the agent image SBOM
+        if: always() && steps.agent.outputs.present == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-agent-image
+          path: sbom-agent-image.cdx.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: golangci-lint
+        if: steps.agent.outputs.present == 'true'
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        with:
+          version: v2.14.0
+          # Build golangci-lint with the job's Go (GO_VERSION). The prebuilt
+          # release binary is built with an older Go and refuses to analyse a
+          # module that targets a newer one.
+          install-mode: goinstall
+          working-directory: vfm/agent
+
+  server-e2e:
+    name: Control-plane end-to-end tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.15-alpine
+        env:
+          POSTGRES_DB: vfm_test
+          POSTGRES_USER: vfm
+          POSTGRES_PASSWORD: vfm-ci-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U vfm -d vfm_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      valkey:
+        image: valkey/valkey:7.2.14-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "valkey-cli ping | grep -q PONG"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://vfm:vfm-ci-password@localhost:5432/vfm_test?schema=public
+      TEST_REDIS_URL: redis://localhost:6379/15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        working-directory: vfm/server
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+        run: pnpm exec prisma migrate deploy
+
+      # The OIDC suite signs in through a real identity provider. Dex is the
+      # repository's own dev IdP, run from the same config and image as
+      # `make dev-up`, so CI and a laptop test against identical behaviour. Its
+      # issuer is http://localhost:55556/dex, hence the host port.
+      - name: Start Dex
+        run: |
+          image=$(grep '^VFM_DEX_IMAGE=' deploy/dev/versions.env | cut -d= -f2)
+          docker run -d --name dex -p 55556:5556 \
+            -v "$PWD/deploy/dev/dex/config.yaml:/etc/dex/config.yaml:ro" \
+            "$image" dex serve /etc/dex/config.yaml
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:55556/dex/.well-known/openid-configuration >/dev/null && exit 0
+            sleep 1
+          done
+          docker logs dex
+          exit 1
+
+      - name: End-to-end tests
+        run: pnpm --filter @vfm/server run test:e2e
+
+      # The committed OpenAPI document is a contract (PLAN.md §0 rule 5), so a
+      # decorator change that is not regenerated must fail rather than drift.
+      - name: OpenAPI contract is in sync
+        run: |
+          pnpm --filter @vfm/server run gen
+          git diff --exit-code -- server/openapi.yaml
+
+  proto:
+    name: Proto lint and breaking-change check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check whether any proto definitions exist yet
+        id: proto
+        run: |
+          if compgen -G 'proto/vfm/agent/v1/*.proto' > /dev/null; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo 'no .proto files yet (M2 day 10) — skipping buf' >> "$GITHUB_STEP_SUMMARY"
+          fi
+        shell: bash
+
+      # `buf breaking` needs a baseline. Until the first merge to main there is
+      # none, and buf fails on "no .proto files" rather than skipping, so the
+      # breaking check turns itself on once main carries the contract.
+      - name: Check whether main already has a proto baseline
+        id: baseline
+        if: steps.proto.outputs.present == 'true'
+        run: |
+          if git ls-tree -r --name-only origin/main -- vfm/proto | grep -q '\.proto$'; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
+            echo 'main has no proto baseline yet — buf breaking skipped' >> "$GITHUB_STEP_SUMMARY"
+          fi
+        shell: bash
+
+      # PLAN.md §5.7: buf lint plus a breaking-change check against main. The
+      # BSR is not used, so push and archive are off (the action's default is to
+      # push on branch builds, which needs a token).
+      - uses: bufbuild/buf-action@8c6a16e16f12ba20b6470afa9c2ba9b5ba8c97c3 # v1
+        if: steps.proto.outputs.present == 'true'
+        with:
+          input: vfm/proto
+          lint: true
+          format: false
+          breaking: ${{ steps.baseline.outputs.exists == 'true' }}
+          breaking_against: 'https://github.com/${{ github.repository }}.git#branch=main,subdir=vfm/proto'
+          push: false
+          archive: false
+          pr_comment: false
+
+  audit:
+    name: Dependency vulnerability scan
+    runs-on: ubuntu-latest
+    # PLAN.md §12.1: fail on high/critical. Applies from day 1, not in a
+    # later hardening phase.
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit
+        run: pnpm audit --audit-level=high
+
+      - name: Check whether the agent module is buildable yet
+        id: agent
+        run: |
+          if [ -f agent/go.sum ]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        if: steps.agent.outputs.present == 'true'
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: vfm/agent/go.sum
+
+      - name: govulncheck
+        if: steps.agent.outputs.present == 'true'
+        working-directory: vfm/agent
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+      # Trivy scans the source tree for vulnerable dependencies, misconfigured
+      # manifests and committed secrets. The agent image is scanned in the Go job,
+      # where it is built.
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: vfm
+          scanners: vuln,misconfig,secret
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          # deploy/dev/manifests/ holds the hostpath CSI driver and the CSI
+          # snapshot controller, vendored verbatim from their upstream releases
+          # so they can be diffed against them. They are local-development
+          # only, never shipped, and rewriting their securityContexts would
+          # defeat the point of vendoring them unchanged.
+          #
+          # VFM's own charts are deliberately NOT excluded: PLAN.md §12.1
+          # requires non-root, read-only-root-filesystem containers for
+          # everything we ship, and §12.2's agent RBAC gets its own
+          # chart-render diff test in M2 day 15.
+          skip-dirs: vfm/deploy/dev/manifests
+
+      - name: SBOM of the source tree
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: vfm
+          format: cyclonedx
+          output: sbom-source.cdx.json
+          exit-code: '0'
+          skip-dirs: vfm/deploy/dev/manifests
+
+      - name: Keep the source SBOM
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-source
+          path: sbom-source.cdx.json
+          if-no-files-found: warn
+          retention-days: 90

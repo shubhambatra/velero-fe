@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package vfm.agent.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "vfm/agent/v1/command.proto";
+import "vfm/agent/v1/enrollment.proto";
+import "vfm/agent/v1/inventory.proto";
+import "vfm/agent/v1/logs.proto";
+
+// The only service the control plane exposes to agents (PLAN.md §5.2).
+// Named AgentGateway rather than ...Service: that is the name the plan, the
+// threat model and the TS module layout already use.
+// buf:lint:ignore SERVICE_SUFFIX
+service AgentGateway {
+  // Bootstrap-token authenticated; no client certificate yet.
+  rpc Enroll(EnrollRequest) returns (EnrollResponse);
+  // mTLS authenticated.
+  rpc RenewCertificate(RenewCertificateRequest) returns (RenewCertificateResponse);
+  // mTLS authenticated. One long-lived bidirectional stream per agent.
+  // buf:lint:ignore RPC_REQUEST_STANDARD_NAME
+  // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
+  rpc Connect(stream AgentMessage) returns (stream ServerMessage);
+}
+
+message AgentMessage {
+  // UUIDv7.
+  string message_id = 1;
+  oneof payload {
+    // Must be the first message on a stream.
+    Hello hello = 10;
+    // Every 15 s.
+    Heartbeat heartbeat = 11;
+    CommandAck ack = 12;
+    CommandResult result = 13;
+    InventorySnapshot snapshot = 14;
+    ResourceEvents events = 15;
+    LogChunk log_chunk = 16;
+    LogSessionEnded log_ended = 17;
+  }
+}
+
+message ServerMessage {
+  string message_id = 1;
+  oneof payload {
+    HelloAck hello_ack = 10;
+    Command command = 11;
+    CancelCommand cancel = 12;
+    StartLogSession start_logs = 13;
+    StopLogSession stop_logs = 14;
+    RequestResync resync = 15;
+    WatchScope watch_scope = 16;
+  }
+}
+
+message Hello {
+  // Integer, bumped for every wire-breaking change. The server supports the
+  // current version and the one before it (PLAN.md §5.7).
+  uint32 protocol_version = 1;
+  string agent_version = 2;
+  // Helm chart version and image tag, for the "agent update available" hint.
+  string chart_version = 3;
+  string image_tag = 4;
+  string kubernetes_version = 5;
+  // Same fingerprint as at enrollment; the server compares it.
+  string cluster_fingerprint = 6;
+  // Velero server version and plugins as of connect; empty version means
+  // Velero was not found.
+  ServerStatus velero = 7;
+  // What this agent can do, as stable strings (e.g. "csi-data-mover"). Gating
+  // the UI on these rather than on version numbers keeps it honest.
+  repeated string capabilities = 8;
+  AgentPolicy policy = 9;
+}
+
+// The vfm-agent-policy ConfigMap (PLAN.md §5.5), reported so the UI can show
+// disabled actions with the reason. Not changeable from the control plane.
+message AgentPolicy {
+  bool allow_restore = 1;
+  repeated string restore_denied_namespaces = 2;
+  bool allow_bsl_write = 3;
+  bool allow_log_streaming = 4;
+  repeated string log_stream_denied_namespaces = 5;
+  bool read_only = 6;
+  // Threat model G-4. A *deny* flag so that an agent that predates it, and so omits it, means "allowed":
+  // when set, a restore must say `includeClusterResources: false` (Velero treats unset as true).
+  bool deny_cluster_scoped_restore = 7;
+}
+
+message HelloAck {
+  uint32 accepted_protocol_version = 1;
+  google.protobuf.Timestamp server_time = 2;
+  ServerConfig config = 3;
+}
+
+message ServerConfig {
+  google.protobuf.Duration heartbeat_interval = 1;
+  google.protobuf.Duration snapshot_resync_interval = 2;
+  uint32 max_log_sessions = 3;
+  google.protobuf.Duration log_session_timeout = 4;
+  google.protobuf.Duration log_session_idle_timeout = 5;
+  // gRPC message cap in bytes.
+  uint32 max_message_bytes = 6;
+  uint32 max_log_chunk_bytes = 7;
+  uint32 max_buffered_events = 8;
+}
+
+message Heartbeat {
+  google.protobuf.Timestamp sent_at = 1;
+  uint32 in_flight_commands = 2;
+  uint32 active_log_sessions = 3;
+  uint32 buffered_events = 4;
+}
+
+message RequestResync {
+  string reason = 1;
+}
+
+// The namespaces whose pods the control plane wants right now (PLAN.md §7.1). Only
+// acted on when the cluster is large (more pods than the agent's threshold); a small
+// cluster always reports every pod. Sent on connect and whenever the set changes; the
+// list is the whole set, not a change.
+message WatchScope {
+  repeated string pod_namespaces = 1;
+}

@@ -1,0 +1,216 @@
+syntax = "proto3";
+
+package vfm.agent.v1;
+
+import "google/protobuf/duration.proto";
+import "vfm/agent/v1/common.proto";
+
+// Velero object specs, field for field from github.com/vmware-tanzu/velero
+// v1.18.4 pkg/apis/velero/v1 (ADR-002). Fields Velero marks deprecated
+// (defaultVolumesToRestic) are deliberately not exposed; the replacement
+// (defaultVolumesToFsBackup) is.
+//
+// Optional booleans use `optional` so "unset, let Velero default" survives the
+// wire; a plain bool would collapse it into false.
+
+message BackupSpec {
+  // spec.metadata.labels: labels Velero puts on every object it creates.
+  map<string, string> metadata_labels = 1;
+  repeated string included_namespaces = 2;
+  repeated string excluded_namespaces = 3;
+  repeated string included_resources = 4;
+  repeated string excluded_resources = 5;
+  repeated string included_cluster_scoped_resources = 6;
+  repeated string excluded_cluster_scoped_resources = 7;
+  repeated string included_namespace_scoped_resources = 8;
+  repeated string excluded_namespace_scoped_resources = 9;
+  LabelSelector label_selector = 10;
+  repeated LabelSelector or_label_selectors = 11;
+  optional bool snapshot_volumes = 12;
+  google.protobuf.Duration ttl = 13;
+  string volume_group_snapshot_label_key = 14;
+  optional bool include_cluster_resources = 15;
+  BackupHooks hooks = 16;
+  string storage_location = 17;
+  repeated string volume_snapshot_locations = 18;
+  optional bool default_volumes_to_fs_backup = 19;
+  map<string, string> ordered_resources = 20;
+  google.protobuf.Duration csi_snapshot_timeout = 21;
+  google.protobuf.Duration item_operation_timeout = 22;
+  TypedLocalObjectReference resource_policy = 23;
+  optional bool snapshot_move_data = 24;
+  string data_mover = 25;
+  UploaderConfigForBackup uploader_config = 26;
+}
+
+message UploaderConfigForBackup {
+  int32 parallel_files_upload = 1;
+}
+
+message BackupHooks {
+  repeated BackupResourceHookSpec resources = 1;
+}
+
+message BackupResourceHookSpec {
+  string name = 1;
+  repeated string included_namespaces = 2;
+  repeated string excluded_namespaces = 3;
+  repeated string included_resources = 4;
+  repeated string excluded_resources = 5;
+  LabelSelector label_selector = 6;
+  repeated ExecHook pre = 7;
+  repeated ExecHook post = 8;
+}
+
+// BackupResourceHook has only an exec arm in v1.18.4; it is flattened.
+message ExecHook {
+  string container = 1;
+  repeated string command = 2;
+  HookErrorMode on_error = 3;
+  google.protobuf.Duration timeout = 4;
+}
+
+enum HookErrorMode {
+  HOOK_ERROR_MODE_UNSPECIFIED = 0;
+  HOOK_ERROR_MODE_CONTINUE = 1;
+  HOOK_ERROR_MODE_FAIL = 2;
+}
+
+message RestoreSpec {
+  string backup_name = 1;
+  string schedule_name = 2;
+  repeated string included_namespaces = 3;
+  repeated string excluded_namespaces = 4;
+  repeated string included_resources = 5;
+  repeated string excluded_resources = 6;
+  map<string, string> namespace_mapping = 7;
+  LabelSelector label_selector = 8;
+  repeated LabelSelector or_label_selectors = 9;
+  optional bool restore_pvs = 10;
+  RestoreStatusSpec restore_status = 11;
+  optional bool preserve_node_ports = 12;
+  optional bool include_cluster_resources = 13;
+  RestoreHooks hooks = 14;
+  ExistingResourcePolicy existing_resource_policy = 15;
+  google.protobuf.Duration item_operation_timeout = 16;
+  TypedLocalObjectReference resource_modifier = 17;
+  TypedLocalObjectReference resource_policy = 18;
+  UploaderConfigForRestore uploader_config = 19;
+}
+
+message RestoreStatusSpec {
+  repeated string included_resources = 1;
+  repeated string excluded_resources = 2;
+}
+
+message UploaderConfigForRestore {
+  optional bool write_sparse_files = 1;
+  int32 parallel_files_download = 2;
+}
+
+// PolicyType in the Velero types: "none" or "update"; empty means unset.
+enum ExistingResourcePolicy {
+  EXISTING_RESOURCE_POLICY_UNSPECIFIED = 0;
+  EXISTING_RESOURCE_POLICY_NONE = 1;
+  EXISTING_RESOURCE_POLICY_UPDATE = 2;
+}
+
+message RestoreHooks {
+  repeated RestoreResourceHookSpec resources = 1;
+}
+
+message RestoreResourceHookSpec {
+  string name = 1;
+  repeated string included_namespaces = 2;
+  repeated string excluded_namespaces = 3;
+  repeated string included_resources = 4;
+  repeated string excluded_resources = 5;
+  LabelSelector label_selector = 6;
+  repeated RestoreResourceHook post_hooks = 7;
+}
+
+message RestoreResourceHook {
+  oneof hook {
+    ExecRestoreHook exec = 1;
+    InitRestoreHook init = 2;
+  }
+}
+
+message ExecRestoreHook {
+  string container = 1;
+  repeated string command = 2;
+  HookErrorMode on_error = 3;
+  google.protobuf.Duration exec_timeout = 4;
+  google.protobuf.Duration wait_timeout = 5;
+  optional bool wait_for_ready = 6;
+}
+
+message InitRestoreHook {
+  // Each element is one JSON-encoded corev1.Container (runtime.RawExtension in
+  // the Velero type). Validated agent-side; the UI does not expose it, so it is
+  // reachable only through the `advanced:write` permission.
+  repeated bytes init_containers_json = 1;
+  google.protobuf.Duration timeout = 2;
+}
+
+message ScheduleSpec {
+  BackupSpec template = 1;
+  // Cron expression.
+  string schedule = 2;
+  optional bool use_owner_references_in_backup = 3;
+  bool paused = 4;
+  optional bool skip_immediately = 5;
+}
+
+enum BackupStorageLocationAccessMode {
+  BSL_ACCESS_MODE_UNSPECIFIED = 0;
+  BSL_ACCESS_MODE_READ_ONLY = 1;
+  BSL_ACCESS_MODE_READ_WRITE = 2;
+}
+
+message ObjectStorageLocation {
+  string bucket = 1;
+  string prefix = 2;
+  // Inline PEM CA bundle (spec.objectStorage.caCert). Mutually exclusive with
+  // ca_cert_ref; Velero rejects both.
+  bytes ca_cert = 3;
+  SecretKeyRef ca_cert_ref = 4;
+}
+
+message BackupStorageLocationSpec {
+  string provider = 1;
+  map<string, string> config = 2;
+  // Reference only; the value, if being set, travels in the command's
+  // credential field.
+  SecretKeyRef credential = 3;
+  ObjectStorageLocation object_storage = 4;
+  bool default = 5;
+  BackupStorageLocationAccessMode access_mode = 6;
+  google.protobuf.Duration backup_sync_period = 7;
+  google.protobuf.Duration validation_frequency = 8;
+}
+
+message VolumeSnapshotLocationSpec {
+  string provider = 1;
+  map<string, string> config = 2;
+  SecretKeyRef credential = 3;
+}
+
+// DownloadTargetKind from download_request_types.go.
+enum DownloadTargetKind {
+  DOWNLOAD_TARGET_KIND_UNSPECIFIED = 0;
+  DOWNLOAD_TARGET_KIND_BACKUP_LOG = 1;
+  DOWNLOAD_TARGET_KIND_BACKUP_CONTENTS = 2;
+  DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_SNAPSHOTS = 3;
+  DOWNLOAD_TARGET_KIND_BACKUP_ITEM_OPERATIONS = 4;
+  DOWNLOAD_TARGET_KIND_BACKUP_RESOURCE_LIST = 5;
+  DOWNLOAD_TARGET_KIND_BACKUP_RESULTS = 6;
+  DOWNLOAD_TARGET_KIND_RESTORE_LOG = 7;
+  DOWNLOAD_TARGET_KIND_RESTORE_RESULTS = 8;
+  DOWNLOAD_TARGET_KIND_RESTORE_RESOURCE_LIST = 9;
+  DOWNLOAD_TARGET_KIND_RESTORE_ITEM_OPERATIONS = 10;
+  DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOTS = 11;
+  DOWNLOAD_TARGET_KIND_CSI_BACKUP_VOLUME_SNAPSHOT_CONTENTS = 12;
+  DOWNLOAD_TARGET_KIND_BACKUP_VOLUME_INFOS = 13;
+  DOWNLOAD_TARGET_KIND_RESTORE_VOLUME_INFO = 14;
+}

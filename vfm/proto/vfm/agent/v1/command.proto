@@ -1,0 +1,224 @@
+syntax = "proto3";
+
+package vfm.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+import "vfm/agent/v1/common.proto";
+import "vfm/agent/v1/velero.proto";
+
+// PLAN.md §5.2 / §5.4.
+message Command {
+  // UUIDv7. The idempotency key: the agent replies with the cached result for a
+  // command_id it has already executed rather than running it again.
+  string command_id = 1;
+  google.protobuf.Timestamp deadline = 2;
+  // Control-plane user id, for the agent's own audit log and the
+  // vfm.io/requested-by label.
+  string requested_by = 3;
+  oneof op {
+    CreateBackup create_backup = 10;
+    DeleteBackup delete_backup = 11;
+    CreateRestore create_restore = 12;
+    DeleteRestore delete_restore = 13;
+    CreateSchedule create_schedule = 14;
+    UpdateSchedule update_schedule = 15;
+    SetSchedulePaused set_schedule_paused = 16;
+    DeleteSchedule delete_schedule = 17;
+    // `velero backup create --from-schedule`.
+    TriggerScheduleNow trigger_schedule = 18;
+    UpsertBackupStorageLocation upsert_bsl = 19;
+    SetDefaultBackupStorageLocation set_default_bsl = 20;
+    DeleteBackupStorageLocation delete_bsl = 21;
+    UpsertVolumeSnapshotLocation upsert_vsl = 22;
+    DeleteVolumeSnapshotLocation delete_vsl = 23;
+    // Create a DownloadRequest, fetch the signed URL, stream the bytes back as
+    // LogChunks keyed by this command_id.
+    FetchDownload fetch_download = 24;
+    // Create a ServerStatusRequest and report the processed status.
+    RefreshServerStatus refresh_status = 25;
+    // Report whether each named namespace exists. Read-only; answers for the names
+    // asked about and nothing else, so a caller learns nothing about other namespaces.
+    CheckNamespaces check_namespaces = 26;
+    // `velero backup download`: a short-lived signed URL to the backup's contents (PLAN.md section 6, P2).
+    // The data itself is never proxied. Answers with `signed_url`, which the control plane hands to
+    // one browser and never stores.
+    GetBackupDownloadUrl get_backup_download_url = 27;
+  }
+}
+
+// `advanced_spec_json` is the single escape hatch (PLAN.md §5.2): a JSON
+// object merged onto the generated spec, then validated agent-side against the
+// Velero type with unknown fields rejected. Requires `advanced:write`.
+
+message CreateBackup {
+  // Empty: the agent generates `<schedule|backup>-<timestamp>` like the CLI.
+  string name = 1;
+  BackupSpec spec = 2;
+  bytes advanced_spec_json = 3;
+}
+
+// Velero deletes backups through a DeleteBackupRequest, not by deleting the CR.
+message DeleteBackup {
+  string name = 1;
+}
+
+message CreateRestore {
+  string name = 1;
+  RestoreSpec spec = 2;
+  bytes advanced_spec_json = 3;
+}
+
+message DeleteRestore {
+  string name = 1;
+}
+
+message CreateSchedule {
+  string name = 1;
+  ScheduleSpec spec = 2;
+  bytes advanced_spec_json = 3;
+}
+
+message UpdateSchedule {
+  string name = 1;
+  ScheduleSpec spec = 2;
+  bytes advanced_spec_json = 3;
+}
+
+message SetSchedulePaused {
+  string name = 1;
+  bool paused = 2;
+}
+
+message DeleteSchedule {
+  string name = 1;
+}
+
+message TriggerScheduleNow {
+  string schedule_name = 1;
+  // Empty: `<schedule>-<timestamp>`.
+  string backup_name = 2;
+}
+
+message UpsertBackupStorageLocation {
+  string name = 1;
+  BackupStorageLocationSpec spec = 2;
+  // Present only when the credential is being created or rotated.
+  CredentialSecret credential = 3;
+}
+
+message SetDefaultBackupStorageLocation {
+  string name = 1;
+}
+
+message DeleteBackupStorageLocation {
+  string name = 1;
+}
+
+message UpsertVolumeSnapshotLocation {
+  string name = 1;
+  VolumeSnapshotLocationSpec spec = 2;
+  CredentialSecret credential = 3;
+}
+
+message DeleteVolumeSnapshotLocation {
+  string name = 1;
+}
+
+message FetchDownload {
+  DownloadTargetKind target_kind = 1;
+  // Name of the Backup or Restore the target belongs to.
+  string target_name = 2;
+  // Upper bound on bytes streamed back; the agent aborts above it.
+  int64 max_bytes = 3;
+}
+
+message GetBackupDownloadUrl {
+  string backup_name = 1;
+}
+
+message RefreshServerStatus {}
+
+message CheckNamespaces {
+  // At most 100 DNS-1123 label names.
+  repeated string names = 1;
+}
+
+message CancelCommand {
+  string command_id = 1;
+}
+
+enum CommandAckState {
+  COMMAND_ACK_STATE_UNSPECIFIED = 0;
+  // Received and queued on the agent; policy checks have passed.
+  COMMAND_ACK_STATE_ACKED = 1;
+  // Execution started.
+  COMMAND_ACK_STATE_RUNNING = 2;
+}
+
+message CommandAck {
+  string command_id = 1;
+  CommandAckState state = 2;
+}
+
+// Terminal. Sent exactly once per execution; resent verbatim for a duplicate
+// command_id.
+message CommandResult {
+  string command_id = 1;
+  bool ok = 2;
+  ErrorCode error_code = 3;
+  // Never contains secret material or raw Kubernetes API bodies.
+  string error_message = 4;
+  google.protobuf.Timestamp finished_at = 5;
+  oneof detail {
+    ServerStatus server_status = 10;
+    CreatedObject created = 11;
+    DownloadSummary download = 12;
+    NamespaceReport namespaces = 13;
+    SignedUrl signed_url = 14;
+  }
+}
+
+// A URL that grants read access to a backup's data until `expires_at`. It is a credential: the
+// control plane must not log it, store it, or put it in a command's recorded result.
+message SignedUrl {
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// What a create-style command produced, so the control plane can correlate the
+// inventory object with the command.
+message CreatedObject {
+  string kind = 1;
+  string name = 2;
+  string uid = 3;
+}
+
+// One entry per name asked about, in the order asked.
+message NamespaceReport {
+  repeated NamespaceState namespaces = 1;
+}
+
+message NamespaceState {
+  string name = 1;
+  bool exists = 2;
+  // Exists but is being deleted: a restore into it will not work until it is gone.
+  bool terminating = 3;
+}
+
+message DownloadSummary {
+  int64 bytes_sent = 1;
+  string sha256_hex = 2;
+}
+
+// Result of RefreshServerStatus and the `velero` block of Hello.
+message ServerStatus {
+  // Velero server version, e.g. "v1.18.4". Empty when Velero is not installed.
+  string server_version = 1;
+  repeated PluginInfo plugins = 2;
+  google.protobuf.Timestamp processed_at = 3;
+}
+
+message PluginInfo {
+  string name = 1;
+  string kind = 2;
+}

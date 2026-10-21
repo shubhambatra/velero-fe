@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+build/
+coverage/
+agent/bin/
+*.tsbuildinfo
+
+# local environment and secrets — never commit (PLAN.md §12.1)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+kubeconfig
+kubeconfig-*
+deploy/dev/.generated/
+
+# dev data volumes
+deploy/dev/data/
+
+# tooling caches
+.vitest/
+.turbo/
+playwright-report/
+test-results/
+
+# The repository root ignores runtime `logs/` directories. These two are source code
+# (PLAN.md §14), so they are listed back in.
+!agent/internal/logs/
+!server/src/logs/

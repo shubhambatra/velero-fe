@@ -1,0 +1,141 @@
+# Sample workloads in namespace `demo` (PLAN.md §14.1).
+#
+# This is what the E2E golden paths back up and restore (PLAN.md §15, paths
+# 2-4): an ordinary stateless Deployment, and a StatefulSet with a PVC on the
+# hostpath CSI driver whose contents have a known sha256.
+#
+# The payload file is NOT written by the pod. scripts/sample-workloads.sh
+# writes it into the volume once, records its sha256 under .generated/, and
+# verifies it in-cluster. If the pod wrote its own payload at startup, golden
+# path 3 ("delete namespace → restore → checksum matches") would pass even when
+# the restore recovered no data at all — the pod would simply recreate it.
+# Hence `sleep infinity` and nothing else.
+#
+# Applied with `kubectl apply`, so re-running is a no-op.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    app.kubernetes.io/part-of: vfm-dev-samples
+---
+# ----------------------------------------------------------------------------
+# Stateless workload
+# ----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: demo
+  labels:
+    app: nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.29.8-alpine
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: demo
+spec:
+  selector:
+    app: nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# ----------------------------------------------------------------------------
+# Stateful workload with a PVC holding known data
+# ----------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-data
+  namespace: demo
+  labels:
+    app: demo-data
+spec:
+  clusterIP: None
+  selector:
+    app: demo-data
+  ports:
+    - name: placeholder
+      port: 9999
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: demo-data
+  namespace: demo
+  labels:
+    app: demo-data
+spec:
+  serviceName: demo-data
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-data
+  template:
+    metadata:
+      labels:
+        app: demo-data
+    spec:
+      # The hostpath CSI driver stores volume data on one node, so the consumer
+      # must land on the same node as the driver. See kind/vfm-*.yaml.
+      nodeSelector:
+        vfm.dev/csi-hostpath: 'true'
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: data
+          image: busybox:1.38.0
+          # Deliberately inert: the volume's contents are managed from outside
+          # the cluster (see the comment at the top of this file).
+          command: ['sh', '-c', 'exec sleep infinity']
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi
+            limits:
+              memory: 32Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        # Explicit: kind's default StorageClass is rancher local-path, which is
+        # not a CSI driver and therefore cannot produce VolumeSnapshots.
+        storageClassName: csi-hostpath-sc
+        resources:
+          requests:
+            storage: 64Mi

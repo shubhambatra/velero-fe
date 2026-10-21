@@ -1,0 +1,355 @@
+import { z } from 'zod';
+
+/**
+ * Environment contract for the control plane.
+ *
+ * PLAN.md §4.2 requires a zod-validated config module, and §12.1 requires that
+ * every secret come from the environment or a Kubernetes Secret — never from a
+ * file committed to git. Validation failures abort startup: a control plane
+ * running with a half-configured security posture is worse than one that is
+ * down.
+ *
+ * Only variables actually consumed today are listed. Each milestone adds its
+ * own, so an operator is never asked to set something that does nothing.
+ */
+
+const port = z.coerce.number().int().min(1).max(65_535);
+
+/** A 32-byte key supplied as base64. The value is never echoed on failure. */
+const base64Key32 = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => Buffer.from(value, 'base64').length === 32,
+    'must be 32 bytes encoded as base64',
+  );
+
+/** Variables whose values must never be logged or echoed back (PLAN.md §12.1). */
+export const SECRET_ENV_KEYS = [
+  'DATABASE_URL',
+  'REDIS_URL',
+  'VFM_MASTER_KEY',
+  'VFM_MASTER_KEY_PREVIOUS',
+  'SMTP_PASSWORD',
+] as const;
+
+export const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+
+    /** Public HTTP listener for the REST API and SSE. */
+    PORT: port.default(3000),
+
+    /**
+     * Metrics listener. PLAN.md §10 requires Prometheus metrics on a separate
+     * port that is not exposed publicly, so it binds independently of PORT.
+     */
+    METRICS_PORT: port.default(9090),
+
+    /** Bind address. Defaults to all interfaces because the normal deployment is a container. */
+    HOST: z.string().min(1).default('0.0.0.0'),
+
+    LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+
+    /**
+     * Whether to believe `X-Forwarded-For`, and how far back.
+     *
+     * Brute-force protection keys on the client address (PLAN.md §8.3), so this
+     * has to be deliberate: trusting the header unconditionally lets any caller
+     * set it and walk around the per-IP limit, while not trusting it behind a
+     * load balancer collapses every client onto the proxy's address and locks
+     * everyone out together.
+     *
+     * `false` (default) trusts nothing. A number is the count of trusted proxy
+     * hops — `1` is correct for a single Ingress or load balancer. A string is
+     * passed through to Express's `trust proxy` for subnet forms such as
+     * `loopback` or a CIDR.
+     */
+    TRUST_PROXY: z.string().default('false'),
+
+    /**
+     * Pretty-printed logs are a development convenience only; production emits
+     * structured JSON (PLAN.md §4.2).
+     */
+    LOG_PRETTY: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+
+    DATABASE_URL: z
+      .string()
+      .min(1)
+      .refine((value) => value.startsWith('postgres://') || value.startsWith('postgresql://'), {
+        message: 'must be a postgres:// or postgresql:// connection string',
+      }),
+
+    REDIS_URL: z
+      .string()
+      .min(1)
+      .refine((value) => value.startsWith('redis://') || value.startsWith('rediss://'), {
+        message: 'must be a redis:// or rediss:// connection string',
+      }),
+
+    /**
+     * Key-encryption key for the `*_encrypted` columns of PLAN.md §9: 32 bytes,
+     * base64-encoded. Generate with `openssl rand -base64 32`.
+     *
+     * **Required from M1 day 5**, where `users.mfa_secret_encrypted` becomes the
+     * first encrypted column. Starting without it would mean either storing a
+     * TOTP secret in the clear or failing at the first write, so startup refuses
+     * instead.
+     */
+    VFM_MASTER_KEY: base64Key32,
+
+    /**
+     * Previously used key-encryption keys, comma-separated, accepted for
+     * **decryption only**.
+     *
+     * This is what makes the key rotation §9 asks for a non-event: deploy the
+     * new key as `VFM_MASTER_KEY` with the old one listed here, let the rewrap
+     * job work through the stored ciphertexts, then remove it. Without the old
+     * key present, every row encrypted under it becomes unreadable.
+     */
+    VFM_MASTER_KEY_PREVIOUS: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((part) => part.trim())
+          .filter((part) => part !== ''),
+      )
+      .refine(
+        (keys) => keys.every((key) => Buffer.from(key, 'base64').length === 32),
+        'every key must be 32 bytes encoded as base64',
+      ),
+
+    /**
+     * Externally reachable base URL of the web app, used to build the links in
+     * emails (invitations). No trailing slash is required; one is tolerated.
+     */
+    PUBLIC_URL: z
+      .url()
+      .default('http://localhost:5173')
+      .transform((value) => value.replace(/\/+$/, '')),
+
+    /**
+     * Externally reachable base URL of **this API**, used to build the OIDC
+     * redirect URI (`<API_PUBLIC_URL>/api/v1/auth/oidc/callback`). It must match
+     * a redirect URI registered with the identity provider exactly.
+     */
+    API_PUBLIC_URL: z
+      .url()
+      .default('http://localhost:3000')
+      .transform((value) => value.replace(/\/+$/, '')),
+
+    /**
+     * Outbound SMTP (PLAN.md §4.2: nodemailer over SMTP "so it works
+     * air-gapped"). Optional as a group: when `SMTP_HOST` is unset the mailer
+     * reports itself unconfigured and anything that must send mail — an
+     * invitation — fails loudly instead of pretending to have sent it.
+     */
+    SMTP_HOST: z.string().min(1).optional(),
+    SMTP_PORT: port.default(587),
+    /** Implicit TLS (port 465 style). STARTTLS is negotiated automatically otherwise. */
+    SMTP_SECURE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    SMTP_USER: z.string().min(1).optional(),
+    SMTP_PASSWORD: z.string().min(1).optional(),
+    MAIL_FROM: z.string().min(3).default('Velero Fleet Manager <no-reply@localhost>'),
+
+    /**
+     * Distributed tracing (docs/OBSERVABILITY.md). Off by default and, when off, costs nothing: spans are
+     * no-ops until an SDK is registered. Turning it on loads `@opentelemetry/sdk-node` if it is installed
+     * (it is not shipped, to keep the dependency tree small) and exports to the standard
+     * `OTEL_EXPORTER_OTLP_ENDPOINT`.
+     */
+    OTEL_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+
+    /**
+     * The agent gateway (PLAN.md §5, §10): a gRPC listener separate from the REST
+     * port because it speaks mTLS and holds long-lived streams. `GATEWAY_ENABLED`
+     * is `false` only for tools and tests that never talk to agents.
+     */
+    GATEWAY_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    /** `0` binds an ephemeral port, which the tests use. */
+    GATEWAY_PORT: z.coerce.number().int().min(0).max(65_535).default(8443),
+    /**
+     * Live log sessions one person may hold open (PLAN.md §5.6 caps a whole cluster at 10), so
+     * one person cannot take every slot of a cluster.
+     */
+    /**
+     * Seconds between alert evaluations (PLAN.md §16 day 32); 0 turns the timer off, which is
+     * how tests drive evaluation by hand. One replica evaluates per interval.
+     */
+    ALERT_EVAL_INTERVAL_SECONDS: z.coerce.number().int().min(0).max(3600).default(30),
+    /**
+     * Webhook and Slack destinations may be on private networks (loopback, RFC 1918, ULA)
+     * only when this is on. Off by default: an org admin can name any URL, and the control
+     * plane's own network is not theirs to probe. On-prem receivers (Mattermost, an internal
+     * relay) need it on. Link-local and metadata addresses stay blocked either way.
+     */
+    ALERT_WEBHOOK_ALLOW_PRIVATE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    /** Plain `http://` destinations. Off by default: the body is signed, not secret, but Slack URLs are. */
+    ALERT_WEBHOOK_ALLOW_HTTP: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    /**
+     * Where the OIDC client may connect (discovery, token and key requests go to the issuer an org
+     * Admin named). Private networks and plain http are refused unless these are on: an identity
+     * provider inside the customer's network is the usual case and needs them on, and the default
+     * keeps a registered issuer from being a way to probe the control plane's own network.
+     * Link-local and metadata addresses are refused either way.
+     */
+    OIDC_ALLOW_PRIVATE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    OIDC_ALLOW_HTTP: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    /**
+     * Connections each replica may hold to Postgres. The load test (docs/LOADTEST.md) starved at 10:
+     * every inventory snapshot, command and page holds one for its whole transaction. Replicas ×
+     * this must stay under Postgres's `max_connections`.
+     */
+    DATABASE_POOL_MAX: z.coerce.number().int().min(2).max(200).default(30),
+    /** How long a restore waits for approval before it times out (PLAN.md §8.4). */
+    RESTORE_APPROVAL_TTL_HOURS: z.coerce.number().int().min(1).max(168).default(24),
+    LOG_SESSIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),
+    /**
+     * Hostnames and IPs written into the gateway's TLS certificate. Agents verify
+     * the server against the internal CA **and** this name, so it must include
+     * whatever the Helm command tells them to dial.
+     */
+    GATEWAY_HOSTNAMES: z
+      .string()
+      .default('localhost,127.0.0.1')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((host) => host.trim())
+          .filter((host) => host !== ''),
+      )
+      .refine((hosts) => hosts.length > 0, 'at least one hostname is required'),
+    /**
+     * Whether to ask each agent for Velero's version and plugins whenever it
+     * connects, so the UI shows them without anyone asking. Off only in tests that
+     * assert on exactly which commands an agent receives.
+     */
+    COMMANDS_REFRESH_ON_CONNECT: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    /**
+     * How long a fetched backup/restore file (log, results, ...) of a finished
+     * object is kept so repeat views are fast (PLAN.md §7.3: 7 days by default).
+     */
+    DOWNLOAD_CACHE_TTL_DAYS: z.coerce.number().int().min(0).max(90).default(7),
+    /** `host:port` shown to the operator in the generated install command. */
+    GATEWAY_PUBLIC_ADDRESS: z.string().min(1).default('localhost:8443'),
+    /**
+     * The agent chart version this control plane ships with. An agent reporting an
+     * older chart is flagged "update available" in the UI (PLAN.md §5.7).
+     */
+    AGENT_CHART_VERSION: z
+      .string()
+      .regex(/^\d+\.\d+\.\d+/, 'must look like 1.2.3')
+      .default('0.1.0'),
+    /**
+     * Directory holding the built web UI (index.html and assets). Set in the container image; unset
+     * in development, where Vite serves the UI. The server then serves it, under its own CSP.
+     */
+    WEB_DIST_DIR: z.string().min(1).optional(),
+    /**
+     * Retention (PLAN.md section 9): how often, in hours, the control plane purges what has outlived its
+     * retention. One replica does it per interval (a Redis key). `0` turns the timer off, which is how
+     * tests run it by hand and how an installation hands it to the `retention` CLI on a schedule instead.
+     */
+    RETENTION_INTERVAL_HOURS: z.coerce.number().min(0).max(168).default(24),
+    /**
+     * Whether the in-process job also purges audit events. They are deleted only as the
+     * `vfm_audit_retention` role (a trigger enforces it); an installation that does not want the
+     * application able to take that role sets this false and runs `node dist/retention.js` with a login that is.
+     */
+    RETENTION_AUDIT: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    /** Where audit events are written before deletion, for organizations that ask for it. Unset: those are not deleted. */
+    AUDIT_EXPORT_DIR: z.string().min(1).optional(),
+    /** Where the agent's Helm chart is published; shown in the install command. */
+    AGENT_CHART_REF: z.string().min(1).default('oci://ghcr.io/shubhambatra/charts/vfm-agent'),
+    /**
+     * Threat model G-11: `Enroll` is reachable without a certificate, so it is limited per source
+     * address (in Redis, so it holds across replicas) and in how many run at once on this replica.
+     * Behind a layer-4 balancer every agent shares one address; raise the first for a large
+     * first-time rollout. `0` turns the per-address limit off.
+     */
+    GATEWAY_ENROLL_PER_MINUTE: z.coerce.number().int().min(0).max(100_000).default(30),
+    GATEWAY_ENROLL_MAX_INFLIGHT: z.coerce.number().int().min(1).max(1_000).default(16),
+    /**
+     * Threat model G-10: how many messages one agent stream may send, sustained and in a burst.
+     * A stream over it is closed (the agent reconnects with backoff). Log chunks are not counted;
+     * they have their own caps. A heartbeat a few seconds and an inventory batch every 2 s are
+     * orders of magnitude below the default.
+     */
+    AGENT_MESSAGES_PER_SECOND: z.coerce.number().min(1).max(100_000).default(100),
+    AGENT_MESSAGE_BURST: z.coerce.number().int().min(1).max(1_000_000).default(1_000),
+  })
+  .superRefine((env, ctx) => {
+    // Threat model G-13: sessions, rate limits and the channel that closes agent streams live in
+    // Redis, so an open one is a way to read every session and to cut every agent off.
+    if (env.NODE_ENV === 'production') {
+      let password: string;
+      try {
+        password = new URL(env.REDIS_URL).password;
+      } catch {
+        // The URL shape was already reported on its own.
+        return;
+      }
+      if (password === '') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['REDIS_URL'],
+          message:
+            'a production deployment requires a Redis password (redis://:password@host:port)',
+        });
+      }
+    }
+  });
+
+export type Env = z.infer<typeof envSchema>;
+
+/**
+ * Validates `process.env`, throwing an error that names every offending
+ * variable but never prints its value — the value is frequently the secret.
+ */
+export function validateEnv(source: NodeJS.ProcessEnv): Env {
+  const result = envSchema.safeParse(source);
+  if (result.success) {
+    return result.data;
+  }
+
+  const problems = result.error.issues
+    .map((issue) => {
+      const key = issue.path.join('.') || '(root)';
+      return `  ${key}: ${issue.message}`;
+    })
+    .sort();
+
+  throw new Error(`invalid environment configuration:\n${problems.join('\n')}`);
+}

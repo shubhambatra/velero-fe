@@ -1,0 +1,8 @@
+apiVersion: v2
+name: vfm-control-plane
+description: The Velero Fleet Manager control plane - REST API, web UI and agent gateway.
+type: application
+version: 0.1.0
+appVersion: '0.1.0'
+kubeVersion: '>=1.27.0-0'
+keywords: [velero, backup, fleet]

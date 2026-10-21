@@ -1,1 +1,9 @@
 nx run-many --target=lint
+
+# Velero Fleet Manager lives in vfm/ with its own pnpm workspace
+# (vfm/docs/DECISIONS.md ADR-003/ADR-004). Lint it only when this commit
+# actually touches it, so legacy-only commits behave exactly as before.
+if git diff --cached --name-only --diff-filter=ACMR | grep -q '^vfm/'; then
+  echo "pre-commit: staged changes under vfm/ — running VFM lint"
+  (cd vfm && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm run lint)
+fi

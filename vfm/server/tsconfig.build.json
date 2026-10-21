@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Emit-only: the base config omits it so `tsc --noEmit` can also typecheck
+    // test/, which sits outside src/.
+    "rootDir": "src"
+  },
+  "exclude": ["dist", "node_modules", "test", "src/**/*.test.ts"]
+}

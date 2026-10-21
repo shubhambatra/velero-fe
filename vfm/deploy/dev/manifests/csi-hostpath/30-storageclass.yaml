@@ -1,0 +1,25 @@
+# StorageClass for the hostpath CSI driver.
+#
+# Not marked as the cluster default: kind already ships rancher local-path as
+# the default StorageClass, and local-path is *not* a CSI driver, so it cannot
+# produce VolumeSnapshots. Workloads that must exercise CSI snapshots name this
+# class explicitly (see ../sample-workloads/demo.yaml).
+#
+# volumeBindingMode: WaitForFirstConsumer so the PV is created only once the
+# scheduler has placed the consuming pod. Both the plugin and the sample
+# workload are pinned to the node labelled vfm.dev/csi-hostpath, so the volume
+# and its consumer always land on the same node — a hard requirement of the
+# hostpath driver, which keeps volume data in a hostPath on one node.
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-hostpath-sc
+  labels:
+    app.kubernetes.io/instance: hostpath.csi.k8s.io
+    app.kubernetes.io/part-of: csi-driver-host-path
+    app.kubernetes.io/component: storageclass
+provisioner: hostpath.csi.k8s.io
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true

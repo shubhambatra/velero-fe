@@ -1,0 +1,138 @@
+# RBAC for the hostpath CSI driver's sidecars.
+#
+# Upstream csi-driver-host-path does not ship RBAC: its deploy.sh pulls six
+# separate rbac.yaml files from the external-provisioner / -attacher / -resizer
+# / -snapshotter / -health-monitor repositories at install time, each of which
+# also creates its own ServiceAccount. That is a lot of moving parts fetched
+# over the network at deploy time, which PLAN.md §1.1 P6 and the version-pinning
+# rule both argue against.
+#
+# Instead this file grants the union of what those sidecars need to the single
+# csi-hostpathplugin-sa ServiceAccount the plugin StatefulSet already uses.
+#
+# DEV ONLY. These permissions are deliberately broad for a throwaway kind
+# cluster. Nothing here ships to a user cluster — the VFM agent's RBAC is
+# PLAN.md §12.2 and is a completely separate, minimal set.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-hostpathplugin-sa
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: hostpath.csi.k8s.io
+    app.kubernetes.io/part-of: csi-driver-host-path
+    app.kubernetes.io/name: csi-hostpathplugin
+    app.kubernetes.io/component: serviceaccount
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vfm-dev-csi-hostpathplugin
+  labels:
+    app.kubernetes.io/instance: hostpath.csi.k8s.io
+    app.kubernetes.io/part-of: csi-driver-host-path
+    app.kubernetes.io/component: cluster-role
+rules:
+  # external-provisioner, external-resizer
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes", "csidrivers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csistoragecapacities"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # ownership of CSIStorageCapacity objects is resolved through the owning
+  # StatefulSet / ReplicaSet
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "replicasets", "deployments"]
+    verbs: ["get", "list", "watch"]
+  # external-attacher
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["get", "update", "patch"]
+  # csi-snapshotter
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots", "volumesnapshotcontents"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots/status", "volumesnapshotcontents/status"]
+    verbs: ["get", "update", "patch"]
+  # leader election for every sidecar that runs with --leader-election
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vfm-dev-csi-hostpathplugin
+  labels:
+    app.kubernetes.io/instance: hostpath.csi.k8s.io
+    app.kubernetes.io/part-of: csi-driver-host-path
+    app.kubernetes.io/component: cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vfm-dev-csi-hostpathplugin
+subjects:
+  - kind: ServiceAccount
+    name: csi-hostpathplugin-sa
+    namespace: default
+---
+# Namespaced leader-election permissions. The sidecars default their lease
+# namespace to the namespace they run in (default), which the ClusterRole above
+# already covers; this Role exists so the grant stays explicit if the plugin is
+# ever moved into its own namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vfm-dev-csi-hostpathplugin
+  namespace: default
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vfm-dev-csi-hostpathplugin
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: vfm-dev-csi-hostpathplugin
+subjects:
+  - kind: ServiceAccount
+    name: csi-hostpathplugin-sa
+    namespace: default

@@ -1,0 +1,212 @@
+# VFM local development stack (PLAN.md §14.1).
+#
+# Run it through the scripts, never bare:
+#   ./scripts/dev-up.sh      brings this up and then builds the kind clusters
+#   ./scripts/dev-down.sh    tears this down including volumes
+#
+# If you do drive compose by hand, always pass the env file — none of the
+# credentials below have defaults:
+#   docker compose --env-file dev.env -f docker-compose.yml up -d --wait
+#
+# Image tags are literal and pinned (no `:latest`, no floating majors). They
+# are duplicated in versions.env, which is the documented source of truth;
+# scripts/dev-up.sh fails if the two disagree.
+#
+# Every port is published on 127.0.0.1 only. Nothing in this stack is reachable
+# from the network.
+
+name: vfm-dev
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL 16 — control-plane database (PLAN.md §4.2)
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16.15-alpine
+    container_name: vfm-dev-postgres
+    restart: unless-stopped
+    env_file: [dev.env]
+    environment:
+      # Scrypt is the modern default; keep it explicit so the connection string
+      # in dev.env cannot silently depend on md5.
+      POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256'
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - '127.0.0.1:${VFM_DEV_POSTGRES_PORT}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h 127.0.0.1']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # Valkey 7 — sessions, agent→replica routing, BullMQ queues (PLAN.md §4.2)
+  # --------------------------------------------------------------------------
+  valkey:
+    image: valkey/valkey:7.2.14-alpine
+    container_name: vfm-dev-valkey
+    restart: unless-stopped
+    command:
+      - valkey-server
+      - --appendonly
+      - 'yes'
+      - --save
+      - '60 1'
+      - --dir
+      - /data
+    ports:
+      - '127.0.0.1:${VFM_DEV_VALKEY_PORT}:6379'
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'valkey-cli -h 127.0.0.1 ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 5s
+
+  # --------------------------------------------------------------------------
+  # MinIO — S3-compatible object store holding the Velero backups.
+  #
+  # Image provenance: MinIO stopped serving anonymous pulls from
+  # docker.io/minio/minio and quay.io/minio/minio, and dl.min.io returns
+  # HTTP 410 for release binaries, so the official images cannot be fetched.
+  # bitnamilegacy/* are Bitnami's archived community builds of the same MinIO
+  # release. Dev-only; see README.md "MinIO image provenance".
+  # --------------------------------------------------------------------------
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    container_name: vfm-dev-minio
+    restart: unless-stopped
+    env_file: [dev.env]
+    environment:
+      MINIO_SCHEME: http
+      MINIO_API_PORT_NUMBER: '9000'
+      MINIO_CONSOLE_PORT_NUMBER: '9001'
+      MINIO_BROWSER: 'on'
+      # The region Velero's AWS plugin is told to use. MinIO accepts any value;
+      # keeping it explicit avoids the SDK's us-east-1 assumption.
+      MINIO_REGION_NAME: ${VFM_DEV_MINIO_REGION}
+    ports:
+      - '127.0.0.1:${VFM_DEV_MINIO_API_PORT}:9000'
+      - '127.0.0.1:${VFM_DEV_MINIO_CONSOLE_PORT}:9001'
+    volumes:
+      - minio-data:/bitnami/minio/data
+    healthcheck:
+      # Probed through the compose service name, not 127.0.0.1: that is the
+      # address other containers use, and MinIO reports /health/live as live on
+      # the loopback interface slightly before it accepts connections on the
+      # container's routable address.
+      test: ['CMD-SHELL', 'curl -fsS http://minio:9000/minio/health/live >/dev/null']
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # One-shot bucket provisioner: one bucket per kind cluster.
+  # Creates the buckets, then asserts both exist and exits non-zero if not, so
+  # `up --wait` fails loudly instead of leaving Velero to discover it later.
+  # --------------------------------------------------------------------------
+  minio-init:
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
+    container_name: vfm-dev-minio-init
+    restart: 'no'
+    env_file: [dev.env]
+    environment:
+      # uid 1001 cannot write the image's WORKDIR, so keep mc's state in /tmp.
+      HOME: /tmp
+      MC_CONFIG_DIR: /tmp/.mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -euc
+      - |
+        # Retry the alias: even behind `depends_on: service_healthy` MinIO can
+        # still be a second or two away from accepting connections, and a
+        # one-shot provisioner that loses that race looks like a real failure.
+        attempt=0
+        until mc alias set vfmdev "http://minio:9000" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+          attempt=$$((attempt + 1))
+          if [ "$$attempt" -ge 30 ]; then
+            echo "FATAL: MinIO at http://minio:9000 did not accept connections after 60s" >&2
+            mc alias set vfmdev "http://minio:9000" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >&2
+            exit 1
+          fi
+          echo "waiting for MinIO (attempt $$attempt)"
+          sleep 2
+        done
+        for bucket in "$$VFM_DEV_BUCKET_A" "$$VFM_DEV_BUCKET_B"; do
+          if mc stat --no-list "vfmdev/$$bucket" >/dev/null 2>&1; then
+            echo "bucket already present: $$bucket"
+          else
+            mc mb "vfmdev/$$bucket"
+          fi
+        done
+        for bucket in "$$VFM_DEV_BUCKET_A" "$$VFM_DEV_BUCKET_B"; do
+          mc stat --no-list "vfmdev/$$bucket" >/dev/null \
+            || { echo "FATAL: bucket $$bucket missing after create" >&2; exit 1; }
+        done
+        echo "buckets verified: $$VFM_DEV_BUCKET_A $$VFM_DEV_BUCKET_B"
+
+  # --------------------------------------------------------------------------
+  # Mailpit — SMTP sink for org invites and alert emails (PLAN.md §4.2, §11)
+  # --------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:v1.31.5
+    container_name: vfm-dev-mailpit
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+      MP_MAX_MESSAGES: '5000'
+    ports:
+      - '127.0.0.1:${VFM_DEV_MAILPIT_SMTP_PORT}:1025'
+      - '127.0.0.1:${VFM_DEV_MAILPIT_UI_PORT}:8025'
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:8025/readyz']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 5s
+
+  # --------------------------------------------------------------------------
+  # Dex — mock OIDC provider with static users (PLAN.md §14.1, M1 day 7)
+  #
+  # Storage is `memory`, so Dex is stateless and gets no volume: the only state
+  # it would hold is auth codes and refresh tokens, and the static users live
+  # in dex/config.yaml. A restart therefore loses nothing but open logins.
+  # --------------------------------------------------------------------------
+  dex:
+    image: dexidp/dex:v2.46.0
+    container_name: vfm-dev-dex
+    restart: unless-stopped
+    command: ['dex', 'serve', '/etc/dex/config.yaml']
+    ports:
+      - '127.0.0.1:${VFM_DEV_DEX_PORT}:5556'
+    volumes:
+      - ./dex/config.yaml:/etc/dex/config.yaml:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:5558/healthz']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 5s
+
+volumes:
+  postgres-data:
+    name: vfm-dev-postgres-data
+  valkey-data:
+    name: vfm-dev-valkey-data
+  minio-data:
+    name: vfm-dev-minio-data
+  mailpit-data:
+    name: vfm-dev-mailpit-data

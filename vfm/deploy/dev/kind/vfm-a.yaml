@@ -1,0 +1,56 @@
+# kind cluster `vfm-a` — first dev cluster (PLAN.md §14.1).
+# Context name: kind-vfm-a. Velero bucket: vfm-backups-a.
+#
+# Keep vfm-a.yaml and vfm-b.yaml structurally identical; only the name differs.
+#
+# How in-cluster pods reach the host MinIO
+# ----------------------------------------
+# kind's v1alpha4 config has no `extraHostEntries` / `hostAliases` field (only
+# extraPortMappings), so host names cannot be injected here. Instead
+# scripts/dev-up.sh creates a selector-less Service `minio.vfm-dev.svc` backed
+# by an EndpointSlice holding the `kind` docker bridge gateway address — the
+# host as seen from inside a node — on the published MinIO port. In-cluster
+# clients then use a stable DNS name on a clean port:
+#
+#   http://minio.vfm-dev.svc.cluster.local:9000
+#
+# which is exactly what the Velero BackupStorageLocation's s3Url is set to. No
+# IP leaks into any manifest, and the mapping survives MinIO restarts.
+#
+# hostpath CSI driver
+# -------------------
+# The driver keeps volume data in a hostPath on whichever node it runs on, so
+# the driver and every workload using it must share a node. The worker is
+# labelled `vfm.dev/csi-hostpath=true` and both the driver StatefulSet and the
+# sample StatefulSet select it. Nothing else is needed: kind nodes already
+# expose a writable /var/lib/kubelet and allow privileged pods.
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: vfm-a
+
+# Pinned by tag *and* digest: the tag alone is mutable. Matches the local
+# kubectl v1.36.x and kind v0.33.0-alpha's default image.
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784dab7b84759d1014dbd78f7ebd5
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "vfm.dev/cluster=vfm-a"
+
+  - role: worker
+    image: kindest/node:v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784dab7b84759d1014dbd78f7ebd5
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "vfm.dev/cluster=vfm-a,vfm.dev/csi-hostpath=true"
+
+networking:
+  # Leave kind's defaults for pod/service CIDRs; two clusters on the same host
+  # never route to each other, so overlapping ranges are not a problem.
+  apiServerAddress: '127.0.0.1'

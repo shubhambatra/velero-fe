@@ -1,0 +1,177 @@
+{{- $secret := required "secrets.existingSecret is required: create a Secret with database-url, redis-url and master-key (see values.yaml)" .Values.secrets.existingSecret }}
+{{- $public := required "gateway.publicAddress is required: the host:port agents dial" .Values.gateway.publicAddress }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vfm-cp.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vfm-cp.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "vfm-cp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vfm-cp.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}{{ toYaml . | nindent 8 }}{{ end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "vfm-cp.fullname" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      # Let a stream drain: agents reconnect to another replica on their own.
+      terminationGracePeriodSeconds: 30
+      affinity:
+        {{- if .Values.affinity }}
+        {{- toYaml .Values.affinity | nindent 8 }}
+        {{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "vfm-cp.selectorLabels" . | nindent 20 }}
+        {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: control-plane
+          image: {{ include "vfm-cp.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - { name: http, containerPort: 3000, protocol: TCP }
+            - { name: grpc, containerPort: 8443, protocol: TCP }
+            - { name: metrics, containerPort: 9090, protocol: TCP }
+          env:
+            - { name: NODE_ENV, value: production }
+            - { name: HOST, value: 0.0.0.0 }
+            - { name: PORT, value: '3000' }
+            - { name: METRICS_PORT, value: '9090' }
+            - { name: GATEWAY_ENABLED, value: 'true' }
+            - { name: GATEWAY_PORT, value: '8443' }
+            - { name: GATEWAY_PUBLIC_ADDRESS, value: {{ $public | quote }} }
+            {{- if .Values.gateway.hostnames }}
+            - { name: GATEWAY_HOSTNAMES, value: {{ .Values.gateway.hostnames | quote }} }
+            {{- end }}
+            {{- if .Values.web.enabled }}
+            - { name: WEB_DIST_DIR, value: /app/web }
+            {{- end }}
+            - { name: LOG_LEVEL, value: {{ .Values.config.logLevel | quote }} }
+            - { name: LOG_PRETTY, value: 'false' }
+            - { name: TRUST_PROXY, value: {{ .Values.config.trustProxy | quote }} }
+            - { name: DATABASE_POOL_MAX, value: {{ .Values.config.databasePoolMax | quote }} }
+            - { name: AGENT_MESSAGES_PER_SECOND, value: {{ .Values.config.agentMessagesPerSecond | quote }} }
+            - { name: AGENT_MESSAGE_BURST, value: {{ .Values.config.agentMessageBurst | quote }} }
+            - { name: GATEWAY_ENROLL_PER_MINUTE, value: {{ .Values.config.gatewayEnrollPerMinute | quote }} }
+            - { name: RETENTION_INTERVAL_HOURS, value: {{ .Values.config.retention.intervalHours | quote }} }
+            - { name: RETENTION_AUDIT, value: {{ .Values.config.retention.audit | quote }} }
+            {{- if .Values.config.retention.auditExportDir }}
+            - { name: AUDIT_EXPORT_DIR, value: {{ .Values.config.retention.auditExportDir | quote }} }
+            {{- end }}
+            {{- if .Values.config.publicUrl }}
+            - { name: PUBLIC_URL, value: {{ .Values.config.publicUrl | quote }} }
+            {{- end }}
+            {{- if .Values.config.apiPublicUrl }}
+            - { name: API_PUBLIC_URL, value: {{ .Values.config.apiPublicUrl | quote }} }
+            {{- end }}
+            {{- with .Values.config.smtp }}
+            {{- if .host }}
+            - { name: SMTP_HOST, value: {{ .host | quote }} }
+            - { name: SMTP_PORT, value: {{ .port | quote }} }
+            - { name: SMTP_SECURE, value: {{ .secure | quote }} }
+            {{- if .user }}
+            - { name: SMTP_USER, value: {{ .user | quote }} }
+            {{- end }}
+            {{- if .from }}
+            - { name: MAIL_FROM, value: {{ .from | quote }} }
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: {{ $secret | quote }}, key: {{ .Values.secrets.keys.databaseUrl | quote }} } }
+            - name: REDIS_URL
+              valueFrom: { secretKeyRef: { name: {{ $secret | quote }}, key: {{ .Values.secrets.keys.redisUrl | quote }} } }
+            - name: VFM_MASTER_KEY
+              valueFrom: { secretKeyRef: { name: {{ $secret | quote }}, key: {{ .Values.secrets.keys.masterKey | quote }} } }
+            {{- if .Values.secrets.keys.masterKeyPrevious }}
+            - name: VFM_MASTER_KEY_PREVIOUS
+              valueFrom: { secretKeyRef: { name: {{ $secret | quote }}, key: {{ .Values.secrets.keys.masterKeyPrevious | quote }}, optional: true } }
+            {{- end }}
+            {{- if .Values.secrets.keys.smtpPassword }}
+            - name: SMTP_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $secret | quote }}, key: {{ .Values.secrets.keys.smtpPassword | quote }}, optional: true } }
+            {{- end }}
+            {{- with .Values.config.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 3
+            failureThreshold: 40
+          # Liveness never touches Postgres or Redis: a database outage must not restart every replica.
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            {{- if and .Values.config.retention.auditExportDir .Values.config.retention.auditExportClaim }}
+            - { name: audit-export, mountPath: {{ .Values.config.retention.auditExportDir | quote }} }
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
+        {{- if and .Values.config.retention.auditExportDir .Values.config.retention.auditExportClaim }}
+        - name: audit-export
+          persistentVolumeClaim: { claimName: {{ .Values.config.retention.auditExportClaim | quote }} }
+        {{- end }}

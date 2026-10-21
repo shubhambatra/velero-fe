@@ -1,0 +1,164 @@
+[
+  {
+    "kind": 12,
+    "name": "n1",
+    "namespace": "",
+    "object": {
+      "apiVersion": "v1",
+      "kind": "Node",
+      "metadata": {
+        "name": "n1",
+        "resourceVersion": "5",
+        "uid": "uid-n1"
+      },
+      "spec": {},
+      "status": {
+        "allocatable": {},
+        "conditions": [
+          {
+            "reason": "",
+            "status": "True",
+            "type": "Ready"
+          }
+        ],
+        "nodeInfo": {
+          "kubeletVersion": ""
+        },
+        "phase": "Ready"
+      }
+    },
+    "resourceVersion": "5",
+    "uid": "uid-n1"
+  },
+  {
+    "kind": 13,
+    "name": "shop",
+    "namespace": "",
+    "object": {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "shop",
+        "resourceVersion": "5",
+        "uid": "uid-ns"
+      },
+      "status": {
+        "phase": "Active"
+      }
+    },
+    "resourceVersion": "5",
+    "uid": "uid-ns"
+  },
+  {
+    "kind": 14,
+    "name": "web-1",
+    "namespace": "shop",
+    "object": {
+      "apiVersion": "v1",
+      "kind": "Pod",
+      "metadata": {
+        "creationTimestamp": "2026-10-16T05:00:00Z",
+        "name": "web-1",
+        "namespace": "shop",
+        "resourceVersion": "1",
+        "uid": "uid-web-1"
+      },
+      "spec": {
+        "nodeName": "node-1",
+        "owner": {
+          "kind": "ReplicaSet",
+          "name": "web-abc"
+        }
+      },
+      "status": {
+        "containerCount": 2,
+        "containerStatuses": [
+          {
+            "image": "nginx:1",
+            "init": false,
+            "lastTerminationReason": "OOMKilled",
+            "name": "app",
+            "ready": true,
+            "reason": "",
+            "restartCount": 2,
+            "state": "running"
+          },
+          {
+            "image": "envoy:1",
+            "init": false,
+            "lastTerminationReason": "",
+            "name": "side",
+            "ready": false,
+            "reason": "CrashLoopBackOff",
+            "restartCount": 1,
+            "state": "waiting"
+          }
+        ],
+        "phase": "Running",
+        "readyCount": 1,
+        "restartCount": 3,
+        "startTimestamp": "2026-10-16T05:00:05Z"
+      }
+    },
+    "resourceVersion": "1",
+    "uid": "uid-web-1"
+  },
+  {
+    "kind": 15,
+    "name": "data",
+    "namespace": "shop",
+    "object": {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "data",
+        "namespace": "shop",
+        "resourceVersion": "5",
+        "uid": "uid-pvc"
+      },
+      "spec": {
+        "storageClassName": "",
+        "volumeName": ""
+      },
+      "status": {
+        "capacity": {
+          "storage": ""
+        },
+        "phase": "Bound"
+      }
+    },
+    "resourceVersion": "5",
+    "uid": "uid-pvc"
+  },
+  {
+    "kind": 16,
+    "name": "warn",
+    "namespace": "shop",
+    "object": {
+      "apiVersion": "v1",
+      "kind": "Event",
+      "metadata": {
+        "creationTimestamp": "2026-10-16T05:50:00Z",
+        "name": "warn",
+        "namespace": "shop",
+        "resourceVersion": "5",
+        "uid": "uid-warn"
+      },
+      "status": {
+        "count": 3,
+        "involvedObject": {
+          "apiVersion": "v1",
+          "kind": "Pod",
+          "name": "web-1",
+          "namespace": "shop"
+        },
+        "message": "Back-off restarting failed container",
+        "phase": "Warning",
+        "reason": "BackOff",
+        "startTimestamp": "2026-10-16T05:50:00Z"
+      }
+    },
+    "resourceVersion": "5",
+    "uid": "uid-warn"
+  }
+]

@@ -1,0 +1,32 @@
+packages:
+  - packages/*
+  - server
+  - web
+  - e2e
+
+# pnpm 10 blocks lifecycle scripts unless a package is listed here. These five
+# genuinely need them (native engines and binary downloads); everything else
+# stays blocked, which is the behaviour we want for a product that has to be
+# auditable and air-gap installable (PLAN.md §1.1 P6, §12.1).
+onlyBuiltDependencies:
+  # argon2 is a native addon (PLAN.md §4.2 names it for password hashing).
+  - argon2
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
+  - esbuild
+  - prisma
+
+# PLAN.md §12.1 requires CI to fail on high/critical advisories. Both of these
+# reach us only through the Prisma CLI's transitive tree and neither is on a
+# code path we use — the control plane talks to PostgreSQL through
+# @prisma/adapter-pg (ADR-007) and never loads the MySQL driver. Forced to
+# their patched versions rather than suppressed, so the fix is real.
+#
+# Remove an entry once the upstream dependency has caught up; `pnpm audit`
+# will say so.
+overrides:
+  # GHSA: prototype-pollution, patched in 3.22.0. Pinned well past it.
+  mysql2: '>=3.24.6'
+  # GHSA: prototype-pollution, patched in 8.0.0.
+  deepmerge-ts: '>=8.0.2'

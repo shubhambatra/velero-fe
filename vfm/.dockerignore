@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/coverage
+.git
+agent/bin
+deploy/dev/.generated
