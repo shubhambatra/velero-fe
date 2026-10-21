@@ -255,6 +255,7 @@ describe('static guard over the source tree', () => {
       'orgs/invites.service.ts: an invite token identifies its org',
       'orgs/orgs.service.ts: a user lists their own memberships (org switcher)',
       'retention/retention.service.ts: retention spans every organization',
+      'seed.ts: the seed spans organizations',
       'streams/streams.service.ts: an open stream re-checks its own certificate',
       'streams/streams.service.ts: the stale-stream sweeper spans every org',
       'tokens/api-tokens.service.ts: an api token identifies its org',

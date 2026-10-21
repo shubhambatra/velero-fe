@@ -963,46 +963,101 @@ if (wants('gp12')) {
 
 // GP13 (added: PLAN section 6 `backup download`) ----------------------------------------------------------------------
 if (wants('gp13')) {
-  await r.path('GP13  a backup download is a signed link to the object storage, never the data, and is not recorded', async () => {
-    const orgUrl = `/orgs/${ctx.org}`;
-    // The organization decides first: with downloads off, nobody gets a link, not even the Owner.
-    await ctx.api.call('PATCH', orgUrl, { allowBackupContentDownload: false }, 200);
-    const refused = await ctx.api.call('POST', cl(`/backups/${BACKUP}/download-url`), {});
-    r.check(refused.status === 403, 'with the organization setting off (the default) the request is refused', String(refused.status));
+  await r.path(
+    'GP13  a backup download is a signed link to the object storage, never the data, and is not recorded',
+    async () => {
+      const orgUrl = `/orgs/${ctx.org}`;
+      // The organization decides first: with downloads off, nobody gets a link, not even the Owner.
+      await ctx.api.call('PATCH', orgUrl, { allowBackupContentDownload: false }, 200);
+      const refused = await ctx.api.call('POST', cl(`/backups/${BACKUP}/download-url`), {});
+      r.check(
+        refused.status === 403,
+        'with the organization setting off (the default) the request is refused',
+        String(refused.status),
+      );
 
-    await ctx.api.call('PATCH', orgUrl, { allowBackupContentDownload: true }, 200);
-    // Permissions are cached for up to 2 s (docs/LOADTEST.md); a changed organization setting applies after that.
-    await sleep(2500);
-    const got = await ctx.api.call('POST', cl(`/backups/${BACKUP}/download-url`), {}, 200);
-    const link = got.json?.url;
-    r.check(typeof link === 'string' && /^https?:\/\//.test(link), 'with it on, Velero produced a signed link through the real agent');
-    r.check(/X-Amz-Signature=/i.test(link) && link.includes(`/${BACKUP}/`), 'the link is a presigned object-storage URL for this backup (' + new URL(link).host + ')');
-    const lifetime = new Date(got.json.expiresAt).getTime() - Date.now();
-    r.check(lifetime > 0 && lifetime <= 15 * 60_000, `it is short-lived (${Math.round(lifetime / 1000)} s left)`);
-    r.check(got.headers.get('cache-control') === 'no-store', 'the answer is not cacheable');
+      await ctx.api.call('PATCH', orgUrl, { allowBackupContentDownload: true }, 200);
+      // Permissions are cached for up to 2 s (docs/LOADTEST.md); a changed organization setting applies after that.
+      await sleep(2500);
+      const got = await ctx.api.call('POST', cl(`/backups/${BACKUP}/download-url`), {}, 200);
+      const link = got.json?.url;
+      r.check(
+        typeof link === 'string' && /^https?:\/\//.test(link),
+        'with it on, Velero produced a signed link through the real agent',
+      );
+      r.check(
+        /X-Amz-Signature=/i.test(link) && link.includes(`/${BACKUP}/`),
+        'the link is a presigned object-storage URL for this backup (' + new URL(link).host + ')',
+      );
+      const lifetime = new Date(got.json.expiresAt).getTime() - Date.now();
+      r.check(
+        lifetime > 0 && lifetime <= 15 * 60_000,
+        `it is short-lived (${Math.round(lifetime / 1000)} s left)`,
+      );
+      r.check(got.headers.get('cache-control') === 'no-store', 'the answer is not cacheable');
 
-    // The link is a credential: nowhere VFM keeps things.
-    const signature = new URL(link).searchParams.get('X-Amz-Signature');
-    const dump = sh('docker', ['exec', 'vfm-e2e-pg', 'pg_dump', '-U', 'vfm', '-d', 'vfm', '--data-only'], { maxBuffer: 512 * 1024 * 1024 });
-    r.check(!dump.includes(signature), 'the signature is not in the database (full data dump)');
-    r.check(!cpLogs().includes(signature), 'the signature is not in the control plane logs');
-    r.check(!agentLogs().includes(signature), 'the signature is not in the agent logs');
-    const cm = kubectlTry('-n', 'vfm-system', 'get', 'configmaps', '-o', 'json') ?? '';
-    r.check(!cm.includes(signature), 'the signature is not in any ConfigMap of the cluster (the agent cache is persisted there)');
-    const audit = JSON.stringify((await ctx.api.call('GET', `/orgs/${ctx.org}/audit?limit=100`)).json);
-    r.check(audit.includes('backup.download-link') && !audit.includes(signature), 'the audit log records who asked, not the link');
-    r.check(kubectl('-n', 'velero', 'get', 'downloadrequests', '-o', 'name') === '', 'the DownloadRequest was removed from the cluster');
+      // The link is a credential: nowhere VFM keeps things.
+      const signature = new URL(link).searchParams.get('X-Amz-Signature');
+      const dump = sh(
+        'docker',
+        ['exec', 'vfm-e2e-pg', 'pg_dump', '-U', 'vfm', '-d', 'vfm', '--data-only'],
+        { maxBuffer: 512 * 1024 * 1024 },
+      );
+      r.check(!dump.includes(signature), 'the signature is not in the database (full data dump)');
+      r.check(!cpLogs().includes(signature), 'the signature is not in the control plane logs');
+      r.check(!agentLogs().includes(signature), 'the signature is not in the agent logs');
+      const cm = kubectlTry('-n', 'vfm-system', 'get', 'configmaps', '-o', 'json') ?? '';
+      r.check(
+        !cm.includes(signature),
+        'the signature is not in any ConfigMap of the cluster (the agent cache is persisted there)',
+      );
+      const audit = JSON.stringify(
+        (await ctx.api.call('GET', `/orgs/${ctx.org}/audit?limit=100`)).json,
+      );
+      r.check(
+        audit.includes('backup.download-link') && !audit.includes(signature),
+        'the audit log records who asked, not the link',
+      );
+      r.check(
+        kubectl('-n', 'velero', 'get', 'downloadrequests', '-o', 'name') === '',
+        'the DownloadRequest was removed from the cluster',
+      );
 
-    // The link works from where the object storage is reachable (inside the cluster here), and is the backup's data.
-    const probe = kubectlTry('-n', 'default', 'run', `dl-${RUN}`, '--rm', '-i', '--restart=Never', '--image=curlimages/curl:8.10.1', '--command', '--', 'curl', '-sS', '-o', '/dev/null', '-w', '\n%{http_code} %{size_download}\n', link);
-    if (probe === undefined) {
-      r.ok('(the link could not be fetched: the probe image was unavailable; the link shape was checked above)');
-    } else {
-      const m = probe.match(/^(\d{3}) (\d+)$/m);
-      r.check(m !== null && m[1] === '200' && Number(m[2]) > 0, `fetched from inside the cluster it returns the backup (${m?.[1]}, ${m?.[2]} bytes)`, probe.slice(0, 200));
-    }
-    await ctx.api.call('PATCH', orgUrl, { allowBackupContentDownload: false }, 200);
-  });
+      // The link works from where the object storage is reachable (inside the cluster here), and is the backup's data.
+      const probe = kubectlTry(
+        '-n',
+        'default',
+        'run',
+        `dl-${RUN}`,
+        '--rm',
+        '-i',
+        '--restart=Never',
+        '--image=curlimages/curl:8.10.1',
+        '--command',
+        '--',
+        'curl',
+        '-sS',
+        '-o',
+        '/dev/null',
+        '-w',
+        '\n%{http_code} %{size_download}\n',
+        link,
+      );
+      if (probe === undefined) {
+        r.ok(
+          '(the link could not be fetched: the probe image was unavailable; the link shape was checked above)',
+        );
+      } else {
+        const m = probe.match(/^(\d{3}) (\d+)$/m);
+        r.check(
+          m !== null && m[1] === '200' && Number(m[2]) > 0,
+          `fetched from inside the cluster it returns the backup (${m?.[1]}, ${m?.[2]} bytes)`,
+          probe.slice(0, 200),
+        );
+      }
+      await ctx.api.call('PATCH', orgUrl, { allowBackupContentDownload: false }, 200);
+    },
+  );
 }
 
 // GP11 ----------------------------------------------------------------------------------------------------------------

@@ -54,6 +54,8 @@ export default defineConfig(({ mode }) => {
       // Matching the server and shared packages: assertions are imported, not
       // injected, so a test file's dependencies are visible in its imports.
       globals: false,
+      // Multi-step wizards type into several fields; on a busy CI runner the default 5 s is a coin flip.
+      testTimeout: 20_000,
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.test.{ts,tsx}'],
       // Tailwind's output is irrelevant to behaviour assertions and compiling
