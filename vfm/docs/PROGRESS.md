@@ -9,6 +9,11 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-22 — SOW gap closure
+
+SOW FR coverage: FR-01, 04–09, 11–14, 16, 17 already built; this session added FR-02 (cluster metadata), FR-10 (browser-side restore risk list), FR-15 (PDF), FR-19 (config export), FR-20 (compatibility), LDAP and the SOW role names (ADR-052, ADR-053).
+FR-03 is met by the agent model. **Deferred:** FR-18 ClamAV hook, CRD/StorageClass preflight, cross-cluster restore, config import, cluster list column/filter for the new metadata. Typecheck and lint pass; no tests were written or run this session (requested).
+
 ## 2026-10-21 — M7 gaps closed, M8 packaging, real-Velero golden paths
 
 Resumed from `29a8d2c` and carried on to the end of the plan's build scope. Owner instruction: finish everything that does not need a

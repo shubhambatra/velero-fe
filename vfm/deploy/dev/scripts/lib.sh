@@ -36,6 +36,8 @@ VFM_DEV_COMPOSE_PROJECT="vfm-dev"
 # trade is that the second cluster, and so any test that needs two, is not there.
 if [[ "${VFM_DEV_SOLO:-0}" == 1 ]]; then
   VFM_DEV_CLUSTERS=(vfm-a)
+  # VFM_DEV_SOLO_B=1 adds a second single-node cluster (vfm-b) for multi-cluster work, if the host has the memory.
+  [[ "${VFM_DEV_SOLO_B:-0}" == 1 ]] && VFM_DEV_CLUSTERS+=(vfm-b)
 else
   VFM_DEV_CLUSTERS=(vfm-a vfm-b)
 fi

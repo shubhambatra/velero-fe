@@ -7,6 +7,7 @@ permission model is in [`RBAC.md`](./RBAC.md).
 
 The first visitor of a new installation sees **Setup** and creates the platform administrator. Everyone else is invited by e-mail
 (or by a link an Admin copies, when the installation has no mail server) or signs in through the organization's single sign-on.
+If the installation has LDAP configured, an existing user can also sign in with their directory password.
 Two-factor sign-in (TOTP) is required when the organization says so. Actions that delete or change credentials ask for your password
 again ("sudo mode", a few minutes) and are refused to API tokens.
 
@@ -46,7 +47,7 @@ link that expires within minutes and points straight at the object storage. VFM 
 
 _Restore_ on a backup opens the wizard: pick what to restore, map namespaces (`demo → demo-restored`), and whether to include cluster-scoped resources
 (CRDs, ClusterRoleBindings, volumes). Where the cluster forbids that (agent policy), the option is off and says why. If your organization requires approval, the restore is
-held until someone else with the right approves it. Restoring needs a typed confirmation and sudo.
+held until someone else with the right approves it. The last step lists risks the browser can name (Kubernetes version drift since the backup, overwrite with "update", cluster-scoped resources, persistent volumes needing the same storage classes) and asks you to tick that you understand them. Missing CRDs and storage classes on the target are not checked automatically. Restoring needs a typed confirmation and sudo.
 
 ## Schedules
 
@@ -64,7 +65,13 @@ signed webhook, Slack webhook) and resolve by themselves. A cluster's **Activity
 
 ## Reports
 
-**Reports**: backup success rate, last-good-backup age (RPO) per cluster and namespace, and which namespaces have no recent backup. A report is a shared summary up to 30 s old.
+**Reports**: backup success rate, last-good-backup age (RPO) per cluster and namespace, and which namespaces have no recent backup. A report is a shared summary up to 30 s old. Each report downloads as CSV or PDF.
+
+## Cluster details and compatibility
+
+Cluster **Settings** hold the environment type (production, staging, development, dr, other), an informational API endpoint, an owner, and labels. The cluster header
+warns when its Velero version is newer than the tested one and, when it is older than the tested window (`1.16` or newer), commands are refused until Velero is upgraded.
+The built-in roles are shown as Read-only Auditor (Viewer), Backup Operator, Restore Operator and Platform Administrator (Cluster Admin).
 
 ## Settings (Owner/Admin)
 

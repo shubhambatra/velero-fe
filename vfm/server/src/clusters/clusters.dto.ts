@@ -1,3 +1,4 @@
+import { ENVIRONMENT_TYPES } from '@vfm/shared';
 import { z } from 'zod';
 
 const labelKey = z
@@ -13,8 +14,20 @@ export const clusterNameSchema = z
   .max(63)
   .regex(/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/, 'letters, digits, space, dot, underscore and dash only');
 
+const metadata = {
+  environmentType: z.enum(ENVIRONMENT_TYPES).optional(),
+  // Informational only: the control plane never dials this address (agent model, ADR-001).
+  apiEndpoint: z
+    .url({ protocol: /^https?$/ })
+    .max(2000)
+    .nullable()
+    .optional(),
+  owner: z.string().trim().max(255).nullable().optional(),
+};
+
 export const createClusterSchema = z.object({
   name: clusterNameSchema,
+  ...metadata,
   labels: z
     .record(labelKey, z.string().max(255))
     .refine((l) => Object.keys(l).length <= 50)
@@ -24,6 +37,7 @@ export const createClusterSchema = z.object({
 export const updateClusterSchema = z
   .object({
     name: clusterNameSchema.optional(),
+    ...metadata,
     labels: z
       .record(labelKey, z.string().max(255))
       .refine((l) => Object.keys(l).length <= 50)

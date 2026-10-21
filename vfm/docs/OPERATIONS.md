@@ -135,6 +135,13 @@ The authoritative list is `server/src/config/env.schema.ts`; a bad value stops t
   created on first sign-in (JIT) and their team membership follows the claim.
 - **Roles**: see `RBAC.md`. Organization Owners/Admins administer everything in their organization.
 
+### LDAP sign-in (optional)
+
+Set `LDAP_URL` (`ldaps://…`, or `ldap://…` with `LDAP_START_TLS=true`, the default), `LDAP_SEARCH_BASE`, and optionally `LDAP_BIND_DN` /
+`LDAP_BIND_PASSWORD` (a read-only service account) and `LDAP_USER_FILTER` (default `(mail={email})`). When a local password does not match,
+the server finds the entry by e-mail and binds as it. LDAP never creates accounts: the person must already exist (invitation or admin
+creation), keeps their role bindings and MFA rules, and the same throttling applies. A filter matching zero or several entries refuses the sign-in.
+
 ## 5. Install an agent
 
 In the UI: _Clusters -> Add cluster_. It creates the cluster record and prints the exact command (a Helm install carrying the
@@ -221,6 +228,13 @@ sessions and counters only; losing it signs everyone out and nothing more.
   database and is included.
 - **Practise it.** An untested backup is a hope. Restore into a scratch namespace before you need to.
 
+### Configuration export (SOW FR-19)
+
+**Administration → Audit → Export configuration** (or `GET /api/v1/orgs/{orgId}/config-export`, Owner/Admin, audited as `config.export`) downloads
+one JSON file: organization settings, members and roles, teams, cluster metadata (name, environment type, API endpoint, owner, labels), role bindings,
+alert rules and the names of notification channels. It contains **no** password hashes, MFA secrets, tokens, certificates or channel settings.
+It is a record for audit and rebuild, not a restore format: the way back is the database restore above, and a lost cluster re-enrols its agent.
+
 ## 8. Rotation
 
 ### 8.1 `VFM_MASTER_KEY`
@@ -298,6 +312,9 @@ when `NODE_ENV=production`, and a second run changes nothing.
 **Real-Velero development stack.** `vfm/e2e/stack.sh up` starts Postgres, Redis and the control plane as containers on the kind network;
 `VFM_DEV_SOLO=1 make dev-up` builds one single-node kind cluster with Velero v1.18.4 and MinIO (no inotify change needed);
 `vfm/e2e/load-agent.sh` builds the agent image under a unique tag and installs it (an image tag reused in kind is not re-pulled);
+`node vfm/e2e/sim-clusters.mjs` enrols four SIMULATED clusters (`sim-*`, with labels) beside the real one so the multi-cluster UI has a fleet
+to show (run the printed `loadtest` command to bring them online; they have generated data and no Velero behind them). A second REAL kind cluster
+(`VFM_DEV_SOLO=1 VFM_DEV_SOLO_B=1 deploy/dev/scripts/dev-up.sh --cluster vfm-b`) needs more inotify instances than the default 128 when other kind clusters exist.
 `node vfm/e2e/golden.mjs [--only gp5]` runs the golden paths against all of it, after `vfm/e2e/reset-workloads.sh`.
 
 ## 11. Troubleshooting

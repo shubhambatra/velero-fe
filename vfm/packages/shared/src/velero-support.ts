@@ -62,3 +62,36 @@ export function isSupportedVeleroVersion(version: string): boolean {
   }
   return (SUPPORTED_VELERO_MINORS as readonly string[]).includes(minor);
 }
+
+/**
+ * How this UI build relates to a cluster's Velero server (SOW FR-20).
+ *
+ * - `supported`: inside the tested window.
+ * - `warn`: newer than the pinned primary; untested, commands still run.
+ * - `blocked`: older than the window, or a version we cannot read; commands are refused.
+ * - `unknown`: the agent has not reported a version yet.
+ */
+export type VeleroCompatibility = 'supported' | 'warn' | 'blocked' | 'unknown';
+
+export function veleroCompatibility(version: string | null): VeleroCompatibility {
+  if (version === null || version === '') {
+    return 'unknown';
+  }
+  const minor = veleroMinorOf(version);
+  if (minor === null) {
+    return 'blocked';
+  }
+  if (isSupportedVeleroVersion(version)) {
+    return 'supported';
+  }
+  const [maj = 0, min = 0] = minor.split('.').map(Number);
+  const [pMaj = 0, pMin = 0] = (veleroMinorOf(VELERO_PRIMARY) ?? '0.0').split('.').map(Number);
+  return maj > pMaj || (maj === pMaj && min > pMin) ? 'warn' : 'blocked';
+}
+
+/** The declared matrix, for display: the UI build and the Velero minors it is tested with. */
+export const VELERO_COMPATIBILITY_MATRIX = {
+  tested: SUPPORTED_VELERO_MINORS,
+  primary: VELERO_PRIMARY,
+  oldest: VELERO_OLDEST_SUPPORTED,
+} as const;

@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import type { Command as CommandRow, Prisma } from '@prisma/client';
 
+import { VELERO_OLDEST_SUPPORTED, veleroCompatibility } from '@vfm/shared';
 import { newId } from '../common/uuid';
 import { DownloadAssembler } from '../downloads/download-assembler';
 import { DownloadCache } from '../downloads/download-cache.service';
@@ -198,13 +199,21 @@ export class CommandsService implements OnApplicationBootstrap, OnApplicationShu
     options: { pendingApproval?: boolean } = {},
   ): Promise<CommandView> {
     const cluster = await this.prisma.inOrg(orgId, () =>
-      this.prisma.cluster.findUnique({ where: { id: clusterId }, select: { status: true } }),
+      this.prisma.cluster.findUnique({
+        where: { id: clusterId },
+        select: { status: true, veleroVersion: true },
+      }),
     );
     if (cluster === null) {
       throw new NotFoundException('cluster not found');
     }
     if (cluster.status === 'DISABLED') {
       throw new ConflictException('the cluster is disabled');
+    }
+    if (veleroCompatibility(cluster.veleroVersion) === 'blocked') {
+      throw new ConflictException(
+        `Velero ${cluster.veleroVersion ?? ''} is outside the tested window (${VELERO_OLDEST_SUPPORTED} or newer); upgrade Velero on the cluster`,
+      );
     }
 
     const unfinished = await this.prisma.inOrg(orgId, () =>

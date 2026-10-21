@@ -15,6 +15,7 @@ import type { ClusterScoped, Tri } from '@/lib/backup-form';
 import { api, errorMessage } from '@/lib/client';
 import { cn } from '@/lib/cn';
 import type { ClusterOverview } from '@/lib/fleet';
+import { backupK8sVersionOf, safeguardWarnings } from '@/lib/restore-safeguards';
 import {
   emptyRestoreForm,
   impactRows,
@@ -201,6 +202,26 @@ export function RestoreWizardPage({
   const check = useNamespaceCheck(orgId, clusterId, targetNames, step === 3);
   const rows = impactRows(form, check.report);
   const blocked = rows?.some((r) => r.effect === 'blocked') === true;
+
+  // Source Kubernetes version, read from the chosen backup's manifest (best effort).
+  const backupDetail = useQuery({
+    enabled: step === 3 && form.sourceKind === 'backup' && form.source.trim() !== '',
+    queryKey: ['org', orgId, 'cluster', clusterId, 'restore-source', form.source.trim()],
+    queryFn: ({ signal }) =>
+      api<{ yaml: string }>(
+        `/orgs/${orgId}/clusters/${clusterId}/backups/${encodeURIComponent(form.source.trim())}`,
+        { signal },
+      ),
+  });
+  const warnings = safeguardWarnings(form, {
+    backupK8sVersion: backupK8sVersionOf(backupDetail.data?.yaml),
+    clusterK8sVersion: overview.data?.cluster.k8sVersion ?? null,
+    ...(overview.data?.cluster.veleroCompatibility === undefined
+      ? {}
+      : { veleroCompatibility: overview.data.cluster.veleroCompatibility }),
+  });
+  const [acknowledged, setAcknowledged] = useState(false);
+  const needsAck = warnings.length > 0 && !acknowledged;
 
   const { follow } = useToasts();
   const approval = useApprovalPolicy(orgId, clusterId);
@@ -604,6 +625,28 @@ export function RestoreWizardPage({
                       )}
                     </section>
 
+                    {warnings.length > 0 && (
+                      <section aria-label="Risks" className="flex flex-col gap-2">
+                        <h3 className="text-sm font-semibold">Check before you restore</h3>
+                        <ul className="list-disc pl-5 text-sm">
+                          {warnings.map((w) => (
+                            <li key={w}>{w}</li>
+                          ))}
+                        </ul>
+                        <label className="flex items-center gap-2 text-sm font-medium">
+                          <input
+                            type="checkbox"
+                            checked={acknowledged}
+                            onChange={(e) => {
+                              setAcknowledged(e.target.checked);
+                            }}
+                          />
+                          I understand these risks and want to restore into{' '}
+                          {overview.data?.cluster.name ?? 'this cluster'}.
+                        </label>
+                      </section>
+                    )}
+
                     <pre
                       aria-label="Request"
                       className="max-h-72 overflow-auto rounded-md border border-control bg-background p-3 text-xs"
@@ -648,7 +691,7 @@ export function RestoreWizardPage({
                     <Button
                       variant="primary"
                       onClick={submit}
-                      disabled={create.isPending || blocked}
+                      disabled={create.isPending || blocked || needsAck}
                     >
                       {create.isPending
                         ? 'Starting…'

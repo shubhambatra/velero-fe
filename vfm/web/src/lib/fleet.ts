@@ -19,6 +19,10 @@ export interface ClusterRow {
   /** Absent in older responses and fixtures. */
   labels?: Record<string, string>;
   grafanaUrlTemplate?: string | null;
+  veleroCompatibility?: 'supported' | 'warn' | 'blocked' | 'unknown';
+  environmentType?: string;
+  apiEndpoint?: string | null;
+  owner?: string | null;
 }
 
 export interface AgentPolicy {

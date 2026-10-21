@@ -4,6 +4,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { z } from 'zod';
 
+import PDFDocument from 'pdfkit';
+
 import { csvRow } from '../audit/csv';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
@@ -15,7 +17,7 @@ import { window, ReportsService } from './reports.service';
 
 const common = {
   clusterId: z.uuid().optional(),
-  format: z.enum(['json', 'csv']).default('json'),
+  format: z.enum(['json', 'csv', 'pdf']).default('json'),
 };
 const instant = z.coerce.date().optional();
 
@@ -34,6 +36,38 @@ const rpoQuery = z
     targetHours: z.coerce.number().min(0.1).max(8_760).optional(),
   })
   .strict();
+
+/** A plain table: title, generation time, then one line per row, wrapped to the page width. */
+function renderPdf(out: Response, title: string, header: string[], rows: unknown[][]): void {
+  const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 36 });
+  doc.pipe(out);
+  doc.fontSize(14).text(`Velero Fleet Manager: ${title}`);
+  doc.fontSize(8).fillColor('#555').text(`Generated ${new Date().toISOString()}`).moveDown();
+  doc.fillColor('#000');
+  const width = (doc.page.width - 72) / header.length;
+  const line = (cells: unknown[], bold: boolean): void => {
+    const y = doc.y;
+    doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8);
+    let height = 0;
+    cells.forEach((cell, i) => {
+      const text =
+        typeof cell === 'string' || typeof cell === 'number' || typeof cell === 'boolean'
+          ? String(cell)
+          : '';
+      doc.text(text, 36 + i * width, y, { width: width - 4 });
+      height = Math.max(height, doc.y - y);
+    });
+    doc.y = y + height + 3;
+    if (doc.y > doc.page.height - 60) {
+      doc.addPage();
+    }
+  };
+  line(header, true);
+  for (const row of rows) {
+    line(row, false);
+  }
+  doc.end();
+}
 
 const pct = (v: number | null): string =>
   v === null ? '' : (Math.round(v * 10_000) / 100).toString();
@@ -54,7 +88,8 @@ export class ReportsController {
     private readonly audit: AuditService,
   ) {}
 
-  private csv(
+  private tabular(
+    format: 'csv' | 'pdf',
     response: Response,
     user: AuthenticatedUser,
     orgId: string,
@@ -63,10 +98,16 @@ export class ReportsController {
     rows: unknown[][],
   ): void {
     response.status(200);
-    response.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    response.setHeader('Content-Disposition', `attachment; filename="${name}.csv"`);
-    response.send(csvRow(header) + rows.map((r) => csvRow(r)).join(''));
-    // A spreadsheet leaves the system; it is worth a row of its own.
+    if (format === 'pdf') {
+      response.setHeader('Content-Type', 'application/pdf');
+      response.setHeader('Content-Disposition', `attachment; filename="${name}.pdf"`);
+      renderPdf(response, name, header, rows);
+    } else {
+      response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      response.setHeader('Content-Disposition', `attachment; filename="${name}.csv"`);
+      response.send(csvRow(header) + rows.map((r) => csvRow(r)).join(''));
+    }
+    // An export leaves the system; it is worth a row of its own.
     this.audit.record({
       orgId,
       actorType: 'USER',
@@ -101,7 +142,8 @@ export class ReportsController {
       response.json(result);
       return;
     }
-    this.csv(
+    this.tabular(
+      q.format,
       response,
       user,
       orgId,
@@ -149,7 +191,8 @@ export class ReportsController {
       response.json(result);
       return;
     }
-    this.csv(
+    this.tabular(
+      q.format,
       response,
       user,
       orgId,
@@ -194,7 +237,8 @@ export class ReportsController {
       response.json(result);
       return;
     }
-    this.csv(
+    this.tabular(
+      q.format,
       response,
       user,
       orgId,

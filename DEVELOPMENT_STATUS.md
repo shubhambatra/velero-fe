@@ -8,6 +8,8 @@
 > only source of requirements. **If this file disagrees with the code, the tests
 > or git history, the repository wins** — correct this file, not the code.
 
+> **2026-10-22 SOW gap closure** (not counted in the 152-row inventory, which tracks `VELERO_FLEET_PLAN.md`): cluster metadata, compatibility check, restore risk list, PDF reports, config export, LDAP and SOW role names were added without tests; see `vfm/docs/PROGRESS.md` and ADR-052/053.
+
 ---
 
 ## 1. How progress is calculated

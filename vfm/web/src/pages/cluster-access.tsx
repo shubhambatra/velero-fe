@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CLUSTER_ROLES, BUILT_IN_ROLES } from '@vfm/shared';
+import { CLUSTER_ROLES, CLUSTER_ROLE_LABELS, BUILT_IN_ROLES } from '@vfm/shared';
 import { useState, type ReactElement, type SyntheticEvent } from 'react';
 
 import { ClusterShell } from '@/components/cluster-shell';
@@ -21,12 +21,7 @@ interface Binding {
   createdAt: string;
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  VIEWER: 'Viewer',
-  OPERATOR: 'Operator',
-  RESTORER: 'Restorer',
-  CLUSTER_ADMIN: 'Cluster Admin',
-};
+const ROLE_LABEL: Record<string, string> = CLUSTER_ROLE_LABELS;
 
 const scopeText = (s: Binding['scope']): string =>
   s.type === 'CLUSTER'

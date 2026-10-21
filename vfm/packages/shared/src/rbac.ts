@@ -40,6 +40,14 @@ export type Permission = (typeof PERMISSIONS)[number];
 export const CLUSTER_ROLES = ['VIEWER', 'OPERATOR', 'RESTORER', 'CLUSTER_ADMIN'] as const;
 export type ClusterRole = (typeof CLUSTER_ROLES)[number];
 
+/** Role names used by the SOW (HLRD §7); the enum values stay stable for stored bindings. */
+export const CLUSTER_ROLE_LABELS: Readonly<Record<ClusterRole, string>> = {
+  VIEWER: 'Read-only Auditor',
+  OPERATOR: 'Backup Operator',
+  RESTORER: 'Restore Operator',
+  CLUSTER_ADMIN: 'Platform Administrator',
+};
+
 const VIEWER: readonly Permission[] = [
   'cluster:read',
   'backup:read',
@@ -485,3 +493,6 @@ export function visibleNamespaces(
       ).allowed,
   );
 }
+
+/** Cluster environment types offered in the inventory (SOW FR-02). */
+export const ENVIRONMENT_TYPES = ['production', 'staging', 'development', 'dr', 'other'] as const;

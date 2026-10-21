@@ -31,6 +31,7 @@ export const SECRET_ENV_KEYS = [
   'VFM_MASTER_KEY',
   'VFM_MASTER_KEY_PREVIOUS',
   'SMTP_PASSWORD',
+  'LDAP_BIND_PASSWORD',
 ] as const;
 
 export const envSchema = z
@@ -158,6 +159,25 @@ export const envSchema = z
       .transform((value) => value === 'true'),
     SMTP_USER: z.string().min(1).optional(),
     SMTP_PASSWORD: z.string().min(1).optional(),
+    /**
+     * Optional LDAP sign-in (SOW §5). Checked only after a local password fails, and only for
+     * a user who already exists here (invited or created), so the directory never creates
+     * accounts. The URL must be `ldaps://` unless `LDAP_START_TLS` is on: a bind sends the
+     * password, and it is never sent in the clear.
+     */
+    LDAP_URL: z
+      .string()
+      .regex(/^ldaps?:\/\//)
+      .optional(),
+    LDAP_START_TLS: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    LDAP_BIND_DN: z.string().min(1).optional(),
+    LDAP_BIND_PASSWORD: z.string().min(1).optional(),
+    LDAP_SEARCH_BASE: z.string().min(1).optional(),
+    /** `{email}` is replaced by the escaped address. */
+    LDAP_USER_FILTER: z.string().min(3).default('(mail={email})'),
     MAIL_FROM: z.string().min(3).default('Velero Fleet Manager <no-reply@localhost>'),
 
     /**

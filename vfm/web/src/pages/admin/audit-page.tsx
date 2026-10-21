@@ -146,6 +146,13 @@ export function AuditPage({ orgId }: { orgId: string }): ReactElement {
             >
               Export CSV
             </a>
+            {/* Organization configuration without secrets (SOW FR-19). */}
+            <a
+              className={buttonVariants({ variant: 'outline' })}
+              href={`${API_BASE_URL}/orgs/${orgId}/config-export`}
+            >
+              Export configuration
+            </a>
           </form>
         </CardContent>
       </Card>

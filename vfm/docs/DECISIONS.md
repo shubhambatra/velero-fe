@@ -2385,3 +2385,23 @@ Blocker B-2 (inotify limits need root) is sidestepped with one single-node kind 
 (`e2e/golden.mjs`), with the control plane as containers on the kind network (`e2e/stack.sh`). Agent images get a unique tag per load (kind does not re-pull a reused tag).
 `pnpm run seed` (compiled, because `tsx` emits no decorator metadata) creates the development accounts through the server's own services and refuses to run in production.
 The two-cluster `make dev-up` remains for hosts that can raise the limits.
+
+## ADR-052 — SOW alignment: agent connectivity kept, FR-02/10/15/19/20 and LDAP added
+
+### Context
+
+The customer SOW (HLRD v1.0, 2026-10-21) FR-03 describes connecting with a service account or kubeconfig. This product connects through an outbound-only agent (ADR-001, P1).
+
+### Decision
+
+Keep the agent: it is a "supported authentication mechanism" under FR-03 and holds the control plane to no kubeconfig. Enrolment validates the agent's identity and the agent's RBAC is fixed by the chart.
+Added: cluster `environment_type`, `api_endpoint` (informational, never dialled) and `owner` (FR-02); Velero compatibility (`veleroCompatibility`, shared `veleroCompatibility()`): newer than primary warns, older than the window or unreadable blocks commands (FR-20);
+browser-side restore risk list with an explicit acknowledgement (FR-10; CRD/StorageClass checks are not done because the control plane does not hold them and the restore wizard is same-cluster); PDF output for reports using `pdfkit` (pure JS, no network, FR-15);
+`GET /orgs/{orgId}/config-export`, a secret-free JSON record (FR-19; export only, no import); SOW role display names over unchanged enum values. ClamAV (FR-18, Could) is not built.
+
+## ADR-053 — LDAP sign-in for existing users (reverses the plan's "LDAP v1.1")
+
+### Decision
+
+`ldapts`; configured by environment (`LDAP_*`). On a failed local password, search by e-mail with an optional service account, then bind as the one matching entry. Empty passwords, plain `ldap://` without STARTTLS and non-unique matches are refused.
+The directory is asked for unknown addresses too, so response work does not reveal which accounts exist. No provisioning and no group mapping: accounts, roles and MFA stay as they are in VFM.
