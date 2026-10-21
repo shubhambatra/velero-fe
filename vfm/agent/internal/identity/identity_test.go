@@ -254,7 +254,8 @@ func TestTheTokenDigestSurvivesTheSecretAndLeavesNoTokenBehind(t *testing.T) {
 			t.Errorf("the token itself is in the Secret under %q; only its digest may be", k)
 		}
 	}
-	if TokenDigest("a") == TokenDigest("b") || TokenDigest("a") != TokenDigest("a") {
+	first := TokenDigest("a")
+	if first == TokenDigest("b") || first != TokenDigest("a") {
 		t.Error("the digest is not a stable function of the token")
 	}
 }

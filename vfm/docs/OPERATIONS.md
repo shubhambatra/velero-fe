@@ -100,27 +100,29 @@ objects / 20 000 pods were **not** measured.
 
 The chart sets these; set them directly if you deploy without the chart. Anything secret comes from a Secret, never a file.
 
-| Variable                                                                           | Default             | Meaning                                                                                                             |
-| ---------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL` (secret)                                                            | required            | PostgreSQL connection string                                                                                        |
-| `REDIS_URL` (secret)                                                               | required            | Redis/Valkey; a password is required when `NODE_ENV=production`                                                     |
-| `VFM_MASTER_KEY` (secret)                                                          | required            | 32 random bytes, base64                                                                                             |
-| `VFM_MASTER_KEY_PREVIOUS`                                                          | -                   | comma-separated retired keys, kept while rotating                                                                   |
-| `PUBLIC_URL`, `API_PUBLIC_URL`                                                     | localhost           | where users reach the UI / the API (links in email, the OIDC redirect URI)                                          |
-| `PORT`, `METRICS_PORT`, `HOST`                                                     | 3000, 9090, 0.0.0.0 | listeners. Metrics are never on the public Service                                                                  |
-| `GATEWAY_ENABLED`, `GATEWAY_PORT`                                                  | true, 8443          | the agent gateway                                                                                                   |
-| `GATEWAY_PUBLIC_ADDRESS`, `GATEWAY_HOSTNAMES`                                      | localhost           | what agents dial, and the names in the gateway certificate                                                          |
-| `TRUST_PROXY`                                                                      | false               | how many proxies sit in front (a number, `true`, or a subnet); required for correct per-address rate limits         |
-| `DATABASE_POOL_MAX`                                                                | 30                  | connections per replica                                                                                             |
-| `AGENT_MESSAGES_PER_SECOND`, `AGENT_MESSAGE_BURST`                                 | 100, 1000           | per agent stream; over it the stream is closed and the agent reconnects (G-10)                                      |
-| `GATEWAY_ENROLL_PER_MINUTE`, `GATEWAY_ENROLL_MAX_INFLIGHT`                         | 30, 16              | `Enroll` limits per source address and per replica (G-11); raise the first for a large first rollout behind one NAT |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | unset               | email (invitations, lockout and approval notices). Unset: invitations are refused with 503                          |
-| `ALERT_EVAL_INTERVAL_SECONDS`                                                      | 30                  | alert evaluation; 0 turns it off                                                                                    |
-| `ALERT_WEBHOOK_ALLOW_PRIVATE`, `OIDC_ALLOW_PRIVATE`                                | false               | allow private-network webhook / identity-provider addresses (on-prem receivers)                                     |
-| `DOWNLOAD_CACHE_TTL_DAYS`                                                          | 7                   | how long fetched backup logs/results are cached                                                                     |
-| `LOG_SESSIONS_PER_USER`, `RESTORE_APPROVAL_TTL_HOURS`                              | see schema          | live-log and approval limits                                                                                        |
-| `OTEL_ENABLED`                                                                     | false               | tracing hook; needs `@opentelemetry/sdk-node` installed in the image                                                |
-| `WEB_DIST_DIR`                                                                     | set in the image    | directory of the built UI; unset serves the API only                                                                |
+| Variable                                                                           | Default             | Meaning                                                                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL` (secret)                                                            | required            | PostgreSQL connection string                                                                                                                                                                                                           |
+| `REDIS_URL` (secret)                                                               | required            | Redis/Valkey; a password is required when `NODE_ENV=production`                                                                                                                                                                        |
+| `VFM_MASTER_KEY` (secret)                                                          | required            | 32 random bytes, base64                                                                                                                                                                                                                |
+| `VFM_MASTER_KEY_PREVIOUS`                                                          | -                   | comma-separated retired keys, kept while rotating                                                                                                                                                                                      |
+| `PUBLIC_URL`, `API_PUBLIC_URL`                                                     | localhost           | where users reach the UI / the API (links in email, the OIDC redirect URI)                                                                                                                                                             |
+| `PORT`, `METRICS_PORT`, `HOST`                                                     | 3000, 9090, 0.0.0.0 | listeners. Metrics are never on the public Service                                                                                                                                                                                     |
+| `GATEWAY_ENABLED`, `GATEWAY_PORT`                                                  | true, 8443          | the agent gateway                                                                                                                                                                                                                      |
+| `GATEWAY_PUBLIC_ADDRESS`, `GATEWAY_HOSTNAMES`                                      | localhost           | what agents dial, and the names in the gateway certificate                                                                                                                                                                             |
+| `TRUST_PROXY`                                                                      | false               | how many proxies sit in front (a number, `true`, or a subnet); required for correct per-address rate limits                                                                                                                            |
+| `DATABASE_POOL_MAX`                                                                | 30                  | connections per replica                                                                                                                                                                                                                |
+| `AGENT_MESSAGES_PER_SECOND`, `AGENT_MESSAGE_BURST`                                 | 100, 1000           | per agent stream; over it the stream is closed and the agent reconnects (G-10)                                                                                                                                                         |
+| `GATEWAY_ENROLL_PER_MINUTE`, `GATEWAY_ENROLL_MAX_INFLIGHT`                         | 30, 16              | `Enroll` limits per source address and per replica (G-11); raise the first for a large first rollout behind one NAT                                                                                                                    |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | unset               | email (invitations, lockout and approval notices). Unset: invitations are refused with 503                                                                                                                                             |
+| `ALERT_EVAL_INTERVAL_SECONDS`                                                      | 30                  | alert evaluation; 0 turns it off                                                                                                                                                                                                       |
+| `ALERT_WEBHOOK_ALLOW_PRIVATE`, `OIDC_ALLOW_PRIVATE`                                | false               | allow private-network webhook / identity-provider addresses (on-prem receivers)                                                                                                                                                        |
+| `DOWNLOAD_CACHE_TTL_DAYS`                                                          | 7                   | how long fetched backup logs/results are cached                                                                                                                                                                                        |
+| `LOG_SESSIONS_PER_USER`, `RESTORE_APPROVAL_TTL_HOURS`                              | see schema          | live-log and approval limits                                                                                                                                                                                                           |
+| `OTEL_ENABLED`                                                                     | false               | tracing hook; needs `@opentelemetry/sdk-node` installed in the image                                                                                                                                                                   |
+| `RETENTION_INTERVAL_HOURS`, `RETENTION_AUDIT`                                      | 24, true            | the daily purge of events (1 h), finished commands (180 d), expired cached files and soft-deleted objects; audit events by each organization's own setting (default 400 d). One replica runs it per interval; `0` turns it off (§ 10a) |
+| `AUDIT_EXPORT_DIR`                                                                 | unset               | where audit events are written (CSV) before deletion, for organizations that turn on export-before-delete. Unset: those organizations' events are not deleted                                                                          |
+| `WEB_DIST_DIR`                                                                     | set in the image    | directory of the built UI; unset serves the API only                                                                                                                                                                                   |
 
 The authoritative list is `server/src/config/env.schema.ts`; a bad value stops the process at start with the variable's name
 (never its value).
@@ -268,6 +270,35 @@ The product has never restored on a real non-kind cluster. Before you rely on it
   not been imported into a real Grafana or Prometheus**; run `promtool check rules` on first use.
 - Logs are JSON, one object per line, with an allowlist of fields (`OBSERVABILITY.md`). Secrets and query strings are never logged.
 - Health: `/healthz` (process only) and `/readyz` (PostgreSQL and Redis; 503 if either is down).
+
+## 10a. Retention, backup downloads, the dev seed and the dev cluster
+
+**Retention (R-101).** Events older than an hour, finished commands older than 180 days, expired cached log files and
+objects deleted in the cluster more than 7 days ago (backups: 400 days, so the 366-day reports still count them) are removed
+daily. Audit events follow each organization's _Settings → Security_ values (retention days, export before delete). The
+audit table is append-only: only the Postgres role `vfm_audit_retention` can delete from it. By default the application's login is
+a member, so the in-process job purges. To make the running application unable to erase its own trail, set
+`retention.audit=false` in the chart and run `node dist/retention.js` on a schedule (a CronJob) with a separate login that is a member.
+Without membership, nothing is deleted. To run it once by hand: `pnpm --filter @vfm/server run retention`.
+
+**Backup download (R-055).** Off by default. An organization Owner turns on _allow backup content download_; only a role that
+holds `backup:download` over every namespace of the backup (Cluster Admin) can then ask, with sudo. The agent asks Velero for a
+signed link to the object store and the control plane hands that one link to that one request (`Cache-Control: no-store`). It is
+never stored, logged or audited (only that a link was issued), and the backup data never passes through VFM. The link lasts about nine minutes (the agent asks for 9; the control plane refuses a link that lives longer than 30).
+A cluster where the agent's `readOnly` policy is on refuses it.
+
+**Cluster-scoped restores (G-4).** The agent chart value `policy.allowClusterScopedRestore` (default `true`). Set it `false` and
+every restore must carry `includeClusterResources: false`; Velero treats an unset value as true, so the agent refuses restores that leave it unset.
+
+**Seed (R-131), development only.** `pnpm --filter @vfm/server run build && pnpm --filter @vfm/server run seed` creates a platform
+administrator, two organizations (`acme`, `globex`), a user per built-in role (`owner@acme.dev`, `viewer@acme.dev`, …, one limited to
+the `demo` namespace) and one cluster per organization with a bootstrap token. All accounts share `SEED_PASSWORD`. It refuses to run
+when `NODE_ENV=production`, and a second run changes nothing.
+
+**Real-Velero development stack.** `vfm/e2e/stack.sh up` starts Postgres, Redis and the control plane as containers on the kind network;
+`VFM_DEV_SOLO=1 make dev-up` builds one single-node kind cluster with Velero v1.18.4 and MinIO (no inotify change needed);
+`vfm/e2e/load-agent.sh` builds the agent image under a unique tag and installs it (an image tag reused in kind is not re-pulled);
+`node vfm/e2e/golden.mjs [--only gp5]` runs the golden paths against all of it, after `vfm/e2e/reset-workloads.sh`.
 
 ## 11. Troubleshooting
 

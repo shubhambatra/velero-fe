@@ -15,16 +15,17 @@ here; where this README and the plan disagree, the plan wins.
 
 ## Layout
 
-| Path               | Contents                                                        |
-| ------------------ | --------------------------------------------------------------- |
-| `proto/`           | agent ↔ control-plane protocol — a contract (PLAN.md §0 rule 5) |
-| `agent/`           | Go agent that runs inside each managed cluster                  |
-| `server/`          | NestJS control plane: REST API, agent gateway, RBAC, audit      |
-| `web/`             | React 19 single-page application                                |
-| `packages/shared/` | types and constants shared by `server` and `web`                |
-| `deploy/dev/`      | local development environment (compose + kind clusters)         |
-| `deploy/helm/`     | Helm charts for the control plane and the agent                 |
-| `docs/`            | progress log, decision log, release checklist                   |
+| Path               | Contents                                                                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `proto/`           | agent ↔ control-plane protocol — a contract (PLAN.md §0 rule 5)                                                                                                                 |
+| `agent/`           | Go agent that runs inside each managed cluster                                                                                                                                  |
+| `server/`          | NestJS control plane: REST API, agent gateway, RBAC, audit                                                                                                                      |
+| `web/`             | React 19 single-page application                                                                                                                                                |
+| `packages/shared/` | types and constants shared by `server` and `web`                                                                                                                                |
+| `deploy/dev/`      | local development environment (compose + kind clusters)                                                                                                                         |
+| `deploy/helm/`     | Helm charts for the control plane and the agent                                                                                                                                 |
+| `docs/`            | progress log, decisions, threat model, load test, release checklist; operator and user guides (`OPERATIONS.md`, `AIRGAP.md`, `USER_GUIDE.md`), generated `API.md` and `RBAC.md` |
+| `e2e/`             | golden paths against a real kind cluster, Velero and MinIO                                                                                                                      |
 
 This tree sits under `vfm/` rather than at the repository root, which hosts an
 unrelated legacy application. See `docs/DECISIONS.md` ADR-003.
@@ -47,6 +48,10 @@ make smoke      # assert a Velero backup completes on both clusters
 make test       # unit tests, TypeScript and Go
 make lint       # eslint, prettier, golangci-lint, buf lint
 ```
+
+No root to raise the inotify limits for two kind clusters? `VFM_DEV_SOLO=1 make dev-up` builds one single-node cluster instead.
+Seed development accounts with `pnpm --filter @vfm/server run build && pnpm --filter @vfm/server run seed`, and run the
+real-Velero golden paths with `vfm/e2e/stack.sh up`, `vfm/e2e/load-agent.sh` and `node vfm/e2e/golden.mjs` (see `docs/OPERATIONS.md` § 10a).
 
 `make` with no target lists everything available. `make dev-down` tears the
 environment back down.

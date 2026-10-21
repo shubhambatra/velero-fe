@@ -1,6 +1,6 @@
 # Next steps
 
-**Updated:** 2026-10-18 (session 7, M7 day 40) · **Branch:** `vfm/m0-foundation`
+**Updated:** 2026-10-21 (all build scope done; see the note below) · **Branch:** `vfm/m0-foundation`
 
 For a new session or a new agent: this file is the continuation point.
 [`DEVELOPMENT_STATUS.md`](./DEVELOPMENT_STATUS.md) holds the requirement
@@ -8,6 +8,12 @@ inventory and progress. [`VELERO_FLEET_PLAN.md`](./VELERO_FLEET_PLAN.md) is the
 only source of requirements — these two files are recovery aids, nothing more.
 
 ---
+
+> **2026-10-21 — read this first.** Everything in the plan that does not need the owner is built and verified; the 13 golden paths pass on a
+> real kind cluster with Velero. What remains is in [`DECISIONS_FOR_OWNER.md`](./DECISIONS_FOR_OWNER.md) (sections A–C): the real-cluster restore
+> drill, pushing and required CI checks, product defaults, and the not-built items (envtest, Playwright, 5 k-pod footprint, oldest-Velero run).
+> The sections below this note were written on 2026-10-18 and describe earlier blockers (B-2 is sidestepped by `VFM_DEV_SOLO=1`); treat them as history.
+
 
 ## Start-of-session procedure
 

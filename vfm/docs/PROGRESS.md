@@ -9,6 +9,40 @@ rule 7 forbids reporting stubbed work as done.
 
 ---
 
+## 2026-10-21 — M7 gaps closed, M8 packaging, real-Velero golden paths
+
+Resumed from `29a8d2c` and carried on to the end of the plan's build scope. Owner instruction: finish everything that does not need a
+decision, list the decisions in one file (`DECISIONS_FOR_OWNER.md`), then test end to end.
+
+### Done
+
+- **Threat-model gaps** G-1, G-4, G-5, G-8, G-10, G-11, G-13 closed (ADR-046…048); G-3, G-6, G-15 annotated closed from day 37.
+- **Load targets**: report and coverage caching, serialise-once SSE, replica pool sizing; honest multi-run tables in `LOADTEST.md` (ADR-045).
+- **Packaging (M8)**: control-plane image, Helm chart with hardening test, air-gap bundle and `verify-airgap.sh`, upgrade rehearsal
+  `verify-upgrade.sh`, CI workflow (ADR-047).
+- **Retention** (R-101), **backup download by signed link** (R-055), **seed** (R-131), docs generated from code (`API.md`, `RBAC.md`), `USER_GUIDE.md`.
+- **Real end to end**: single-node kind + Velero v1.18.4 + MinIO + the real agent; `e2e/golden.mjs` runs 13 golden paths. It found a real
+  defect (an agent kept a revoked identity after its cluster was re-enabled; ADR-050).
+- Status re-audited against the repository: 101 / 152 verified (was recorded as 72).
+
+### Test status (2026-10-21)
+
+TS unit 132 + 1141 + 511 pass; server e2e 670 pass (1 skipped); `go vet`, `go test -count=1 ./...`, golangci-lint 0 issues; eslint + prettier clean;
+13/13 golden paths pass (GP13's probe was changed from `kubectl run --rm -i`, which loses output when the pod ends first, to wait-then-logs);
+`verify-airgap.sh` and `verify-upgrade.sh` pass; the served UI loads in Chrome with no console errors (sign-in page only, not driven further).
+Not run: Go race detector (no C compiler here; CI only), oldest-Velero matrix, a real non-kind cluster.
+
+### Deferred
+
+R-133 envtest, R-137 Playwright, R-120 at 5 k pods, R-118 at 50 k objects / 20 k pods, CA rotation overlap with `HelloAck` is per ADR-043;
+everything that needs the owner is in `DECISIONS_FOR_OWNER.md`.
+
+### Next
+
+Owner answers `DECISIONS_FOR_OWNER.md`; push the branch and watch CI (A5, A4); restore drill on a real cluster (A2, A3); release candidate and tag (day 44).
+
+---
+
 ## 2026-10-18 — M7 day 40: platform observability
 
 Session 7, continued. Resumed from `70d89d5` (CI green on all five jobs).

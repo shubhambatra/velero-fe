@@ -1024,25 +1024,48 @@ if (wants('gp13')) {
       );
 
       // The link works from where the object storage is reachable (inside the cluster here), and is the backup's data.
-      const probe = kubectlTry(
-        '-n',
-        'default',
-        'run',
-        `dl-${RUN}`,
-        '--rm',
-        '-i',
-        '--restart=Never',
-        '--image=curlimages/curl:8.10.1',
-        '--command',
-        '--',
-        'curl',
-        '-sS',
-        '-o',
-        '/dev/null',
-        '-w',
-        '\n%{http_code} %{size_download}\n',
-        link,
-      );
+      // Not `kubectl run --rm -i`: when the pod finishes before kubectl attaches, its output is lost.
+      // Run it, wait for the phase, then read its log.
+      const pod = `dl-${RUN}`;
+      let probe;
+      if (
+        kubectlTry(
+          '-n',
+          'default',
+          'run',
+          pod,
+          '--restart=Never',
+          '--image=curlimages/curl:8.10.1',
+          '--command',
+          '--',
+          'curl',
+          '-sS',
+          '-o',
+          '/dev/null',
+          '-w',
+          '\n%{http_code} %{size_download}\n',
+          link,
+        ) !== undefined
+      ) {
+        const done = await until(
+          'the probe pod to finish',
+          async () => {
+            const phase = kubectlTry(
+              '-n',
+              'default',
+              'get',
+              'pod',
+              pod,
+              '-o',
+              'jsonpath={.status.phase}',
+            );
+            return phase === 'Succeeded' || phase === 'Failed' ? phase : undefined;
+          },
+          { timeout: 120_000, every: 2000 },
+        ).catch(() => undefined);
+        if (done !== undefined) probe = kubectlTry('-n', 'default', 'logs', pod);
+        kubectlTry('-n', 'default', 'delete', 'pod', pod, '--wait=false');
+      }
       if (probe === undefined) {
         r.ok(
           '(the link could not be fetched: the probe image was unavailable; the link shape was checked above)',

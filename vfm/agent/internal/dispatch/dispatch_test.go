@@ -528,7 +528,7 @@ func TestACorruptStateConfigMapIsReportedAndLeavesTheCacheEmpty(t *testing.T) {
 func TestASignedURLNeverReachesTheCacheOrTheConfigMapItIsSavedTo(t *testing.T) {
 	// The cache is persisted to a ConfigMap in the customer's cluster every 30 seconds. A signed URL is a
 	// credential for a backup's data until it expires: it must be replayed as "succeeded", not as the link.
-	const secret = "https://store.example/backups/b/b.tar.gz?X-Amz-Signature=VERY-SECRET-SIGNATURE"
+	const secret = "https://store.example/backups/b/b.tar.gz?X-Amz-Signature=VERY-SECRET-SIGNATURE" //nolint:gosec // a test fixture, not a credential
 	ctx := context.Background()
 	cs := fake.NewClientset()
 	store := &Store{Client: cs, Namespace: "n", Name: "state"}

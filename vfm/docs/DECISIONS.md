@@ -2299,3 +2299,89 @@ time each and, asked by 100 people, used most of the process's CPU, starving eve
 - Memory: at most 500 cached answers per replica, cleared when exceeded; an answer is up to ~1 MB at 200 clusters.
 - Not addressed: the reports still cost 0.4–1 s each on a miss; a precomputed table is the next step if the 30 s window is not
   enough at larger sizes.
+
+## ADR-046 — Cluster-scoped restores, agent budgets and production Redis (threat-model G-4, G-10, G-11, G-13)
+
+### Context
+
+Four open gaps in `THREAT_MODEL.md`. Velero v1.18.4 treats `RestoreSpec.IncludeClusterResources == nil` as **true**, so a restore
+with the field unset can recreate CRDs, ClusterRoleBindings and PersistentVolumes even for a namespace-scoped restorer.
+
+### Decision
+
+- **G-4**: the agent policy gains `allow_cluster_scoped_restore` (proto `AgentPolicy.deny_cluster_scoped_restore = 7`, inverted so an
+  older agent that does not send it decodes as "allowed", its old behaviour). When denied, the agent refuses any restore whose
+  `includeClusterResources` is not explicitly false (`policy.CheckRestoreClusterScope`). Chart value `policy.allowClusterScopedRestore`,
+  default **true** (owner decision B1). An agent with no policy at all reads as restricted (denied).
+- **G-10**: each agent stream has a token bucket (`AGENT_MESSAGES_PER_SECOND` 100, `AGENT_MESSAGE_BURST` 1000). Over it the control plane
+  closes the stream with `RESOURCE_EXHAUSTED`; the agent reconnects with backoff. Log chunks are exempt (they have their own byte caps).
+- **G-11**: `Enroll` is limited per source address (Redis counter `vfm:rl:enroll:<ip>`, 30/min) and by an in-flight cap per replica (16).
+  The in-flight counter is taken before the first `await`, otherwise concurrent calls all pass the check.
+- **G-13**: with `NODE_ENV=production` the environment schema refuses a Redis URL without a password; a URL that is not `rediss://` is a warning.
+
+### Consequences
+
+Each has a test that fails without it (token bucket unit tests with an epsilon for float refill, `streams.e2e`, gateway enrol tests,
+`env.schema` tests, agent policy tests, chart test). A very large first rollout behind one NAT needs `gatewayEnrollPerMinute` raised.
+
+## ADR-047 — The control plane as one image, a chart, and the SPA served by the server (M8)
+
+### Decision
+
+- `server/Dockerfile` builds the API, the gateway and the built web app into one non-root, read-only-root-filesystem image; the server serves the
+  SPA from `WEB_DIST_DIR` under the same security headers and CSP as the API (`web-static.ts`). HTTP keep-alive is 65 s (above common load balancers' 60 s).
+- `deploy/helm/vfm-control-plane`: 3 replicas (HPA 3–6, PDB), `DATABASE_POOL_MAX` 15 per replica so that replicas × pool stays below Postgres'
+  100 connections, NetworkPolicy, migration Job, optional retention CronJob, examples. The chart has a rendered-manifest hardening test.
+- Air-gap: `deploy/airgap/*` loads images from a tar and `verify-airgap.sh` installs with `docker network --internal` so any outbound call fails.
+- Upgrade: migrations are expand-only for one release; `verify-upgrade.sh` rehearses old image → migrate → new image under traffic.
+  `migrations.test.ts` rejects destructive statements.
+
+### Consequences
+
+Replica default 3 follows the four-replica load run; three exactly was not measured (owner list C9).
+
+## ADR-048 — Retention (R-101)
+
+### Decision
+
+A daily job (one replica per interval, a Redis lock) deletes: events > 1 h, finished commands > 180 d, expired cached files, soft-deleted
+objects > 7 d (backups 400 d so the 366-day reports still see them), and audit events older than each organization's own
+`auditRetentionDays` (default 400). With `auditExportBeforeDelete` the rows are written to CSV (`AUDIT_EXPORT_DIR`, `.partial` then rename) before deletion,
+and an organization that asks for export but cannot have it loses nothing (the run is reported `partial`).
+The audit table stays append-only: a trigger permits DELETE only to role `vfm_audit_retention`; the purge runs `SET LOCAL ROLE` to it, in batches
+of 5 000, with the organization id an explicit statement argument (raw SQL is pinned by `org-scope.test.ts`).
+`node dist/retention.js` runs the same job from a CronJob with a separate login.
+
+### Consequences
+
+Whether the application's own login should be a member of the role is owner decision C10.
+
+## ADR-049 — Backup download is a signed link, never the data (R-055)
+
+### Decision
+
+`POST /orgs/:o/clusters/:c/backups/:name/download-url` is gated on the organization setting (default off), `backup:download` over every namespace
+of the backup, and sudo. It sends `GetBackupDownloadUrl`; the agent creates a Velero `DownloadRequest` and returns the signed URL. The control plane holds the
+URL in Redis only for the command id, hands it to the single waiting request once (`takeSignedUrl`), responds `Cache-Control: no-store`, and records
+only `{linkIssued: true}`. Only http(s) links living < 30 minutes are accepted; a link on any other command's result is ignored.
+`readOnly` agents refuse it.
+
+## ADR-050 — An agent adopts a new bootstrap token after it was disabled (found by golden path 11)
+
+### Context
+
+Disabling a cluster revokes its identity. Re-enabling issues a new bootstrap token, but the agent kept its stored (revoked) identity and was refused forever.
+
+### Decision
+
+The agent stores the digest of the token it enrolled with (`enrolled-with` in its Secret). If the configured token has a different digest and the stored
+identity is refused, it enrols with the new token (`tryNewToken`) and renewals carry `EnrolledWith`. A refused token is remembered so it is not retried every backoff.
+
+## ADR-051 — Single-node kind and a seed for development (R-129/R-130 substitute, R-131)
+
+### Decision
+
+Blocker B-2 (inotify limits need root) is sidestepped with one single-node kind cluster (`VFM_DEV_SOLO=1`, `deploy/dev/kind/vfm-a-solo.yaml`). Golden paths run against it
+(`e2e/golden.mjs`), with the control plane as containers on the kind network (`e2e/stack.sh`). Agent images get a unique tag per load (kind does not re-pull a reused tag).
+`pnpm run seed` (compiled, because `tsx` emits no decorator metadata) creates the development accounts through the server's own services and refuses to run in production.
+The two-cluster `make dev-up` remains for hosts that can raise the limits.

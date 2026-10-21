@@ -370,11 +370,11 @@ func TestObservabilityObjectsCarryTheShippedFiles(t *testing.T) {
 	}
 	// The chart's copies are the files the project ships and tests; they must not drift.
 	for _, f := range []string{"vfm-alerts.rules.yaml", "vfm-control-plane.dashboard.json"} {
-		a, err := os.ReadFile(filepath.Join(obsDir, f))
+		a, err := os.ReadFile(filepath.Join(obsDir, f)) //nolint:gosec // a fixed set of repository files
 		if err != nil {
 			t.Fatal(err)
 		}
-		b, err := os.ReadFile(filepath.Join(chartDir, "files", f))
+		b, err := os.ReadFile(filepath.Join(chartDir, "files", f)) //nolint:gosec // a fixed set of repository files
 		if err != nil {
 			t.Fatal(err)
 		}
