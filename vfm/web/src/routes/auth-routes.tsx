@@ -16,6 +16,7 @@ import { ScheduleWizardPage } from '@/pages/schedule-wizard';
 import { BackupsPage, RestoresPage, SchedulesPage, StoragePage } from '@/pages/cluster-lists';
 import { ClusterPage } from '@/pages/cluster-page';
 import { ClustersPage } from '@/pages/clusters-page';
+import { FleetBackupsPage, FleetRestoresPage, FleetSchedulesPage } from '@/pages/fleet-lists';
 import { TokensPage } from '@/pages/tokens-page';
 import { ApprovalsPage } from '@/pages/approvals-page';
 import { ReportsPage } from '@/pages/reports-page';
@@ -98,6 +99,15 @@ export const approvalsRoute = memberRoute('/approvals', (id) => <ApprovalsPage o
 export const reportsRoute = memberRoute('/reports', (id) => <ReportsPage orgId={id} />);
 export const tokensRoute = memberRoute('/tokens', (id) => <TokensPage orgId={id} />);
 export const clustersRoute = memberRoute('/clusters', (id) => <ClustersPage orgId={id} />);
+export const fleetBackupsRoute = memberRoute('/fleet/backups', (id) => (
+  <FleetBackupsPage orgId={id} />
+));
+export const fleetRestoresRoute = memberRoute('/fleet/restores', (id) => (
+  <FleetRestoresPage orgId={id} />
+));
+export const fleetSchedulesRoute = memberRoute('/fleet/schedules', (id) => (
+  <FleetSchedulesPage orgId={id} />
+));
 
 export const clusterRoute = createRoute({
   getParentRoute: () => rootRoute,

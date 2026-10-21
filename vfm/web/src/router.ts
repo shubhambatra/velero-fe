@@ -26,6 +26,9 @@ import {
   editSnapshotLocationRoute,
   clusterRoute,
   clustersRoute,
+  fleetBackupsRoute,
+  fleetRestoresRoute,
+  fleetSchedulesRoute,
   loginRoute,
   membersRoute,
   createOrgRoute,
@@ -43,6 +46,9 @@ import { rootRoute } from '@/routes/root-route';
 /** Exported so tests can mount the same tree with a memory history. */
 export const routeTree = rootRoute.addChildren([
   overviewRoute,
+  fleetBackupsRoute,
+  fleetRestoresRoute,
+  fleetSchedulesRoute,
   loginRoute,
   setupRoute,
   mfaRoute,
