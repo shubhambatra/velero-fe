@@ -112,7 +112,7 @@ test-go: ## Run Go unit tests
 	else \
 		command -v go >/dev/null 2>&1 || { \
 			echo 'missing prerequisite: go' >&2; \
-			echo '  install: https://go.dev/dl/ (1.27.2 or newer)' >&2; \
+			echo '  install: https://go.dev/dl/ (1.27.3 or newer)' >&2; \
 			exit 1; \
 		}; \
 		cd $(AGENT_DIR) && go test -count=1 ./...; \

@@ -39,7 +39,7 @@ defaults:
 
 env:
   # Pinned in vfm/docs/DECISIONS.md ADR-002 and ADR-004.
-  GO_VERSION: '1.27.2'
+  GO_VERSION: '1.27.3'
   NODE_VERSION: '22'
   # An exact release, not @latest: a scanner that changes under a build is a build that changes.
   # Chosen at least two weeks after release; raise it deliberately.

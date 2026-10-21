@@ -6,7 +6,7 @@
 # Both base images are pinned by digest so a rebuild cannot change under us; bump
 # them deliberately (and re-run govulncheck) rather than by floating a tag.
 
-FROM golang:1.27.2-bookworm@sha256:5cf287a799e6b94384bad13d16b14904c531f51ba65792237e122ce42b392f61 AS build
+FROM golang:1.27.3-bookworm@sha256:21ade014faf952365b9ecbd8dbdb87176fbacb82fac9fb132d9f2a7b8cc3f132 AS build
 WORKDIR /src
 # Dependencies first, so a source-only change reuses the layer.
 COPY go.mod go.sum ./
