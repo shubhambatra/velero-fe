@@ -1,16 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 
 import { PRODUCT_NAME } from '@vfm/shared';
 
+import { ClusterFilterBar } from '@/components/cluster-filter-bar';
 import { HealthIndicator } from '@/components/health-indicator';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorNote } from '@/components/ui/field';
 import { API_BASE_URL } from '@/lib/api';
-import { api, errorMessage } from '@/lib/client';
-import { useRefreshInterval } from '@/lib/events';
+import { errorMessage } from '@/lib/client';
 import {
   needsAttention,
   phaseTone,
@@ -18,9 +17,17 @@ import {
   timeAgo,
   totals,
   type Attention,
-  type FleetCluster,
 } from '@/lib/fleet';
+import {
+  byUrgency,
+  clusterHealth,
+  filterClusters,
+  healthCounts,
+  NO_FILTER,
+  type ClusterFilter,
+} from '@/lib/fleet-view';
 import { useOrgs } from '@/lib/session';
+import { useFleet } from '@/lib/use-fleet';
 import { canAdminister } from '@/lib/types';
 
 const SEVERITY: Record<
@@ -52,6 +59,13 @@ function Figure({
   );
 }
 
+const HEALTH_BORDER: Record<ReturnType<typeof clusterHealth>, string> = {
+  healthy: 'border-green-600/50',
+  warning: 'border-yellow-500',
+  critical: 'border-red-600',
+  offline: 'border-control',
+};
+
 /** A figure that is `null` is one the caller may not see in full, so it is not a number. */
 const figure = (value: number | null): string => (value === null ? '—' : value.toString());
 
@@ -62,19 +76,15 @@ const figure = (value: number | null): string => (value === null ? '—' : value
 export function OverviewPage(): ReactElement {
   const { active } = useOrgs(true);
   const orgId = active?.id;
-  const interval = useRefreshInterval();
+  const fleet = useFleet(orgId);
+  const [filter, setFilter] = useState<ClusterFilter>(NO_FILTER);
 
-  const fleet = useQuery({
-    queryKey: ['org', orgId, 'fleet'],
-    enabled: orgId !== undefined,
-    refetchInterval: interval,
-    queryFn: ({ signal }) =>
-      api<{ clusters: FleetCluster[] }>(`/orgs/${orgId ?? ''}/fleet`, { signal }),
-  });
-
-  const clusters = fleet.data?.clusters;
-  const attention = clusters === undefined ? [] : needsAttention(clusters);
-  const sums = clusters === undefined ? undefined : totals(clusters);
+  const everyCluster = fleet.data?.clusters;
+  // The filter narrows what is shown below the totals; the totals and the attention list stay fleet-wide.
+  const clusters = everyCluster === undefined ? undefined : filterClusters(everyCluster, filter);
+  const attention = everyCluster === undefined ? [] : needsAttention(everyCluster);
+  const sums = everyCluster === undefined ? undefined : totals(everyCluster);
+  const health = everyCluster === undefined ? undefined : healthCounts(everyCluster);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
@@ -96,7 +106,7 @@ export function OverviewPage(): ReactElement {
         </Card>
       )}
 
-      {clusters !== undefined && sums !== undefined && clusters.length === 0 && (
+      {everyCluster !== undefined && sums !== undefined && everyCluster.length === 0 && (
         <Card>
           <CardHeader>
             <CardTitle>No clusters yet</CardTitle>
@@ -117,137 +127,167 @@ export function OverviewPage(): ReactElement {
         </Card>
       )}
 
-      {clusters !== undefined && sums !== undefined && clusters.length > 0 && (
-        <>
-          <section aria-label="Fleet totals" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Figure
-              label="Clusters"
-              value={`${sums.connected.toString()} / ${sums.clusters.toString()}`}
-              hint="connected"
-            />
-            <Figure label="Backups" value={figure(sums.backups)} />
-            <Figure
-              label="Failed backups"
-              value={figure(sums.failedBackups)}
-              hint="failed or partially failed"
-            />
-            <Figure
-              label="Unavailable storage"
-              value={figure(sums.unavailableStorage)}
-              hint="backup locations"
-            />
-          </section>
+      {clusters !== undefined &&
+        everyCluster !== undefined &&
+        sums !== undefined &&
+        health !== undefined &&
+        everyCluster.length > 0 && (
+          <>
+            <section aria-label="Fleet totals" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Figure
+                label="Clusters"
+                value={`${sums.connected.toString()} / ${sums.clusters.toString()}`}
+                hint="connected"
+              />
+              <Figure label="Backups" value={figure(sums.backups)} />
+              <Figure
+                label="Failed backups"
+                value={figure(sums.failedBackups)}
+                hint="failed or partially failed"
+              />
+              <Figure
+                label="Unavailable storage"
+                value={figure(sums.unavailableStorage)}
+                hint="backup locations"
+              />
+            </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Needs attention</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {attention.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nothing needs attention.</p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {attention.map((a) => (
-                    <li key={a.key} className="flex flex-wrap items-center gap-2 text-sm">
-                      <Badge tone={SEVERITY[a.severity].tone}>{SEVERITY[a.severity].label}</Badge>
-                      <Link
-                        to="/clusters/$clusterId"
-                        params={{ clusterId: a.clusterId }}
-                        className="font-medium underline"
-                      >
-                        {a.clusterName}
-                      </Link>
-                      <span>{a.message}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+            <section aria-label="Cluster health" className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <h2 className="font-semibold">Health</h2>
+                <Badge tone="ok">{`${health.healthy.toString()} healthy`}</Badge>
+                <Badge tone="warn">{`${health.warning.toString()} warning`}</Badge>
+                <Badge tone="error">{`${health.critical.toString()} critical`}</Badge>
+                <Badge tone="neutral">{`${health.offline.toString()} offline`}</Badge>
+              </div>
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                {[...everyCluster].sort(byUrgency).map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      to="/clusters/$clusterId"
+                      params={{ clusterId: c.id }}
+                      aria-label={`${c.name}: ${clusterHealth(c)}`}
+                      className={`flex flex-col gap-1 rounded-md border p-2 text-sm hover:bg-muted ${HEALTH_BORDER[clusterHealth(c)]}`}
+                    >
+                      <span className="truncate font-medium">{c.name}</span>
+                      <span className="text-xs text-muted-foreground">{clusterHealth(c)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Clusters</CardTitle>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr>
-                    <th className="p-2">Cluster</th>
-                    <th className="p-2">Status</th>
-                    <th className="p-2">Velero</th>
-                    <th className="p-2">Last backup</th>
-                    <th className="p-2">Schedules</th>
-                    <th className="p-2">Storage</th>
-                    <th className="p-2">Agent</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clusters.map((c) => (
-                    <tr key={c.id} className="border-t border-control">
-                      <td className="p-2 font-medium">
+            <Card>
+              <CardHeader>
+                <CardTitle>Needs attention</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {attention.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nothing needs attention.</p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {attention.map((a) => (
+                      <li key={a.key} className="flex flex-wrap items-center gap-2 text-sm">
+                        <Badge tone={SEVERITY[a.severity].tone}>{SEVERITY[a.severity].label}</Badge>
                         <Link
                           to="/clusters/$clusterId"
-                          params={{ clusterId: c.id }}
-                          className="underline"
+                          params={{ clusterId: a.clusterId }}
+                          className="font-medium underline"
                         >
-                          {c.name}
+                          {a.clusterName}
                         </Link>
-                      </td>
-                      <td className="p-2">
-                        <Badge tone={STATUS_TONE[c.status]}>{c.status.toLowerCase()}</Badge>
-                      </td>
-                      <td className="p-2">{c.veleroVersion ?? '—'}</td>
-                      <td className="p-2">
-                        {c.backups === null ? (
-                          <span title="You do not have access to backups on this cluster">—</span>
-                        ) : c.backups.last === null ? (
-                          'none yet'
-                        ) : (
-                          <span className="flex flex-wrap items-center gap-2">
-                            <Badge tone={phaseTone(c.backups.last.phase)}>
-                              {c.backups.last.phase ?? 'Unknown'}
-                            </Badge>
-                            <span className="text-muted-foreground">
-                              {timeAgo(c.backups.last.completedAt)}
-                            </span>
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-2">
-                        {c.schedules === null ? (
-                          '—'
-                        ) : c.schedules.failing > 0 ? (
-                          <Badge tone="warn">{`${c.schedules.failing.toString()} invalid`}</Badge>
-                        ) : (
-                          `${c.schedules.total.toString()} ok`
-                        )}
-                      </td>
-                      <td className="p-2">
-                        {c.storage === null ? (
-                          '—'
-                        ) : c.storage.unavailable > 0 ? (
-                          <Badge tone="error">{`${c.storage.unavailable.toString()} unavailable`}</Badge>
-                        ) : (
-                          `${c.storage.available.toString()} / ${c.storage.total.toString()} available`
-                        )}
-                      </td>
-                      <td className="p-2">
-                        {c.agentVersion ?? '—'}
-                        {c.agentUpdateAvailable && (
-                          <Badge tone="warn" className="ml-2">
-                            update available
-                          </Badge>
-                        )}
-                      </td>
+                        <span>{a.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{`Clusters (${clusters.length.toString()} of ${everyCluster.length.toString()})`}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 overflow-x-auto">
+                <ClusterFilterBar clusters={everyCluster} value={filter} onChange={setFilter} />
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr>
+                      <th className="p-2">Cluster</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2">Velero</th>
+                      <th className="p-2">Last backup</th>
+                      <th className="p-2">Schedules</th>
+                      <th className="p-2">Storage</th>
+                      <th className="p-2">Agent</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        </>
-      )}
+                  </thead>
+                  <tbody>
+                    {clusters.map((c) => (
+                      <tr key={c.id} className="border-t border-control">
+                        <td className="p-2 font-medium">
+                          <Link
+                            to="/clusters/$clusterId"
+                            params={{ clusterId: c.id }}
+                            className="underline"
+                          >
+                            {c.name}
+                          </Link>
+                        </td>
+                        <td className="p-2">
+                          <Badge tone={STATUS_TONE[c.status]}>{c.status.toLowerCase()}</Badge>
+                        </td>
+                        <td className="p-2">{c.veleroVersion ?? '—'}</td>
+                        <td className="p-2">
+                          {c.backups === null ? (
+                            <span title="You do not have access to backups on this cluster">—</span>
+                          ) : c.backups.last === null ? (
+                            'none yet'
+                          ) : (
+                            <span className="flex flex-wrap items-center gap-2">
+                              <Badge tone={phaseTone(c.backups.last.phase)}>
+                                {c.backups.last.phase ?? 'Unknown'}
+                              </Badge>
+                              <span className="text-muted-foreground">
+                                {timeAgo(c.backups.last.completedAt)}
+                              </span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {c.schedules === null ? (
+                            '—'
+                          ) : c.schedules.failing > 0 ? (
+                            <Badge tone="warn">{`${c.schedules.failing.toString()} invalid`}</Badge>
+                          ) : (
+                            `${c.schedules.total.toString()} ok`
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {c.storage === null ? (
+                            '—'
+                          ) : c.storage.unavailable > 0 ? (
+                            <Badge tone="error">{`${c.storage.unavailable.toString()} unavailable`}</Badge>
+                          ) : (
+                            `${c.storage.available.toString()} / ${c.storage.total.toString()} available`
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {c.agentVersion ?? '—'}
+                          {c.agentUpdateAvailable && (
+                            <Badge tone="warn" className="ml-2">
+                              update available
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </>
+        )}
 
       <Card>
         <CardHeader>
