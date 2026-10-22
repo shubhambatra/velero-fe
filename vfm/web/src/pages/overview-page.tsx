@@ -3,6 +3,7 @@ import { useState, type ReactElement } from 'react';
 
 import { PRODUCT_NAME } from '@vfm/shared';
 
+import { FleetCharts } from '@/components/fleet-charts';
 import { ClusterFilterBar } from '@/components/cluster-filter-bar';
 import { HealthIndicator } from '@/components/health-indicator';
 import { Badge } from '@/components/ui/badge';
@@ -151,6 +152,8 @@ export function OverviewPage(): ReactElement {
                 hint="backup locations"
               />
             </section>
+
+            {orgId !== undefined && <FleetCharts orgId={orgId} clusters={everyCluster} />}
 
             <section aria-label="Cluster health" className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2 text-sm">

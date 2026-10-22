@@ -1,17 +1,7 @@
-services:
-  velero-ui:
-    image: otwld/velero-ui:latest
-    container_name: velero-ui
-    restart: unless-stopped
-    ports:
-      - "3333:3000"
-    environment:
-      KUBE_CONFIG_PATH: /app/.kube/config
-      # Uncomment and set this if your kubeconfig has multiple contexts
-      # (local, remote, or both) and you want Velero UI to use a specific one.
-      # KUBE_CONTEXT: my-context
-    volumes:
-      # Points to your local kubeconfig by default. To manage a remote
-      # cluster instead, point this at a kubeconfig containing a context
-      # for that cluster — see /getting-started/remote-cluster.
-      - ~/.kube/config:/app/.kube/config:ro
+# `docker compose up -d --build` starts the Velero Fleet Manager (fleet UI at http://localhost:3000).
+# First visit shows Setup; the one-time token is in the control-plane log:
+#   docker compose logs control-plane | grep -A8 "no users yet"
+# The original single-cluster Velero UI is kept in docker-compose.legacy.yml:
+#   docker compose -f docker-compose.legacy.yml [-f docker-compose.legacy.override.yml] up -d
+include:
+  - path: vfm/deploy/quickstart/compose.yml

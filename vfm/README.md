@@ -63,7 +63,7 @@ All commands run from `vfm/` unless stated. Run `make setup` once first (install
 ### Everything in Docker (quickest)
 
 ```bash
-docker compose -f deploy/quickstart/compose.yml up -d --build
+docker compose -f deploy/quickstart/compose.yml up -d --build   # or `docker compose up -d --build` at the repository root
 docker compose -f deploy/quickstart/compose.yml logs control-plane | grep -A8 "no users yet"   # one-time setup token
 ```
 

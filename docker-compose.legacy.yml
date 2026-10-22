@@ -1,0 +1,17 @@
+services:
+  velero-ui:
+    image: otwld/velero-ui:latest
+    container_name: velero-ui
+    restart: unless-stopped
+    ports:
+      - "3333:3000"
+    environment:
+      KUBE_CONFIG_PATH: /app/.kube/config
+      # Uncomment and set this if your kubeconfig has multiple contexts
+      # (local, remote, or both) and you want Velero UI to use a specific one.
+      # KUBE_CONTEXT: my-context
+    volumes:
+      # Points to your local kubeconfig by default. To manage a remote
+      # cluster instead, point this at a kubeconfig containing a context
+      # for that cluster — see /getting-started/remote-cluster.
+      - ~/.kube/config:/app/.kube/config:ro
