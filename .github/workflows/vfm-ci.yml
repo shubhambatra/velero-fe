@@ -1,11 +1,11 @@
 name: VFM CI
 
 # Velero Fleet Manager lives in the vfm/ subtree alongside the legacy
-# application (see vfm/docs/DECISIONS.md ADR-003). This workflow is
+# application (see vfm/DOCUMENTATION.md section 8, ADR-003). This workflow is
 # path-filtered so legacy-only commits are unaffected, and vice versa.
 #
 # BRANCH PROTECTION: these checks must be marked *required* on main, or a red scan
-# does not stop a merge (threat model G-15, vfm/docs/THREAT_MODEL.md):
+# does not stop a merge (threat model G-15, vfm/DOCUMENTATION.md section 7):
 #   - "TypeScript lint, typecheck and tests"
 #   - "Go lint and tests"            (includes the agent image Trivy scan and its SBOM)
 #   - "Dependency vulnerability scan" (pnpm audit, govulncheck, Trivy filesystem scan)
@@ -38,7 +38,7 @@ defaults:
     working-directory: vfm
 
 env:
-  # Pinned in vfm/docs/DECISIONS.md ADR-002 and ADR-004.
+  # Pinned in vfm/DOCUMENTATION.md section 8, ADR-002 and ADR-004.
   GO_VERSION: '1.27.3'
   NODE_VERSION: '22'
   # An exact release, not @latest: a scanner that changes under a build is a build that changes.
@@ -100,7 +100,7 @@ jobs:
               echo '`vfm/agent/go.mod` exists but `go.sum` does not, so modules'
               echo 'cannot be verified and `go build` would fail. Run'
               echo '`go mod tidy` in `vfm/agent` and commit `go.sum` to activate'
-              echo 'these jobs — see blocker B-1 in DEVELOPMENT_STATUS.md.'
+              echo 'these jobs — see the Go toolchain prerequisite in vfm/DOCUMENTATION.md.'
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'present=false' >> "$GITHUB_OUTPUT"

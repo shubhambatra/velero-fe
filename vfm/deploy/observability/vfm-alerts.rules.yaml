@@ -17,7 +17,7 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: REST p95 latency above the 300 ms target for 10 minutes.
-          description: See the per-route panel, then docs/LOADTEST.md for what saturates a single replica.
+          description: See the per-route panel, then vfm/DOCUMENTATION.md section 6.12 for what saturates a single replica.
 
       - alert: VfmServerErrors
         expr: sum(rate(vfm_http_request_duration_seconds_count{status_class="5xx"}[5m])) / sum(rate(vfm_http_request_duration_seconds_count[5m])) > 0.05

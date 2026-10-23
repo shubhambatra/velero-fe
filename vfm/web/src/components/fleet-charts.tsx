@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -63,8 +64,9 @@ function Donut({
     <div role="img" aria-label={label} className="h-full w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" innerRadius="55%" outerRadius="85%"></Pie>
+          <Pie data={data} dataKey="value" nameKey="name" innerRadius="50%" outerRadius="80%" />
           <Tooltip />
+          <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
         </PieChart>
       </ResponsiveContainer>
     </div>

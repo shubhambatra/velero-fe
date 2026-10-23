@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import type { ReactElement } from 'react';
+import { useEffect, type ReactElement } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { inputClass } from '@/components/ui/field';
@@ -21,6 +21,15 @@ export function OrgSwitcher({ email }: { email: string }): ReactElement {
       await client.invalidateQueries();
     },
   });
+
+  // The drop-down shows the first org when the session has none active; make that real so
+  // org-scoped pages do not answer "no active organization".
+  const needsActivation = orgs.length > 0 && !orgs.some((o) => o.active);
+  const firstId = orgs[0]?.id;
+  const { mutate: activate } = switchOrg;
+  useEffect(() => {
+    if (needsActivation && firstId !== undefined) activate(firstId);
+  }, [needsActivation, firstId, activate]);
 
   const signOut = useMutation({
     mutationFn: () => api('/auth/logout', { method: 'POST' }),

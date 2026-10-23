@@ -1,8 +1,9 @@
 # Velero UI (personal build)
 
 > **Run the Fleet UI (default):** `docker compose up -d --build`, then open <http://localhost:3000>. It is the multi-cluster
-> Velero Fleet Manager in [`vfm/`](./vfm/README.md), which has run instructions for every service. The original single-cluster
-> UI is still available with `docker compose -f docker-compose.legacy.yml up -d` (port 3333).
+> Velero Fleet Manager in [`vfm/`](./vfm/). **[`vfm/DOCUMENTATION.md`](./vfm/DOCUMENTATION.md)** is the one document for it: a
+> step-by-step install guide with screenshots, how it works, how to run each service, operations and security. The original
+> single-cluster UI (everything below this banner) is still available with `docker compose -f docker-compose.legacy.yml up -d` (port 3333).
 
 A fully realtime lightweight dashboard interface to interact with [Velero (vmware-tanzu)](https://github.com/vmware-tanzu/velero), built on top of the excellent open-source [**otwld/velero-ui**](https://github.com/otwld/velero-ui) project.
 
