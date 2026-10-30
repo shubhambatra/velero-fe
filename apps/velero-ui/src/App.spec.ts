@@ -5,7 +5,11 @@ import App from './App.vue';
 
 describe('App', () => {
   it('renders properly', () => {
-    const wrapper = mount(App, {});
-    expect(wrapper.text()).toContain('Welcome velero-ui 👋');
+    const wrapper = mount(App, {
+      global: {
+        stubs: { 'router-view': { template: '<main>routed view</main>' } },
+      },
+    });
+    expect(wrapper.text()).toContain('routed view');
   });
 });
