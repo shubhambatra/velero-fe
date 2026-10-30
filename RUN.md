@@ -4,7 +4,7 @@ Two applications live in this repository. Run **A** (the Fleet Manager, the defa
 
 |       | App                              | Open                                                           | Sign in                                                                          |
 | ----- | -------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **A** | Velero Fleet Manager             | <http://localhost:3000>                                        | the admin you create on first run, plus two-step verification                    |
+| **A** | Velero Fleet Manager             | <http://kube.dev-backup.com> (or <http://localhost:3000>)      | the admin you create on first run, plus two-step verification                    |
 | **B** | Velero UI with cluster dashboard | <http://kube.dev-backup.com:3333> (or <http://localhost:3333>) | `admin` / `admin` unless you set `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` |
 
 More detail, screenshots and troubleshooting for A: [`vfm/DOCUMENTATION.md`](./vfm/DOCUMENTATION.md).
@@ -28,7 +28,7 @@ Both stacks join one Docker network named `kube.dev-backup.com` (created by whic
 echo "127.0.0.1 kube.dev-backup.com" | sudo tee -a /etc/hosts
 ```
 
-Then use <http://kube.dev-backup.com:3000> (Fleet) and <http://kube.dev-backup.com:3333> (legacy). `localhost` keeps working. The ports are bound to this machine only; to reach them from other machines, change the `127.0.0.1:` bindings in `vfm/deploy/quickstart/compose.yml` and point the name at the machine's address.
+Then use <http://kube.dev-backup.com> (Fleet, port 80) and <http://kube.dev-backup.com:3333> (legacy). `localhost` keeps working. The ports are bound to this machine only; to reach them from other machines, change the `127.0.0.1:` bindings in `vfm/deploy/quickstart/compose.yml` and point the name at the machine's address.
 
 ---
 
