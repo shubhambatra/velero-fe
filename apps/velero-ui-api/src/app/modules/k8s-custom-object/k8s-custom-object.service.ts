@@ -1,15 +1,14 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import {
   ApiException,
   CustomObjectsApi,
-  KubeConfig,
   KubernetesListObject,
   KubernetesObject,
   PatchStrategy,
   setHeaderOptions,
   Watch,
 } from '@kubernetes/client-node';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
+import { KubeClients } from '@velero-ui-api/shared/modules/kube/kube-clients.service';
 import { ConfigService } from '@nestjs/config';
 import {
   catchError,
@@ -30,8 +29,13 @@ import { SearchDto } from '@velero-ui-api/shared/dto/search.dto';
 
 @Injectable()
 export class K8sCustomObjectService {
-  private k8sCustomObjectApi: CustomObjectsApi;
-  private k8sWatcher: Watch;
+  private get k8sCustomObjectApi(): CustomObjectsApi {
+    return this.kube.api(CustomObjectsApi);
+  }
+
+  private get k8sWatcher(): Watch {
+    return this.kube.watch();
+  }
 
   private activeWatchers: Map<
     string,
@@ -39,12 +43,10 @@ export class K8sCustomObjectService {
   > = new Map<string, { name: string; controller: AbortController }>();
 
   constructor(
-    @Inject(K8S_CONNECTION) private readonly k8s: KubeConfig,
+    private readonly kube: KubeClients,
     private logger: AppLogger,
     private configService: ConfigService
   ) {
-    this.k8sCustomObjectApi = this.k8s.makeApiClient(CustomObjectsApi);
-    this.k8sWatcher = new Watch(this.k8s);
   }
 
   public get<T extends KubernetesObject>(

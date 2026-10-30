@@ -1,6 +1,5 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
-import { KubeConfig, KubernetesObject } from '@kubernetes/client-node';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { KubernetesObject } from '@kubernetes/client-node';
 import { catchError, concatMap, filter, from, map, Observable, of } from 'rxjs';
 import {
   Resources,
@@ -29,7 +28,6 @@ import { parseVeleroLog } from '@velero-ui-api/shared/utils/logs.utils';
 @Injectable()
 export class BackupService {
   constructor(
-    @Inject(K8S_CONNECTION) private readonly k8s: KubeConfig,
     private logger: AppLogger,
     private readonly downloadRequestService: DownloadRequestService,
     private readonly httpService: HttpService,

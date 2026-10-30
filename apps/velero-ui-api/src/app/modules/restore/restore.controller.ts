@@ -22,7 +22,7 @@ import { K8sCustomObjectController } from '@velero-ui-api/modules/k8s-custom-obj
 import { CheckPolicies } from '@velero-ui-api/shared/decorators/check-policies.decorator';
 import { AppAbility } from '@velero-ui-api/shared/modules/casl/casl-ability.factory';
 import { Action, VeleroLog } from '@velero-ui/shared-types';
-import { CacheInterceptor } from '@nestjs/cache-manager';
+import { ContextCacheInterceptor } from '@velero-ui-api/shared/modules/kube/context-cache.interceptor';
 
 @Controller(Resources.RESTORE.route)
 @Subject(Resources.RESTORE.plural)
@@ -44,7 +44,7 @@ export class RestoreController extends K8sCustomObjectController<V1Restore> {
   }
 
   @Get('/:name/logs')
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(ContextCacheInterceptor)
   @CheckPolicies((ability: AppAbility) =>
     ability.can(Action.Logs, Resources.RESTORE.plural)
   )

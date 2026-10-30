@@ -710,5 +710,33 @@
         }
       }
     }
+  },
+  "clusters": {
+    "title": "Clusters",
+    "subtitle": "Select a cluster to manage its Velero resources.",
+    "backToClusters": "Clusters",
+    "connected": "Connected",
+    "unreachable": "Unreachable",
+    "default": "Default",
+    "empty": "No clusters yet. Add one to get started.",
+    "add": {
+      "button": "Add cluster",
+      "title": "Add a cluster",
+      "help": "Paste a kubeconfig. Every context in it is added. Credentials must be embedded (token or client certificate data); exec and auth-provider entries are rejected.",
+      "placeholder": "apiVersion: v1\nkind: Config\n...",
+      "submit": "Add",
+      "success": "Cluster added",
+      "readOnly": "Adding clusters needs a managed kubeconfig (KUBE_CONFIG_PATH)."
+    },
+    "delete": {
+      "button": "Delete",
+      "confirm": "Remove cluster \"{name}\" from the dashboard? Velero and its backups on the cluster are not touched.",
+      "success": "Cluster removed"
+    },
+    "error": {
+      "add": "Could not add the cluster",
+      "delete": "Could not remove the cluster",
+      "load": "Could not load the clusters"
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   catchError,
   concatMap,
@@ -32,7 +32,7 @@ import { Socket } from 'socket.io';
 import { ConfigService } from '@nestjs/config';
 import { Writable } from 'stream';
 import { VELERO } from '@velero-ui-api/shared/modules/velero/velero.constants';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
+import { KubeClients } from '@velero-ui-api/shared/modules/kube/kube-clients.service';
 import { VeleroService } from '@velero-ui-api/shared/modules/velero/velero.service';
 import { ServerStatusRequestService } from '@velero-ui-api/modules/server-status-request/server-status-request.service';
 import { V1PluginInfo, V1ServerStatusRequest } from '@velero-ui/velero';
@@ -44,22 +44,29 @@ import {
 
 @Injectable()
 export class SettingsService {
-  private k8sCoreV1Api: CoreV1Api;
+  private get k8sCoreV1Api(): CoreV1Api {
+    return this.kube.api(CoreV1Api);
+  }
+
+  private get k8s(): KubeConfig {
+    return this.kube.config();
+  }
+
+  private get k8sLog(): Log {
+    return new Log(this.k8s);
+  }
+
   private activeServerLogStreams: Map<string, Writable> = new Map<
     string,
     Writable
   >();
-  private k8sLog: Log;
-
   constructor(
-    @Inject(K8S_CONNECTION) private readonly k8s: KubeConfig,
+    private readonly kube: KubeClients,
     private logger: AppLogger,
     private readonly serverStatusRequestService: ServerStatusRequestService,
     private readonly veleroService: VeleroService,
     private configService: ConfigService
   ) {
-    this.k8sCoreV1Api = this.k8s.makeApiClient(CoreV1Api);
-    this.k8sLog = new Log(k8s);
   }
 
   public getCluster(): Observable<ClusterSettings> {

@@ -25,7 +25,7 @@ export const guard: NavigationGuardWithThis<string> = async (
   if (noAuthRequired) {
     localStorage.removeItem('access_token');
     if (to.name === Pages.LOGIN.name) {
-      return { name: Pages.HOME.name };
+      return { name: Pages.CLUSTERS.name };
     }
   } else {
     if (accessToken) {
@@ -42,7 +42,7 @@ export const guard: NavigationGuardWithThis<string> = async (
       }
 
       if (to.name === Pages.LOGIN.name) {
-        return { name: Pages.HOME.name };
+        return { name: Pages.CLUSTERS.name };
       }
     } else {
       if (!to.path.startsWith(Pages.LOGIN.path)) {

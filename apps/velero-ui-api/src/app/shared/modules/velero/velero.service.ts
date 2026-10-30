@@ -1,7 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   CoreV1Api,
-  KubeConfig,
   V1Container,
   V1Pod,
   V1PodList,
@@ -10,23 +9,42 @@ import {
 import { catchError, from, map, Observable, tap } from 'rxjs';
 import { VELERO } from './velero.constants';
 import { ConfigService } from '@nestjs/config';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
+import { KubeClients } from '@velero-ui-api/shared/modules/kube/kube-clients.service';
+import { currentKubeContext } from '@velero-ui-api/shared/modules/kube/kube-context';
 import { AppLogger } from '@velero-ui-api/shared/modules/logger/logger.service';
 
 @Injectable()
 export class VeleroService {
-  private k8sCoreV1Api: CoreV1Api;
-  private podServerName: string;
-  private podVeleroUIName: string;
+  // Pod names are per cluster context, so switching clusters never reuses another cluster's pod.
+  private readonly serverPods = new Map<string, string>();
+  private readonly uiPods = new Map<string, string>();
 
   constructor(
-    @Inject(K8S_CONNECTION) private readonly k8s: KubeConfig,
+    private readonly kube: KubeClients,
     private logger: AppLogger,
     private configService: ConfigService
   ) {
-    this.k8sCoreV1Api = this.k8s.makeApiClient(CoreV1Api);
+    this.findServer().subscribe({ error: () => undefined });
+  }
 
-    this.findServer().subscribe();
+  private get k8sCoreV1Api(): CoreV1Api {
+    return this.kube.api(CoreV1Api);
+  }
+
+  private get podServerName(): string {
+    return this.serverPods.get(currentKubeContext() ?? '');
+  }
+
+  private set podServerName(name: string) {
+    this.serverPods.set(currentKubeContext() ?? '', name);
+  }
+
+  private get podVeleroUIName(): string {
+    return this.uiPods.get(currentKubeContext() ?? '');
+  }
+
+  private set podVeleroUIName(name: string) {
+    this.uiPods.set(currentKubeContext() ?? '', name);
   }
 
   public checkServer(): Observable<string> {

@@ -10,7 +10,7 @@ import {
   RestoresStatusStats,
   RestoresSuccessRateStats,
 } from '@velero-ui/shared-types';
-import { CacheInterceptor } from '@nestjs/cache-manager';
+import { ContextCacheInterceptor } from '@velero-ui-api/shared/modules/kube/context-cache.interceptor';
 import { CheckPolicies } from '@velero-ui-api/shared/decorators/check-policies.decorator';
 import { Subject } from '@velero-ui-api/shared/decorators/subject.decorator';
 import { AppAbility } from '@velero-ui-api/shared/modules/casl/casl-ability.factory';
@@ -18,7 +18,7 @@ import { PluralsNames, Resources } from '@velero-ui/velero';
 
 @Controller('stats')
 @Subject(Resources.BACKUP.plural)
-@UseInterceptors(CacheInterceptor)
+@UseInterceptors(ContextCacheInterceptor)
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}
 

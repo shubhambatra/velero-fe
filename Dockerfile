@@ -6,7 +6,8 @@ COPY dist/apps/velero-ui .
 
 RUN npm ci
 
-RUN chown -R node:node .
+# /app/data holds the managed kubeconfig (clusters added in the UI)
+RUN mkdir -p data && chown -R node:node .
 USER node
 
 ENV NODE_ENV production

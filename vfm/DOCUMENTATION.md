@@ -995,6 +995,13 @@ docker compose -f docker-compose.legacy.yml up -d
 
 The default `docker compose up -d --build` at the repository root runs the Fleet Manager, not this application.
 
+**Multi-cluster dashboard.** After sign-in the legacy UI opens on `/clusters`: one card per kubeconfig context, with Add and Delete. Clicking a card opens the unchanged Velero UI for that cluster; the **Clusters** link in the header returns to the dashboard.
+
+- The selected context travels as the `X-Kube-Context` header (and in the socket handshake). The API accepts only contexts that exist in its managed kubeconfig, keeps Kubernetes clients, pod-name caches and the response cache per context, and answers 400 for anything else.
+- `KUBE_CONFIG_PATH` is the managed kubeconfig. Clusters added in the UI are written to it (mode 0600); it must be writable. `KUBE_CONFIG_SEED_PATH` (the compose file sets it to the host kubeconfig, mounted read-only) is copied there on first start, so the original is never modified. Without `KUBE_CONFIG_PATH` the API runs in-cluster with a single cluster and Add/Delete are disabled.
+- Adding a cluster takes a pasted kubeconfig. `exec` and `auth-provider` users and file-path credentials are rejected (they would run commands or read files on the server), so embed a token or client certificate. Adding and deleting need the `manage all` policy; listing needs read access to backups. Credentials are never returned by the API. Deleting only removes the context from the file.
+- Building the image locally: `NX_LOAD_DOT_ENV_FILES=false nx run-many -t build -p velero-ui velero-ui-api`, then `docker compose -f docker-compose.legacy.yml up -d --build`. A root `.env` with `VITE_API_URL` would otherwise be baked into the bundle.
+
 ---
 
 ## 11. Appendix: where the plan's sections went

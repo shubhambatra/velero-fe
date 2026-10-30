@@ -1,12 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   CustomObjectsApi,
-  KubeConfig,
   KubernetesObject,
   PatchStrategy,
   setHeaderOptions,
 } from '@kubernetes/client-node';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
+import { KubeClients } from '@velero-ui-api/shared/modules/kube/kube-clients.service';
 import {
   catchError,
   concatMap,
@@ -46,16 +45,17 @@ import { BackupService } from '@velero-ui-api/modules/backup/backup.service';
 
 @Injectable()
 export class ScheduleService {
-  private k8sCustomObjectApi: CustomObjectsApi;
+  private get k8sCustomObjectApi(): CustomObjectsApi {
+    return this.kube.api(CustomObjectsApi);
+  }
 
   constructor(
-    @Inject(K8S_CONNECTION) private readonly k8s: KubeConfig,
+    private readonly kube: KubeClients,
     private logger: AppLogger,
     private configService: ConfigService,
     private readonly k8sCustomObjectService: K8sCustomObjectService,
     private readonly backupService: BackupService
   ) {
-    this.k8sCustomObjectApi = this.k8s.makeApiClient(CustomObjectsApi);
   }
 
   public create(data: CreateScheduleDto): Observable<V1Schedule> {

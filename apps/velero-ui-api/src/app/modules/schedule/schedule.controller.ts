@@ -20,7 +20,7 @@ import { K8sCustomObjectController } from '@velero-ui-api/modules/k8s-custom-obj
 import { CheckPolicies } from '@velero-ui-api/shared/decorators/check-policies.decorator';
 import { AppAbility } from '@velero-ui-api/shared/modules/casl/casl-ability.factory';
 import { Action } from '@velero-ui/shared-types';
-import { CacheInterceptor } from '@nestjs/cache-manager';
+import { ContextCacheInterceptor } from '@velero-ui-api/shared/modules/kube/context-cache.interceptor';
 
 @Controller(Resources.SCHEDULE.route)
 @Subject(Resources.SCHEDULE.plural)
@@ -68,7 +68,7 @@ export class ScheduleController extends K8sCustomObjectController<V1Schedule> {
   }
 
   @Get('/:name/stats')
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(ContextCacheInterceptor)
   @CheckPolicies((ability: AppAbility) =>
     ability.can(Action.Read, Resources.SCHEDULE.plural)
   )

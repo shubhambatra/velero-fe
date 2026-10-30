@@ -1,5 +1,6 @@
 import { type App, reactive } from 'vue';
 import { io, type Socket } from 'socket.io-client';
+import { getSelectedCluster } from '@velero-ui-app/utils/cluster.utils';
 
 export interface SocketIO {
   connected: boolean;
@@ -24,7 +25,7 @@ export const resetSocketIOConnection = () => {
     autoConnect: true,
     auth: (cb) => {
       const accessToken = localStorage.getItem('access_token');
-      cb({ token: accessToken });
+      cb({ token: accessToken, context: getSelectedCluster() ?? undefined });
     },
   });
 

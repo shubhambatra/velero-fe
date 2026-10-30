@@ -25,6 +25,7 @@ export const ApiRoutes = {
 };
 
 export const Pages = {
+  CLUSTERS: { name: 'Clusters', path: '/clusters' },
   HOME: { name: 'Dashboard', path: '/dashboard' },
   LOGIN: { name: 'Login', path: '/login' },
   BACKUPS: { name: 'Backups', path: '/backups' },

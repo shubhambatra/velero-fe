@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { forkJoin, from, map, Observable, switchMap } from 'rxjs';
 import { CronExpression, CronExpressionParser } from 'cron-parser';
 import {
@@ -28,21 +28,21 @@ import {
 } from '@velero-ui-api/shared/utils/stats.utils';
 import {
   CoreV1Api,
-  KubeConfig,
   V1Namespace,
   V1NamespaceList,
 } from '@kubernetes/client-node';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
+import { KubeClients } from '@velero-ui-api/shared/modules/kube/kube-clients.service';
 
 @Injectable()
 export class StatsService {
-  private k8sCoreApi: CoreV1Api;
+  private get k8sCoreApi(): CoreV1Api {
+    return this.kube.api(CoreV1Api);
+  }
 
   constructor(
-    @Inject(K8S_CONNECTION) private readonly k8s: KubeConfig,
+    private readonly kube: KubeClients,
     private readonly k8sCustomObjectService: K8sCustomObjectService
   ) {
-    this.k8sCoreApi = this.k8s.makeApiClient(CoreV1Api);
   }
 
   public getBasicStats(): Observable<BasicStats> {

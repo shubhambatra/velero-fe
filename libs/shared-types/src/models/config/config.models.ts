@@ -126,5 +126,6 @@ export interface VeleroConfig {
 
 export interface K8sConfig {
   configPath: string;
+  seedPath?: string;
   context: string;
 }

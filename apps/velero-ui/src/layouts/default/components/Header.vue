@@ -22,6 +22,18 @@
           </router-link>
         </div>
         <div class="flex items-center">
+          <router-link
+            :to="Pages.CLUSTERS.path"
+            class="flex items-center mr-2 px-3 py-2 text-sm font-medium text-gray-700 transition duration-200 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            <FontAwesomeIcon :icon="faServer" class="!w-4 !h-4 mr-2" />
+            <span v-if="selectedCluster" class="mr-2 max-w-40 truncate">{{
+              selectedCluster
+            }}</span>
+            <span class="text-blue-700 dark:text-blue-500">{{
+              t('clusters.backToClusters')
+            }}</span>
+          </router-link>
           <div v-click-out="clickOutsideTimezoneDropdown" class="relative">
             <button
               class="flex ml-3 text-gray-600 transition duration-200 rounded dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 text-sm p-2"
@@ -194,6 +206,7 @@ import {
   faBars,
   faGlobe,
   faLanguage,
+  faServer,
   faUserCircle,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
@@ -201,6 +214,8 @@ import type { Router } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { getUser } from '@velero-ui-app/utils/jwt.utils';
 import { type AppPublicConfig, type JwtPayload } from '@velero-ui/shared-types';
+import { Pages } from '@velero-ui-app/utils/constants.utils';
+import { selectedCluster } from '@velero-ui-app/utils/cluster.utils';
 import { useAppStore } from '@velero-ui-app/stores/app.store';
 import { useI18n } from 'vue-i18n';
 import { getLanguages } from '@velero-ui/i18n';

@@ -5,6 +5,7 @@ import { K8sConfig } from '@velero-ui/shared-types';
 export default registerAs('k8s', (): K8sConfig => {
   return {
     configPath: process.env.KUBE_CONFIG_PATH,
+    seedPath: process.env.KUBE_CONFIG_SEED_PATH,
     context: process.env.KUBE_CONTEXT,
   };
 });

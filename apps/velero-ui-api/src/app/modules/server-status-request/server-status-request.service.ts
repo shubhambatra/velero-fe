@@ -1,8 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
+import { Injectable } from '@nestjs/common';
+import { KubeClients } from '@velero-ui-api/shared/modules/kube/kube-clients.service';
 import {
   CustomObjectsApi,
-  KubeConfig,
   KubernetesObject,
 } from '@kubernetes/client-node';
 import { ConfigService } from '@nestjs/config';
@@ -28,14 +27,15 @@ import { K8sCustomObjectService } from '@velero-ui-api/modules/k8s-custom-object
 
 @Injectable()
 export class ServerStatusRequestService {
-  private k8sCustomObjectApi: CustomObjectsApi;
+  private get k8sCustomObjectApi(): CustomObjectsApi {
+    return this.kube.api(CustomObjectsApi);
+  }
 
   constructor(
-    @Inject(K8S_CONNECTION) private readonly k8s: KubeConfig,
+    private readonly kube: KubeClients,
     private readonly k8sCustomObjectService: K8sCustomObjectService,
     private configService: ConfigService
   ) {
-    this.k8sCustomObjectApi = this.k8s.makeApiClient(CustomObjectsApi);
   }
 
   public create(): Observable<V1ServerStatusRequest> {

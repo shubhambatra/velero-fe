@@ -1,7 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   CoreV1Api,
-  KubeConfig,
   KubernetesListObject,
   V1ConfigMapList,
   V1Namespace,
@@ -9,7 +8,7 @@ import {
   V1Secret,
   V1SecretList,
 } from '@kubernetes/client-node';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
+import { KubeClients } from '@velero-ui-api/shared/modules/kube/kube-clients.service';
 import { from, map, Observable } from 'rxjs';
 import { K8sCustomObjectService } from '@velero-ui-api/modules/k8s-custom-object/k8s-custom-object.service';
 import {
@@ -29,14 +28,15 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class FormService {
-  private k8sCoreApi: CoreV1Api;
+  private get k8sCoreApi(): CoreV1Api {
+    return this.kube.api(CoreV1Api);
+  }
 
   constructor(
-    @Inject(K8S_CONNECTION) private readonly k8s: KubeConfig,
+    private readonly kube: KubeClients,
     private readonly k8sCustomObjectService: K8sCustomObjectService,
     private configService: ConfigService,
   ) {
-    this.k8sCoreApi = this.k8s.makeApiClient(CoreV1Api);
   }
 
   public getNamespaces(): Observable<FormList<string>> {

@@ -10,6 +10,8 @@ import RestoreList from '@velero-ui-app/views/list/RestoreList.vue';
 import StorageLocationList from '@velero-ui-app/views/list/StorageLocationList.vue';
 import Backup from '@velero-ui-app/views/resources/Backup.vue';
 import { Pages } from '../utils/constants.utils';
+import Clusters from '../views/Clusters.vue';
+import { getSelectedCluster } from '../utils/cluster.utils';
 import SnapshotLocationList from '@velero-ui-app/views/list/SnapshotLocationList.vue';
 import Settings from '../views/Settings.vue';
 import Schedule from '@velero-ui-app/views/resources/Schedule.vue';
@@ -35,6 +37,10 @@ const routes: Array<RouteRecordRaw> = [
     redirect: Pages.LOGIN.path,
     path: '/',
     children: [
+      {
+        ...Pages.CLUSTERS,
+        component: Clusters,
+      },
       {
         ...Pages.HOME,
         component: Dashboard,
@@ -231,6 +237,14 @@ const router: Router = createRouter({
 });
 
 router.beforeEach(guard);
+
+// Every Velero page belongs to one cluster: without a selection, pick one first.
+router.beforeEach((to) => {
+  const open: string[] = [Pages.LOGIN.name, Pages.CLUSTERS.name, Pages.NOT_FOUND.name];
+  if (!open.includes(to.name?.toString() ?? '') && !getSelectedCluster()) {
+    return { name: Pages.CLUSTERS.name };
+  }
+});
 
 router.beforeEach((to) => {
   let title = 'kubeVault';

@@ -1,22 +1,19 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { HealthIndicator, HealthIndicatorResult } from '@nestjs/terminus';
-import { K8S_CONNECTION } from '@velero-ui-api/shared/utils/k8s.utils';
-import { Health, KubeConfig } from '@kubernetes/client-node';
-import {from, map, Observable} from 'rxjs';
+import { KubeClients } from '@velero-ui-api/shared/modules/kube/kube-clients.service';
+import { Health } from '@kubernetes/client-node';
+import { from, map, Observable } from 'rxjs';
 import https from 'https';
 
 @Injectable()
 export class K8sHealthIndicator extends HealthIndicator {
-  private health: Health;
-
-  constructor(@Inject(K8S_CONNECTION) private readonly k8s: KubeConfig) {
+  constructor(private readonly kube: KubeClients) {
     super();
-    this.health = new Health(k8s);
   }
 
   public isHealthy(): Observable<HealthIndicatorResult> {
     return from(
-      this.health.readyz({
+      new Health(this.kube.config()).readyz({
         agent: new https.Agent({
           rejectUnauthorized: false,
         }),

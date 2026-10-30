@@ -16,6 +16,7 @@ import {
   CaslAbilityFactory,
 } from '@velero-ui-api/shared/modules/casl/casl-ability.factory';
 import { Action, LogType } from '@velero-ui/shared-types';
+import { runInKubeContext } from '@velero-ui-api/shared/modules/kube/kube-context';
 import { CheckPolicies } from '@velero-ui-api/shared/decorators/check-policies.decorator';
 
 @WebSocketGateway({ cors: true })
@@ -48,7 +49,9 @@ export class SettingsGateway
     @MessageBody('type') type: LogType,
     @MessageBody('name') name: string
   ): void {
-    this.settingsService.openLogsStream(client, type, name);
+    runInKubeContext(client.handshake?.auth?.context, () =>
+      this.settingsService.openLogsStream(client, type, name)
+    ).catch((e: Error) => this.logger.error(e.message, SettingsGateway.name));
   }
 
   @UseGuards(WsJwtAuthGuard)

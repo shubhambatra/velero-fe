@@ -12,6 +12,7 @@ import { K8sCustomObjectService } from '@velero-ui-api/modules/k8s-custom-object
 import { AppAbility, CaslAbilityFactory } from '@velero-ui-api/shared/modules/casl/casl-ability.factory';
 import { PluralsNames } from "@velero-ui/velero";
 import { Action } from "@velero-ui/shared-types";
+import { runInKubeContext } from '@velero-ui-api/shared/modules/kube/kube-context';
 
 @WebSocketGateway({ cors: true })
 export class K8sCustomObjectGateway implements OnGatewayDisconnect {
@@ -41,7 +42,10 @@ export class K8sCustomObjectGateway implements OnGatewayDisconnect {
       throw new WsException('Access denied by policy');
     }
 
-    this.k8sCustomObjectService.watch(client, plural, name, version);
+    // The cluster is fixed per connection: the client reconnects when the user switches cluster.
+    void runInKubeContext(client.handshake?.auth?.context, () =>
+      this.k8sCustomObjectService.watch(client, plural, name, version)
+    );
   }
 
   @UseGuards(WsJwtAuthGuard)

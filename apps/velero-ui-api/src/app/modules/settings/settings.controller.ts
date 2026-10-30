@@ -12,7 +12,7 @@ import { V1PluginInfo } from '@velero-ui/velero';
 import { AddVeleroPluginDTO } from '@velero-ui-api/shared/dto/settings.dto';
 import { CheckPolicies } from '@velero-ui-api/shared/decorators/check-policies.decorator';
 import { AppAbility } from '@velero-ui-api/shared/modules/casl/casl-ability.factory';
-import { CacheInterceptor } from "@nestjs/cache-manager";
+import { ContextCacheInterceptor } from '@velero-ui-api/shared/modules/kube/context-cache.interceptor';
 
 @Controller('/settings')
 export class SettingsController {
@@ -44,7 +44,7 @@ export class SettingsController {
   }
 
   @Get('/velero/plugins')
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(ContextCacheInterceptor)
   @CheckPolicies((ability: AppAbility) => ability.can(Action.Manage, 'all'))
   public getVeleroPlugins(): Observable<V1PluginInfo[]> {
     return this.settingsService.getPlugins();
