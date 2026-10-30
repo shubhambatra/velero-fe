@@ -184,6 +184,8 @@ export class KubeRegistry {
       next.contexts.find((c) => c.name === this.defaultName)?.name ?? next.contexts[0]?.name;
     this.base.loadFromOptions({ ...next, currentContext });
     writeFileSync(this.file as string, this.base.exportConfig(), { mode: 0o600 });
+    // `mode` only applies when the file is created; tighten a pre-existing file too.
+    chmodSync(this.file as string, 0o600);
     this.perContext.clear();
     this.defaultName = currentContext ?? '';
   }
