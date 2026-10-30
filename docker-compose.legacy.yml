@@ -28,4 +28,4 @@ volumes:
 networks:
   # Shared with the Fleet Manager stack (vfm/deploy/quickstart/compose.yml); whichever starts first creates it.
   kube:
-    name: kube.dev-backup.com
+    name: kube.dev-backup.in

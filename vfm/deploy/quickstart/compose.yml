@@ -6,14 +6,14 @@
 #   docker compose -f deploy/quickstart/compose.yml logs control-plane | grep -A8 "no users yet"   # the setup token
 #   open http://localhost:3000
 #
-# Every service joins the Docker network `kube.dev-backup.com`; the control plane is also reachable on it under that name
-# (open http://kube.dev-backup.com once the name resolves to this machine, see RUN.md). http://localhost:3000 keeps working.
+# Every service joins the Docker network `kube.dev-backup.in`; the control plane is also reachable on it under that name
+# (open http://kube.dev-backup.in once the name resolves to this machine, see RUN.md). http://localhost:3000 keeps working.
 #
 # `--build` builds the control-plane image (API, gateway and web UI) from this checkout; run it from the vfm/ directory.
 name: vfm-quickstart
 networks:
   kube:
-    name: kube.dev-backup.com
+    name: kube.dev-backup.in
 services:
   postgres:
     image: postgres:16.15-alpine
@@ -51,7 +51,7 @@ services:
   control-plane:
     networks:
       kube:
-        aliases: [kube.dev-backup.com]
+        aliases: [kube.dev-backup.in]
     build: { context: ../.., dockerfile: server/Dockerfile }
     image: ghcr.io/shubhambatra/vfm-control-plane:0.1.0
     environment:
@@ -62,12 +62,12 @@ services:
       REDIS_URL: redis://:quickstart-only@valkey:6379
       # A throwaway key. Generate your own for anything real: openssl rand -base64 32
       VFM_MASTER_KEY: cXVpY2tzdGFydC1vbmx5LWRvLW5vdC11c2UtaXQhISE=
-      PUBLIC_URL: http://kube.dev-backup.com
-      API_PUBLIC_URL: http://kube.dev-backup.com
-      GATEWAY_PUBLIC_ADDRESS: kube.dev-backup.com:8443
-      GATEWAY_HOSTNAMES: kube.dev-backup.com,localhost,127.0.0.1,control-plane
+      PUBLIC_URL: http://kube.dev-backup.in
+      API_PUBLIC_URL: http://kube.dev-backup.in
+      GATEWAY_PUBLIC_ADDRESS: kube.dev-backup.in:8443
+      GATEWAY_HOSTNAMES: kube.dev-backup.in,localhost,127.0.0.1,control-plane
     ports:
-      - '127.0.0.1:80:3000' # the UI and the API as http://kube.dev-backup.com/
+      - '127.0.0.1:80:3000' # the UI and the API as http://kube.dev-backup.in/
       - '127.0.0.1:3000:3000' # the same, as http://localhost:3000
       - '127.0.0.1:8443:8443' # the agent gateway (mTLS)
     depends_on:
