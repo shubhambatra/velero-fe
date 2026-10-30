@@ -2,10 +2,10 @@
 
 Two applications live in this repository. Run **A** (the Fleet Manager, the default) or **B** (the single-cluster Velero UI with the multi-cluster dashboard), or both; they use different ports.
 
-|       | App                              | Open                    | Sign in                                                                          |
-| ----- | -------------------------------- | ----------------------- | -------------------------------------------------------------------------------- |
-| **A** | Velero Fleet Manager             | <http://localhost:3000> | the admin you create on first run, plus two-step verification                    |
-| **B** | Velero UI with cluster dashboard | <http://localhost:3333> | `admin` / `admin` unless you set `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` |
+|       | App                              | Open                                                           | Sign in                                                                          |
+| ----- | -------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **A** | Velero Fleet Manager             | <http://localhost:3000>                                        | the admin you create on first run, plus two-step verification                    |
+| **B** | Velero UI with cluster dashboard | <http://kube.dev-backup.com:3333> (or <http://localhost:3333>) | `admin` / `admin` unless you set `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` |
 
 More detail, screenshots and troubleshooting for A: [`vfm/DOCUMENTATION.md`](./vfm/DOCUMENTATION.md).
 
@@ -19,6 +19,16 @@ docker compose version    # Compose v2
 Ports **3000** and **8443** (A) or **3333** (B) must be free. For B you also need Node 22 or newer (`node --version`) and a kubeconfig for the cluster(s) you want to manage.
 
 Run every command from the repository root.
+
+## Network and hostname: `kube.dev-backup.com`
+
+Both stacks join one Docker network named `kube.dev-backup.com` (created by whichever stack starts first), and the Fleet control plane answers on it under the same name. Inside Docker nothing else is needed. To open the UI **by that name in your browser**, make it resolve to this machine once:
+
+```bash
+echo "127.0.0.1 kube.dev-backup.com" | sudo tee -a /etc/hosts
+```
+
+Then use <http://kube.dev-backup.com:3000> (Fleet) and <http://kube.dev-backup.com:3333> (legacy). `localhost` keeps working. The ports are bound to this machine only; to reach them from other machines, change the `127.0.0.1:` bindings in `vfm/deploy/quickstart/compose.yml` and point the name at the machine's address.
 
 ---
 
