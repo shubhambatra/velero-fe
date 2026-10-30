@@ -4,7 +4,7 @@ Two applications live in this repository. Run **A** (the Fleet Manager, the defa
 
 |       | App                              | Open                                                          | Sign in                                                                          |
 | ----- | -------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **A** | Velero Fleet Manager             | <http://kube.dev-backup.in> (or <http://localhost:3000>)      | the admin you create on first run, plus two-step verification                    |
+| **A** | Velero Fleet Manager             | <https://kube.dev-backup.in> (or <http://localhost:3000>)     | the admin you create on first run, plus two-step verification                    |
 | **B** | Velero UI with cluster dashboard | <http://kube.dev-backup.in:3333> (or <http://localhost:3333>) | `admin` / `admin` unless you set `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` |
 
 More detail, screenshots and troubleshooting for A: [`vfm/DOCUMENTATION.md`](./vfm/DOCUMENTATION.md).
@@ -22,13 +22,25 @@ Run every command from the repository root.
 
 ## Network and hostname: `kube.dev-backup.in`
 
-Both stacks join one Docker network named `kube.dev-backup.in` (created by whichever stack starts first), and the Fleet control plane answers on it under the same name. Inside Docker nothing else is needed. To open the UI **by that name in your browser**, make it resolve to this machine once:
+Both stacks join one Docker network named `kube.dev-backup.in` (created by whichever stack starts first). A `caddy` service in the Fleet stack serves **https** on port 443 for that name with a self-signed certificate (plain http on port 80 redirects to it), and proxies to the control plane. Inside Docker nothing else is needed. To open the UI **by that name in your browser**, make it resolve to this machine once:
 
 ```bash
 echo "127.0.0.1 kube.dev-backup.in" | sudo tee -a /etc/hosts
 ```
 
-Then use <http://kube.dev-backup.in> (Fleet, port 80) and <http://kube.dev-backup.in:3333> (legacy). `localhost` keeps working. The ports are bound to this machine only; to reach them from other machines, change the `127.0.0.1:` bindings in `vfm/deploy/quickstart/compose.yml` and point the name at the machine's address.
+Then use <https://kube.dev-backup.in> (Fleet) and <http://kube.dev-backup.in:3333> (legacy). `localhost` keeps working. The ports are bound to this machine only; to reach them from other machines, change the `127.0.0.1:` bindings in `vfm/deploy/quickstart/compose.yml` and point the name at the machine's address.
+
+### Trusting the self-signed certificate (optional)
+
+The first visit shows a certificate warning, because the certificate comes from a throwaway CA that Caddy creates. Accept the warning once, or trust that CA so it goes away:
+
+```bash
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./kube-dev-backup-root.crt
+# Ubuntu/Debian system store (curl, wget):
+sudo cp kube-dev-backup-root.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates
+```
+
+Chrome and Firefox keep their own store: import the file under Settings > Privacy and security > Manage certificates > Authorities. The CA is kept in the `caddydata` volume, so it survives restarts; deleting that volume creates a new one. The agent gateway (port 8443) is not behind Caddy: it uses its own mTLS certificate.
 
 ---
 

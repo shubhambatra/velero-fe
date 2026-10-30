@@ -1,0 +1,15 @@
+# TLS for the quickstart. `tls internal` makes Caddy issue a certificate from its own throwaway CA
+# (self-signed, so a browser warns until you trust it; see RUN.md). Plain http on port 80 is redirected here.
+# The agent gateway (8443) is mTLS end to end and is NOT proxied.
+{
+	auto_https disable_redirects
+}
+
+http://kube.dev-backup.in {
+	redir https://kube.dev-backup.in{uri} permanent
+}
+
+https://kube.dev-backup.in {
+	tls internal
+	reverse_proxy control-plane:3000
+}
