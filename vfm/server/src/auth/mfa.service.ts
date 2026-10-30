@@ -1,8 +1,6 @@
 import { FactorThrottleService } from './factor-throttle.service';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
-import { ENV } from '../config/config.module';
-import type { Env } from '../config/env.schema';
 import { CryptoService, EncryptionContext } from '../crypto/crypto.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { mfaObligationFor, type MfaObligation } from './org-mfa-policy';
@@ -33,12 +31,7 @@ export class MfaService {
     private readonly totp: TotpService,
     private readonly recoveryCodes: RecoveryCodesService,
     private readonly throttle: FactorThrottleService,
-    @Inject(ENV) private readonly env: Env,
-  ) {
-    if (env.DEV_DISABLE_MFA) {
-      this.logger.warn('DEV_DISABLE_MFA is on: the second factor is NOT enforced. Local use only.');
-    }
-  }
+  ) {}
 
   /**
    * Generates and stores a candidate secret, returning what the user needs to
@@ -239,9 +232,6 @@ export class MfaService {
    * Evaluated from their org memberships, so it changes when a role changes.
    */
   async obligationFor(userId: string): Promise<MfaObligation> {
-    if (this.env.DEV_DISABLE_MFA) {
-      return { required: false, reason: null };
-    }
     // Every org the user belongs to, on purpose: the obligation is the union
     // across orgs (see mfaObligationFor), so this read is cross-org by nature.
     const user = await this.prisma.unscoped('mfa obligation spans all of a user’s orgs', () =>

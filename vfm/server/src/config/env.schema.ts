@@ -178,11 +178,6 @@ export const envSchema = z
     LDAP_SEARCH_BASE: z.string().min(1).optional(),
     /** `{email}` is replaced by the escaped address. */
     LDAP_USER_FILTER: z.string().min(3).default('(mail={email})'),
-    /** Local development only: skips the mandatory second factor for admins. Refused in production. */
-    DEV_DISABLE_MFA: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform((value) => value === 'true'),
     MAIL_FROM: z.string().min(3).default('Velero Fleet Manager <no-reply@localhost>'),
 
     /**
@@ -336,14 +331,6 @@ export const envSchema = z
     AGENT_MESSAGE_BURST: z.coerce.number().int().min(1).max(1_000_000).default(1_000),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && env.DEV_DISABLE_MFA) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['DEV_DISABLE_MFA'],
-        message:
-          'DEV_DISABLE_MFA must not be set in production: admins always need a second factor.',
-      });
-    }
     // Threat model G-13: sessions, rate limits and the channel that closes agent streams live in
     // Redis, so an open one is a way to read every session and to cut every agent off.
     if (env.NODE_ENV === 'production') {

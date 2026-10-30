@@ -145,8 +145,6 @@ Press **Start setup**. Add the displayed key to an authenticator app (Google Aut
 
 The product also issues single-use recovery codes, stored only as hashes. Keep them somewhere safe.
 
-> **Local-only shortcut.** If you cannot use an authenticator while you are just looking around, `DEV_DISABLE_MFA=true` on the control plane skips the requirement. The server refuses to start with it when `NODE_ENV=production`. Never leave it on in a real installation (§9).
-
 ### Step 6. Create an organization
 
 An organization holds members, teams, clusters, alert rules and an audit trail. Nothing crosses organizations. Open **New organization** in the sidebar (or <http://localhost:3000/admin/orgs/new>), enter a name and a slug (lowercase letters, digits, hyphens; used on the sign-in page) and press **Create organization**.
@@ -677,7 +675,6 @@ The chart sets these; set them directly if you deploy without it. Secrets come f
 | `AUDIT_EXPORT_DIR`                                                                                         | unset               | Where audit events are written (CSV) before deletion; unset means those orgs are never purged |
 | `WEB_DIST_DIR`                                                                                             | set in the image    | Built UI directory; unset serves the API only                                                 |
 | `OTEL_ENABLED`                                                                                             | false               | Tracing hook; needs `@opentelemetry/sdk-node` installed                                       |
-| `DEV_DISABLE_MFA`                                                                                          | false               | Local development only; refused when `NODE_ENV=production`                                    |
 
 ### 6.3 Upgrades and rollback
 
@@ -814,22 +811,23 @@ So **two replicas are not reliably enough; four met every target with margin** (
 
 ### 6.13 Release checklist (definition of done for v1)
 
-| #   | Item                                                                  | Status                                                                             |
-| --- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| 1   | 12 e2e golden paths on the primary and the oldest supported Velero    | Partial: all 13 pass on v1.18.4; oldest minor (v1.16.2) not run                    |
-| 2   | No stubbed or mocked production code paths                            | In progress: envtest and Playwright not built                                      |
-| 3   | Org-isolation tests cover every OpenAPI operation                     | Done (`security-matrix.e2e.test.ts`)                                               |
-| 4   | At least 50 table-driven namespace-scope test cases                   | Done (66 cases)                                                                    |
-| 5   | Credentials grep test (database dump, logs, audit, command payloads)  | Done                                                                               |
-| 6   | Agent RBAC equals the specified rules, checked by rendering the chart | Done                                                                               |
-| 7   | Threat model written, each mitigation verified                        | Done (§7)                                                                          |
-| 8   | Load test meets the targets                                           | Partial: met with 2 and 4 replicas, not on one; 50 k objects and 20 k pods not run |
-| 9   | Zero high or critical vulnerabilities in dependencies and images      | In progress: scans wired in CI; no green run seen; required checks are yours       |
-| 10  | Air-gapped install verified with egress blocked                       | Done (`verify-airgap.sh`)                                                          |
-| 11  | Upgrade from the previous version without downtime                    | Done (`verify-upgrade.sh`)                                                         |
-| 12  | Docs                                                                  | Done (this document, generated `API.md` and `RBAC.md`)                             |
-| 13  | Grafana dashboard and alerts for VFM itself                           | Partial: shipped and tested, not imported into a real Grafana                      |
-| 14  | Restore drill on a real non-kind cluster                              | Not started (needs a real cluster)                                                 |
+| #   | Item                                                                  | Status                                                                                           |
+| --- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1   | 12 e2e golden paths on the primary and the oldest supported Velero    | Partial: all 13 pass on v1.18.4; oldest minor (v1.16.2) not run                                  |
+| 2   | No stubbed or mocked production code paths                            | In progress: envtest and Playwright not built                                                    |
+| 3   | Org-isolation tests cover every OpenAPI operation                     | Done (`security-matrix.e2e.test.ts`)                                                             |
+| 4   | At least 50 table-driven namespace-scope test cases                   | Done (66 cases)                                                                                  |
+| 5   | Credentials grep test (database dump, logs, audit, command payloads)  | Done                                                                                             |
+| 6   | Agent RBAC equals the specified rules, checked by rendering the chart | Done                                                                                             |
+| 7   | Threat model written, each mitigation verified                        | Done (§7)                                                                                        |
+| 8   | Load test meets the targets                                           | Partial: met with 2 and 4 replicas, not on one; 50 k objects and 20 k pods not run               |
+| 9   | Zero high or critical vulnerabilities in dependencies and images      | In progress: scans wired in CI; no green run seen; required checks are yours                     |
+| 10  | Air-gapped install verified with egress blocked                       | Done (`verify-airgap.sh`)                                                                        |
+| 11  | Upgrade from the previous version without downtime                    | Done (`verify-upgrade.sh`)                                                                       |
+| 12  | Docs                                                                  | Done (this document, generated `API.md` and `RBAC.md`)                                           |
+| 13  | Grafana dashboard and alerts for VFM itself                           | Partial: shipped and tested, not imported into a real Grafana                                    |
+| 14  | Restore drill on a real non-kind cluster                              | Not started (needs a real cluster)                                                               |
+| 15  | Two-step verification enforced for platform admins                    | Done in code; verify on the delivered install: sign in as a new admin, expect the enrolment step |
 
 Last full results: TypeScript unit 132 + 1141 + 511 passing, server e2e 670 passing, `go vet`, `go test` and golangci-lint clean, 13 of 13 golden paths. Not run here: the Go race detector (CI only), the oldest-Velero matrix, a real non-kind cluster. The SOW gap-closure work (§1) was typechecked and linted but no tests were written for it.
 
@@ -974,7 +972,7 @@ Defaults taken for the plan's open questions: self-hosted only (Q1); 200 cluster
 | A2     | Restore drill on a real, non-kind cluster (§6.8).                                                                                                                                                                                                                                                                                                        |
 | A3     | Install the agent on one real cluster and confirm it connects.                                                                                                                                                                                                                                                                                           |
 | A4     | Make the five CI jobs required checks in branch protection.                                                                                                                                                                                                                                                                                              |
-| **A5** | **Admin MFA is switched off locally** (`DEV_DISABLE_MFA`, set only by an untracked `docker-compose.override.yml`). **Re-enable before the final setup**: delete the override, and decide whether to keep or remove the flag.                                                                                                                             |
+| **A5** | **Resolved: two-step verification is enforced.** Platform admins must enrol an authenticator on first sign-in, and nothing can switch that off (the temporary development switch was removed). Before delivery, confirm it with release checklist item 15.                                                                                               |
 
 **Decisions with a default in place** (change if you disagree): cluster-scoped restores allowed unless the agent owner forbids it (ADR-046); a user with `storage:write` may point a location at a private address, mitigated by sudo and NetworkPolicy; ingest shares the connection pool with users, so two replicas is the documented minimum; minimum replicas 2 supported, 3 by default; oldest supported Velero v1.16.2; image registry `ghcr.io/shubhambatra/vfm-*`; image signing with cosign not done; reports may be 30 s stale; Redis TLS only warned about, not enforced; audit deletion by the application's own login (stricter option in §6.7); license and product name.
 
